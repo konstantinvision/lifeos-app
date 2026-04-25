@@ -1085,7 +1085,7 @@ function VisionPanel() {
 }
 
 // ── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function App() {
+function App() {
   const [tabIdx,setTabIdx]=useState(0);
   const [dragX,setDragX]=useState(0);
   const [isDrag,setIsDrag]=useState(false);
