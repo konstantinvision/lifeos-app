@@ -1351,3 +1351,14 @@ function App() {
     </div>
   );
 }
+
+// Auto-mount when DOM is ready
+(function mount() {
+  const el = document.getElementById("root");
+  if (!el) { setTimeout(mount, 100); return; }
+  try {
+    ReactDOM.createRoot(el).render(React.createElement(App));
+  } catch(e) {
+    el.innerHTML = "<div style=\"padding:20px;color:red;font-family:monospace\">Error: " + e.message + "</div>";
+  }
+})();

@@ -24,17 +24,6 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="text/babel" data-presets="react" src="App.jsx"></script>
   <script>
-    window.addEventListener('load',()=>{
-      setTimeout(()=>{
-        try{
-          const root=ReactDOM.createRoot(document.getElementById('root'));
-          root.render(React.createElement(App));
-        }catch(e){
-          document.getElementById('root').innerHTML='<div style="padding:20px;color:red;font-family:monospace">Error: '+e.message+'</div>';
-          console.error(e);
-        }
-      },800);
-    });
     if('serviceWorker' in navigator){
       window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
     }
