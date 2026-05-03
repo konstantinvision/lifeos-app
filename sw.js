@@ -1,4 +1,4 @@
-// Life OS Service Worker — v15
+// Life OS Service Worker — v16
 const CACHE_NAME = "lifeos-v10";
 const ALWAYS_FRESH = ["index.html", "sw.js", "./", "/"];
 
