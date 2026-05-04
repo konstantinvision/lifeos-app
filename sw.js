@@ -1,5 +1,5 @@
-// Life OS Service Worker — v23
-const CACHE_NAME = "lifeos-v17";
+// Life OS Service Worker — v24
+const CACHE_NAME = "lifeos-v24";
 const ALWAYS_FRESH = ["index.html", "sw.js", "./", "/"];
 
 // ── INSTALL: cache all app shell assets ──────────────────────────────────────
