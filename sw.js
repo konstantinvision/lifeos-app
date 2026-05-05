@@ -1,6 +1,6 @@
 // Life OS Service Worker — v24
 // ⚠️ CACHE_NAME — меняй ЭТУ строку при каждом обновлении index.html
-const CACHE_NAME = "lifeos-v25";
+const CACHE_NAME = "lifeos-v26";
 const ALWAYS_FRESH = ["index.html", "sw.js", "./", "/", "manifest.json"];
 
 self.addEventListener("install", e => {
