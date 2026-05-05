@@ -637,6 +637,20 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
   const curLib = data?.libHats?.[viewDay]||[];
   const [showLib,setShowLib]=useState(false);
 
+  // Extra task slots — stored per-day so each day is independent
+  const [taskSlotsMap,setTaskSlotsMap]=useState(()=>{
+    try{const v=localStorage.getItem("lifeos_v8_taskSlots");return v?JSON.parse(v):{}}catch(e){return {};}
+  });
+  const saveTaskSlotsMap=(next)=>{setTaskSlotsMap(next);try{localStorage.setItem("lifeos_v8_taskSlots",JSON.stringify(next));}catch(e){};};
+  const getSlotCount=(m,d)=>Math.max(3,taskSlotsMap[m+"-"+d]||3);
+  const addTaskSlot=(m,d)=>{const cur=getSlotCount(m,d);if(cur<10)saveTaskSlotsMap({...taskSlotsMap,[m+"-"+d]:cur+1});};
+
+  // Drag refs at component level
+  const dragIdxRef=useRef(null);
+  const dragOverIdxRef=useRef(null);
+  const [draggingSlot,setDraggingSlot]=useState(null);
+  const rowRefsArr=useRef([]);
+
   const [priChecks,setPriChecks]=useState(()=>{try{const v=localStorage.getItem("lifeos_v8_priChecks");return v?JSON.parse(v):{}}catch(e){return {};}});
   const savePriChecks=(next)=>{setPriChecks(next);try{localStorage.setItem("lifeos_v8_priChecks",JSON.stringify(next));}catch(e){}};
   const toggleCheck=(wn,i)=>{const key="w"+wn;const cur=priChecks[key]||[];const next=cur.includes(i)?cur.filter(x=>x!==i):[...cur,i];savePriChecks({...priChecks,[key]:next});};
@@ -864,93 +878,54 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         </div>
       </div>
 
-      {/* Top 3 Tasks — drag to reorder, swap carries checks atomically */}
+      {/* TOP 3 TASKS — per-day slot count stored in localStorage, drag uses component-level refs */}
       {(()=>{
         const tasks = data?.tasks?.[viewDay]||{};
-        // Count visible slots: always at least 3, expand when filled
-        let visCount = 3;
-        for(let s=4;s<=10;s++){
-          if((tasks["t"+s]||"").trim()) visCount=s;
-        }
-        const [extraSlots, setExtraSlots] = useState(()=>{
-          // If stored data has more than 3 slots, show them
-          let n=0;
-          for(let s=4;s<=10;s++){if((tasks["t"+s]||"").trim()) n=s-3;}
-          return n;
-        });
-        const totalSlots = Math.min(10, 3 + extraSlots);
+        const totalSlots = getSlotCount(viewM,viewDay);
         const slots = Array.from({length:totalSlots},(_,i)=>"t"+(i+1));
         const total = slots.filter(s=>(tasks[s]||"").trim()).length;
         const done  = slots.filter(s=>(tasks[s]||"").trim()&&isTaskChecked(viewM,viewDay,s)).length;
         const allDone = total>=3&&done===total;
 
-        // Drag state
-        const dragIdx = useRef(null);
-        const dragOverIdx = useRef(null);
-        const [dragging, setDragging] = useState(null);
-
-        const swapSlots = (iA, iB) => {
-          const sA = "t"+(iA+1), sB = "t"+(iB+1);
-          const tA = tasks[sA]||"", tB = tasks[sB]||"";
-          const chkA = isTaskChecked(viewM,viewDay,sA);
-          const chkB = isTaskChecked(viewM,viewDay,sB);
-          const carA = isCarried(viewM,viewDay,sA);
-          const carB = isCarried(viewM,viewDay,sB);
-          // Swap texts
+        const swapSlots=(iA,iB)=>{
+          const sA="t"+(iA+1),sB="t"+(iB+1);
+          const tA=tasks[sA]||"",tB=tasks[sB]||"";
+          const chkA=isTaskChecked(viewM,viewDay,sA),chkB=isTaskChecked(viewM,viewDay,sB);
+          const carA=isCarried(viewM,viewDay,sA),carB=isCarried(viewM,viewDay,sB);
           setTask(viewM,viewDay,sA,tB);
           setTask(viewM,viewDay,sB,tA);
-          // Swap checks and carries atomically
-          const keyChkA = viewM+"-"+viewDay+"-"+sA+"-c";
-          const keyChkB = viewM+"-"+viewDay+"-"+sB+"-c";
-          const keyCarA = viewM+"-"+viewDay+"-"+sA+"-r";
-          const keyCarB = viewM+"-"+viewDay+"-"+sB+"-r";
-          const next = {...taskChecks};
-          if(chkB) next[keyChkA]=true; else delete next[keyChkA];
-          if(chkA) next[keyChkB]=true; else delete next[keyChkB];
-          if(carB) next[keyCarA]=true; else delete next[keyCarA];
-          if(carA) next[keyCarB]=true; else delete next[keyCarB];
+          const next={...taskChecks};
+          const kCA=viewM+"-"+viewDay+"-"+sA+"-c",kCB=viewM+"-"+viewDay+"-"+sB+"-c";
+          const kRA=viewM+"-"+viewDay+"-"+sA+"-r",kRB=viewM+"-"+viewDay+"-"+sB+"-r";
+          if(chkB) next[kCA]=true; else delete next[kCA];
+          if(chkA) next[kCB]=true; else delete next[kCB];
+          if(carB) next[kRA]=true; else delete next[kRA];
+          if(carA) next[kRB]=true; else delete next[kRB];
           saveTaskChecks(next);
         };
-
-        const onDragStart = (i) => { dragIdx.current=i; setDragging(i); };
-        const onDragEnter = (i) => { dragOverIdx.current=i; };
-        const onDragEnd   = () => {
-          if(dragIdx.current!==null&&dragOverIdx.current!==null&&dragIdx.current!==dragOverIdx.current){
-            swapSlots(dragIdx.current,dragOverIdx.current);
+        const onDragStart=(i)=>{dragIdxRef.current=i;setDraggingSlot(i);};
+        const onDragEnter=(i)=>{dragOverIdxRef.current=i;};
+        const onDragEnd=()=>{
+          if(dragIdxRef.current!==null&&dragOverIdxRef.current!==null&&dragIdxRef.current!==dragOverIdxRef.current){
+            swapSlots(dragIdxRef.current,dragOverIdxRef.current);
           }
-          dragIdx.current=null; dragOverIdx.current=null; setDragging(null);
+          dragIdxRef.current=null;dragOverIdxRef.current=null;setDraggingSlot(null);
         };
-
-        // Touch drag
-        const touchStartY = useRef(null);
-        const touchStartIdx = useRef(null);
-        const rowRefs = useRef([]);
-        const onTouchStart = (i,e) => {
-          touchStartY.current=e.touches[0].clientY;
-          touchStartIdx.current=i;
-          dragIdx.current=i;
-          setDragging(i);
-        };
-        const onTouchMove = (e) => {
-          if(dragIdx.current===null) return;
+        const onTouchStart=(i,e)=>{dragIdxRef.current=i;setDraggingSlot(i);};
+        const onTouchMove=(e)=>{
+          if(dragIdxRef.current===null) return;
           e.preventDefault();
           const y=e.touches[0].clientY;
-          let closest=dragIdx.current;
-          let minDist=Infinity;
-          rowRefs.current.forEach((ref,ri)=>{
+          let closest=dragIdxRef.current,minDist=Infinity;
+          rowRefsArr.current.forEach((ref,ri)=>{
             if(!ref) return;
             const rect=ref.getBoundingClientRect();
-            const mid=rect.top+rect.height/2;
-            const dist=Math.abs(y-mid);
+            const dist=Math.abs(y-(rect.top+rect.height/2));
             if(dist<minDist){minDist=dist;closest=ri;}
           });
-          dragOverIdx.current=closest;
+          dragOverIdxRef.current=closest;
         };
-        const onTouchEnd = () => { onDragEnd(); };
-
-        const addTask = () => {
-          if(extraSlots<7) setExtraSlots(x=>x+1);
-        };
+        const onTouchEnd=()=>onDragEnd();
 
         return (
           <div style={{background:"#fff",borderRadius:10,border:"2px solid #111",marginBottom:8,overflow:"hidden"}}>
@@ -958,53 +933,37 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
               TOP 3 TASKS — {M_LABEL[viewM]} {viewDay}
             </div>
             {slots.map((slot,idx)=>{
-              const checked = isTaskChecked(viewM,viewDay,slot);
-              const carried = isCarried(viewM,viewDay,slot);
-              const isExtra = idx>=3;
-              const isDraggingThis = dragging===idx;
-              const rowBg = isDraggingThis?"#f0f4ff":checked?"#f0fdf4":carried?"#fff5f5":"#fff";
+              const val=tasks[slot]||"";
+              const checked=isTaskChecked(viewM,viewDay,slot);
+              const carried=isCarried(viewM,viewDay,slot);
+              const isExtra=idx>=3;
+              const isDraggingThis=draggingSlot===idx;
+              const rowBg=isDraggingThis?"#f0f4ff":checked?"#f0fdf4":carried?"#fff5f5":"#fff";
               return (
-                <div
-                  key={slot}
-                  ref={el=>rowRefs.current[idx]=el}
-                  draggable
-                  onDragStart={()=>onDragStart(idx)}
-                  onDragEnter={()=>onDragEnter(idx)}
-                  onDragEnd={onDragEnd}
-                  onDragOver={e=>e.preventDefault()}
-                  style={{display:"flex",alignItems:"center",borderBottom:"1px solid #e8e8e8",padding:"0 6px",gap:6,background:rowBg,borderLeft:isExtra?"3px solid #7c3aed":"none",minHeight:50,opacity:isDraggingThis?0.5:1,transition:"opacity 0.15s"}}
+                <div key={slot} ref={el=>rowRefsArr.current[idx]=el}
+                  draggable onDragStart={()=>onDragStart(idx)} onDragEnter={()=>onDragEnter(idx)}
+                  onDragEnd={onDragEnd} onDragOver={e=>e.preventDefault()}
+                  style={{display:"flex",alignItems:"center",borderBottom:"1px solid #e8e8e8",padding:"0 6px",gap:6,background:rowBg,borderLeft:isExtra?"3px solid #7c3aed":"none",minHeight:50,opacity:isDraggingThis?0.5:1}}
                 >
-                  {/* Drag handle — touch drag starts here */}
-                  <div
-                    onTouchStart={e=>onTouchStart(idx,e)}
-                    onTouchMove={onTouchMove}
-                    onTouchEnd={onTouchEnd}
-                    style={{fontSize:14,color:"#ccc",cursor:"grab",flexShrink:0,padding:"4px 2px",touchAction:"none",userSelect:"none",WebkitUserSelect:"none"}}
-                  >⠿</div>
-                  <button
-                    onClick={()=>toggleTaskCheck(viewM,viewDay,slot)}
-                    style={{width:26,height:26,borderRadius:6,border:"2px solid "+(checked?"#16a34a":"#ddd"),background:checked?"#16a34a":"#fff",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}
-                  >
+                  <div onTouchStart={e=>onTouchStart(idx,e)} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+                    style={{fontSize:14,color:"#ccc",cursor:"grab",flexShrink:0,padding:"4px 2px",touchAction:"none",userSelect:"none",WebkitUserSelect:"none"}}>⠿</div>
+                  <button onClick={()=>toggleTaskCheck(viewM,viewDay,slot)}
+                    style={{width:26,height:26,borderRadius:6,border:"2px solid "+(checked?"#16a34a":"#ddd"),background:checked?"#16a34a":"#fff",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
                     {checked&&<span style={{fontSize:12,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
                   </button>
-                  <input
-                    value={tasks[slot]||""}
+                  <input value={val}
                     onChange={ev=>setTask(viewM,viewDay,slot,ev.target.value)}
                     placeholder={isExtra?"Extra task...":"Task "+(idx+1)+"..."}
                     style={{flex:1,background:"none",border:"none",fontSize:13,fontFamily:"inherit",color:checked?"#9ca3af":isExtra?"#7c3aed":"#111",padding:"12px 0",outline:"none",textDecoration:checked?"line-through":"none",minWidth:0}}
                   />
-                  <button
-                    onClick={()=>toggleCarry(viewM,viewDay,slot)}
-                    style={{width:32,height:32,borderRadius:6,border:"1.5px solid "+(carried?"#ef4444":"#e0e0e0"),background:carried?"#fee2e2":"#f5f5f5",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:14,color:carried?"#ef4444":"#bbb",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}
-                  >→</button>
+                  <button onClick={()=>toggleCarry(viewM,viewDay,slot)}
+                    style={{width:32,height:32,borderRadius:6,border:"1.5px solid "+(carried?"#ef4444":"#e0e0e0"),background:carried?"#fee2e2":"#f5f5f5",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:14,color:carried?"#ef4444":"#bbb",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>→</button>
                 </div>
               );
             })}
             <div style={{padding:"8px 10px",background:allDone?"#f0fdf4":"#fafafa",borderTop:"1px solid #e8e8e8",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <button
-                onClick={addTask}
-                style={{background:"none",border:"1.5px dashed #ccc",borderRadius:6,padding:"6px 16px",fontSize:11,color:"#aaa",cursor:"pointer",fontFamily:"inherit",fontWeight:700,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}
-              >+ task</button>
+              <button onClick={()=>addTaskSlot(viewM,viewDay)}
+                style={{background:"none",border:"1.5px dashed #ccc",borderRadius:6,padding:"6px 16px",fontSize:11,color:"#aaa",cursor:"pointer",fontFamily:"inherit",fontWeight:700,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>+ task</button>
               {total>0&&<span style={{fontSize:10,fontWeight:900,color:allDone?"#16a34a":done>0?"#555":"#ccc"}}>{allDone?"✓✓✓ ALL DONE":`${done}/${total}`}</span>}
             </div>
           </div>
