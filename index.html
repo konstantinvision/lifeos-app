@@ -642,7 +642,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
     try{const v=localStorage.getItem("lifeos_v8_taskSlots");return v?JSON.parse(v):{}}catch(e){return {};}
   });
   const saveTaskSlotsMap=(next)=>{setTaskSlotsMap(next);try{localStorage.setItem("lifeos_v8_taskSlots",JSON.stringify(next));}catch(e){};};
-  const getSlotCount=(m,d)=>Math.max(3,taskSlotsMap[m+"-"+d]||3);
+  const getSlotCount=(m,d,tasks)=>{let filled=0;if(tasks){for(let s=1;s<=10;s++){if((tasks["t"+s]||"").trim())filled=s;}}return Math.max(3,filled,taskSlotsMap[m+"-"+d]||3);};
   const addTaskSlot=(m,d)=>{const cur=getSlotCount(m,d);if(cur<10)saveTaskSlotsMap({...taskSlotsMap,[m+"-"+d]:cur+1});};
 
   // Drag refs at component level
@@ -881,7 +881,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       {/* TOP 3 TASKS — per-day slot count stored in localStorage, drag uses component-level refs */}
       {(()=>{
         const tasks = data?.tasks?.[viewDay]||{};
-        const totalSlots = getSlotCount(viewM,viewDay);
+        const totalSlots = getSlotCount(viewM,viewDay,tasks);
         const slots = Array.from({length:totalSlots},(_,i)=>"t"+(i+1));
         const total = slots.filter(s=>(tasks[s]||"").trim()).length;
         const done  = slots.filter(s=>(tasks[s]||"").trim()&&isTaskChecked(viewM,viewDay,s)).length;
