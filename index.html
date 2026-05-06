@@ -623,7 +623,7 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
   );
 }
 
-function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat}) {
+function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat}) {
   const data = allData[getMI(viewM)];
   const w = Q2_WEEKS[weekIdx];
   const wd = weekDays();
@@ -633,6 +633,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
   const curMood = data?.mood?.[viewDay]||null;
   const curNote = data?.notes?.[viewDay]||"";
   const curHighlight = data?.highlights?.[viewDay]||"";
+  const curWins = data?.wins?.[viewDay]||"";
   const curExtra = data?.extraHats?.[viewDay]||[];
   const curLib = data?.libHats?.[viewDay]||[];
   const [showLib,setShowLib]=useState(false);
@@ -1018,6 +1019,17 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           onChange={e=>setHighlight(viewM,viewDay,e.target.value)}
           placeholder="Best moment or win today..."
           style={{width:"100%",minHeight:52,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#92400e",background:"#fffbeb",lineHeight:1.5}}
+        />
+      </div>
+
+      {/* WINS */}
+      <div style={{background:"#f0fdf4",borderRadius:8,border:"2px solid #22c55e",marginBottom:8,overflow:"hidden"}}>
+        <div style={{padding:"4px 12px",background:"#f0fdf4",borderBottom:"1px solid #bbf7d0",fontSize:8,letterSpacing:3,color:"#14532d",fontWeight:800}}>🏆 WINS</div>
+        <textarea
+          value={curWins}
+          onChange={e=>setWins(viewM,viewDay,e.target.value)}
+          placeholder={"⭐ HAT: what happened — why it matters..."}
+          style={{width:"100%",minHeight:90,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#166534",background:"#f0fdf4",lineHeight:1.6}}
         />
       </div>
 
@@ -2157,6 +2169,7 @@ function App() {
   };
   const setTask=(m,day,f,v)=>mutData(m,d=>({...d,tasks:{...d.tasks,[day]:{...d.tasks[day],[f]:v}}}));
   const setNote=(m,day,v)=>mutData(m,d=>({...d,notes:{...(d.notes||{}),[day]:v}}));
+  const setWins=(m,day,v)=>mutData(m,d=>({...d,wins:{...(d.wins||{}),[day]:v}}));
   // toggleExtraHat/toggleLibHat support both simple toggle (Today panel) and state strings (Extra panel)
   const toggleExtraHat=(m,day,code,stateVal)=>mutData(m,d=>{
     const cur=(d.extraHats||{})[day]||[];
@@ -2266,6 +2279,10 @@ function App() {
       if(note?.trim()) out+=`    NOTE: ${note.trim()}\n`;
       const hl=data?.highlights?.[d];
       if(hl?.trim()) out+=`    ⭐ HIGHLIGHT: ${hl.trim()}\n`;
+      const wns=data?.wins?.[d];
+      if(wns?.trim()){
+        wns.trim().split("\n").forEach(line=>{if(line.trim()) out+=`    ${line.trim()}\n`;});
+      }
       const t=data.tasks?.[d]||{};
       for(let s=1;s<=10;s++){
         const slot="t"+s;
@@ -2386,7 +2403,7 @@ function App() {
       <div style={{position:"relative",overflow:"hidden"}} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
         {TABS.map((t,i)=>(
           <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"14px 12px 40px",boxSizing:"border-box",minHeight:"80vh"}}>
-            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
+            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/> }
             {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="extra"&&<ExtraPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="challenge"&&<ChallengePanel/>}
