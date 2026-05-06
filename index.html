@@ -1029,7 +1029,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           value={curWins}
           onChange={e=>setWins(viewM,viewDay,e.target.value)}
           placeholder={"⭐ HAT: what happened — why it matters..."}
-          style={{width:"100%",minHeight:90,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#166534",background:"#f0fdf4",lineHeight:1.6}}
+          style={{width:"100%",minHeight:270,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#166534",background:"#f0fdf4",lineHeight:1.6}}
         />
       </div>
 
@@ -1042,42 +1042,110 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           </span>
           <span style={{fontSize:9,color:"#aaa"}}>{showLib?"▲":"▼"}</span>
         </div>
-        {showLib&&(
-          <div style={{padding:"8px 10px 6px",borderTop:"1px solid #f0f0f0"}}>
-            <div style={{fontSize:7,color:"#aaa",letterSpacing:2,fontWeight:700,marginBottom:5}}>ACTIVE · PM MH DT DP SS</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:4,marginBottom:8}}>
-              {EXTRA_ACTIVE.map(h=>{
-                const on=curExtra.some(e=>e===h.code||e.startsWith(h.code+":"));
+        {showLib&&(()=>{
+          // Boxing cycle for extra active: off → x → box → off
+          const cycleExtra=(code)=>{
+            const cur=curExtra.find(e=>e===code||e.startsWith(code+":"));
+            if(!cur) { toggleExtraHat(viewM,viewDay,code,"x"); }
+            else {
+              const st=cur.includes(":")?cur.split(":")[1]:"x";
+              if(st==="x") toggleExtraHat(viewM,viewDay,code,"box");
+              else toggleExtraHat(viewM,viewDay,code,null);
+            }
+          };
+          const cycleLib=(code)=>{
+            const cur=curLib.find(e=>e===code||e.startsWith(code+":"));
+            if(!cur) { toggleLibHat(viewM,viewDay,code,"x"); }
+            else {
+              const st=cur.includes(":")?cur.split(":")[1]:"x";
+              if(st==="x") toggleLibHat(viewM,viewDay,code,"box");
+              else toggleLibHat(viewM,viewDay,code,null);
+            }
+          };
+          const getExtraSt=(code)=>{const e=curExtra.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
+          const getLibSt=(code)=>{const e=curLib.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
+
+          // Group EXTRA_ACTIVE by PRMDLSC category
+          const CAT_META={
+            P:{label:"P · PRIORITY",  color:"#7c3aed", bg:"#f5f3ff", bdr:"#c4b5fd"},
+            M:{label:"M · MIND",      color:"#1565c0", bg:"#e3f2fd", bdr:"#90caf9"},
+            D:{label:"D · DEVELOP",   color:"#795548", bg:"#efebe9", bdr:"#bcaaa4"},
+            S:{label:"S · SOCIAL",    color:"#ca8a04", bg:"#fffde7", bdr:"#fde68a"},
+            R:{label:"R · REFLECT",   color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
+            L:{label:"L · LOGISTICS", color:"#546e7a", bg:"#f5f5f5", bdr:"#cfd8dc"},
+            C:{label:"C · CREATIVE",  color:"#16a34a", bg:"#f0fdf4", bdr:"#86efac"},
+          };
+
+          // Build grouped ACTIVE
+          const activeGroups={};
+          EXTRA_ACTIVE.forEach(h=>{
+            const cat=h.cat||h.code[0];
+            if(!activeGroups[cat]) activeGroups[cat]=[];
+            activeGroups[cat].push(h);
+          });
+
+          // Build grouped LIBRARY
+          const libGroups={};
+          LIB_TAGS.forEach(h=>{
+            const cat=h.cat||h.code[0];
+            if(!libGroups[cat]) libGroups[cat]=[];
+            libGroups[cat].push(h);
+          });
+
+          const renderHatBtn=(h, st, onTap, isLib)=>{
+            const catKey=h.cat||h.code[0];
+            const cm=CAT_META[catKey]||{color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
+            const isOn=!!st;
+            const isBox=st==="box";
+            return (
+              <button key={h.code} onClick={onTap} style={{
+                padding:"5px 3px",borderRadius:6,
+                border:`${isBox?"2.5px":"1.5px"} solid ${isOn?(isBox?"#1565c0":cm.color):"#e0e0e0"}`,
+                background:isOn?(isBox?"#dbeafe":cm.bg):"#fafafa",
+                cursor:"pointer",fontFamily:"inherit",
+                display:"flex",flexDirection:"column",alignItems:"center",gap:1,
+                minWidth:0,
+              }}>
+                <span style={{fontSize:isLib?8:10,fontWeight:900,color:isOn?(isBox?"#1e40af":cm.color):"#ccc",lineHeight:1}}>
+                  {isBox?"⊠":isOn?"×":"·"} {h.code}
+                </span>
+                <span style={{fontSize:5,color:isOn?"#666":"#ddd",lineHeight:1,textAlign:"center",whiteSpace:"nowrap",overflow:"hidden",maxWidth:50}}>{h.emoji} {h.label}</span>
+              </button>
+            );
+          };
+
+          return (
+            <div style={{padding:"8px 10px 6px",borderTop:"1px solid #f0f0f0"}}>
+              {/* ACTIVE section */}
+              <div style={{fontSize:7,color:"#7c3aed",letterSpacing:2,fontWeight:900,marginBottom:6,borderBottom:"1px solid #e0e0e0",paddingBottom:3}}>ACTIVE · tap=done · 2×=boxing</div>
+              {Object.entries(activeGroups).map(([cat,hats])=>{
+                const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
                 return (
-                  <button key={h.code} onClick={()=>toggleExtraHat(viewM,viewDay,h.code)} style={{
-                    padding:"6px 2px",borderRadius:6,border:`2px solid ${on?"#555":"#e0e0e0"}`,
-                    background:on?"#f0f0f0":"#fafafa",cursor:"pointer",fontFamily:"inherit",
-                    display:"flex",flexDirection:"column",alignItems:"center",gap:2,
-                  }}>
-                    <span style={{fontSize:11,fontWeight:900,color:on?"#333":"#bbb"}}>{h.code}</span>
-                    <span style={{fontSize:5,color:on?"#555":"#ddd",lineHeight:1,textAlign:"center"}}>{h.label}</span>
-                  </button>
+                  <div key={cat} style={{marginBottom:6}}>
+                    <div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:3,paddingLeft:2}}>{cm.label}</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>
+                      {hats.map(h=>renderHatBtn(h, getExtraSt(h.code), ()=>cycleExtra(h.code), false))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* LIBRARY section */}
+              <div style={{fontSize:7,color:"#555",letterSpacing:2,fontWeight:900,marginTop:8,marginBottom:6,borderBottom:"1px solid #e0e0e0",paddingBottom:3}}>LIBRARY · {LIB_TAGS.length} TAGS · tap=done · 2×=boxing</div>
+              {Object.entries(libGroups).map(([cat,hats])=>{
+                const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
+                return (
+                  <div key={cat} style={{marginBottom:6}}>
+                    <div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:3,paddingLeft:2}}>{cm.label}</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>
+                      {hats.map(h=>renderHatBtn(h, getLibSt(h.code), ()=>cycleLib(h.code), true))}
+                    </div>
+                  </div>
                 );
               })}
             </div>
-            <div style={{fontSize:7,color:"#aaa",letterSpacing:2,fontWeight:700,marginBottom:5}}>LIBRARY · {LIB_TAGS.length} TAGS</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:4}}>
-              {LIB_TAGS.map(h=>{
-                const on=curLib.some(e=>e===h.code||e.startsWith(h.code+":"));
-                return (
-                  <button key={h.code} onClick={()=>toggleLibHat(viewM,viewDay,h.code)} style={{
-                    padding:"5px 2px",borderRadius:6,border:`1.5px solid ${on?"#888":"#e0e0e0"}`,
-                    background:on?"#f0f0f0":"#fafafa",cursor:"pointer",fontFamily:"inherit",
-                    display:"flex",flexDirection:"column",alignItems:"center",gap:2,
-                  }}>
-                    <span style={{fontSize:10,fontWeight:800,color:on?"#444":"#ccc"}}>{h.code}</span>
-                    <span style={{fontSize:5,color:on?"#666":"#ddd",lineHeight:1,textAlign:"center"}}>{h.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* INFO legend */}
@@ -2281,7 +2349,8 @@ function App() {
       if(hl?.trim()) out+=`    ⭐ HIGHLIGHT: ${hl.trim()}\n`;
       const wns=data?.wins?.[d];
       if(wns?.trim()){
-        wns.trim().split("\n").forEach(line=>{if(line.trim()) out+=`    ${line.trim()}\n`;});
+        out+=`    WINS:\n`;
+        wns.trim().split("\n").forEach(line=>{if(line.trim()) out+=`      ${line.trim()}\n`;});
       }
       const t=data.tasks?.[d]||{};
       for(let s=1;s<=10;s++){
