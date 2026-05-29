@@ -13,7 +13,7 @@
   <title>🐝 Life OS</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-    body{background:#f4f4f2;overscroll-behavior:none;}
+    body{background:#f2ede6;overscroll-behavior:none;}
     #root{min-height:100vh;min-height:-webkit-fill-available;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
   </style>
   <script>
@@ -623,7 +623,7 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
   );
 }
 
-function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat}) {
+function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged}) {
   const data = allData[getMI(viewM)];
   const w = Q2_WEEKS[weekIdx];
   const wd = weekDays();
@@ -776,6 +776,8 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         {wd.map(({m,d})=>{
           const dd=allData[getMI(m)];const de=dd?.energy?.[d];const dp=top3pct(dd,d);
           const hasNote=!!(dd?.notes?.[d]?.trim());
+          const isWL=!!(winsLogged?.[m+"-"+d]);
+          const mv=dd?.mood?.[d];
           const isT=m===TODAY_M&&d===TODAY_D,isV=m===viewM&&d===viewDay;
           // Streak: consecutive days where t1+t2+t3 all checked by slot key
           const taskStreak=(()=>{
@@ -790,12 +792,14 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             return s;
           })();
           return (
-            <button key={m+"-"+d} onClick={()=>{setViewDay(d);setViewM(m);}} style={{flex:1,background:isV?"#111":"#fff",border:`1.5px solid ${isT&&!isV?"#111":"#e0e0e0"}`,borderRadius:8,padding:"4px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,position:"relative"}}>
+            <button key={m+"-"+d} onClick={()=>{setViewDay(d);setViewM(m);}} style={{flex:1,background:isV?"#2a2118":"#fff",border:`1.5px solid ${isT&&!isV?"#c9a96e":"transparent"}`,borderRadius:10,padding:"4px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,position:"relative",boxShadow:isV?"0 2px 8px rgba(0,0,0,0.18)":"0 1px 4px rgba(0,0,0,0.07)"}}>
               {hasNote&&<div style={{position:"absolute",top:3,right:3,width:4,height:4,borderRadius:"50%",background:isV?"#aaa":"#7c3aed"}}/>}
-              <div style={{fontSize:6,color:isV?"#777":"#bbb",letterSpacing:.5}}>{M_LABEL[m]}</div>
-              <div style={{fontSize:15,fontWeight:isT?900:500,color:isV?"#fff":"#111"}}>{d}</div>
+              {isWL&&<div style={{position:"absolute",top:2,left:3,fontSize:7,lineHeight:1}}>⭐</div>}
+              <div style={{fontSize:6,color:isV?"#a09080":"#bbb",letterSpacing:.5}}>{M_LABEL[m]}</div>
+              <div style={{fontSize:15,fontWeight:isT?900:500,color:isV?"#fff":"#1a1a1a"}}>{d}</div>
               <div style={{fontSize:9,color:isV?"#999":de?ecol(de):"#ddd",marginTop:1}}>{de||"·"}</div>
               <div style={{fontSize:8,fontWeight:700,color:isV?"#888":dp===100?"#14532d":dp>0?"#555":"#ddd"}}>{dp>0?dp+"%":""}</div>
+              {mv?<div style={{fontSize:7,fontWeight:700,color:isV?"#888":moodColor(mv),lineHeight:1}}>{mv}</div>:null}
               {taskStreak>=2&&<div style={{fontSize:6,fontWeight:900,color:isV?"#93c5fd":"#1d4ed8",lineHeight:1}}>⚡{taskStreak}</div>}
             </button>
           );
@@ -803,7 +807,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       </div>
 
       {/* HAT MINI GRID — energy · mood · 14 hats */}
-      <div style={{background:"#fff",borderRadius:8,border:"1px solid #ddd",marginBottom:8,overflow:"hidden"}}>
+      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
         {/* Header row: group labels */}
         <div style={{display:"flex"}}>
           <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",height:12}}/>
@@ -879,6 +883,77 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         </div>
       </div>
 
+      {/* EXTRA HATS — collapsible, before tasks */}
+      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+        <div onClick={()=>setShowLib(x=>!x)} style={{padding:"6px 12px",background:"#faf7f3",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+          <span style={{fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>
+            EXTRA HATS
+            {(curExtra.length+curLib.length)>0&&<span style={{fontWeight:400,color:"#7c3aed",marginLeft:6}}>{[...curExtra,...curLib].map(e=>e.includes(":")?e.split(":")[0]:e).join(" · ")}</span>}
+          </span>
+          <span style={{fontSize:9,color:"#aaa"}}>{showLib?"▲":"▼"}</span>
+        </div>
+        {showLib&&(()=>{
+          const cycleExtra=(code)=>{
+            const cur=curExtra.find(e=>e===code||e.startsWith(code+":"));
+            if(!cur) { toggleExtraHat(viewM,viewDay,code,"x"); }
+            else {
+              const st=cur.includes(":")?cur.split(":")[1]:"x";
+              if(st==="x") toggleExtraHat(viewM,viewDay,code,"box");
+              else toggleExtraHat(viewM,viewDay,code,null);
+            }
+          };
+          const cycleLib=(code)=>{
+            const cur=curLib.find(e=>e===code||e.startsWith(code+":"));
+            if(!cur) { toggleLibHat(viewM,viewDay,code,"x"); }
+            else {
+              const st=cur.includes(":")?cur.split(":")[1]:"x";
+              if(st==="x") toggleLibHat(viewM,viewDay,code,"box");
+              else toggleLibHat(viewM,viewDay,code,null);
+            }
+          };
+          const getExtraSt=(code)=>{const e=curExtra.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
+          const getLibSt=(code)=>{const e=curLib.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
+          const CAT_META={
+            P:{label:"P · PRIORITY",  color:"#7c3aed", bg:"#f5f3ff", bdr:"#c4b5fd"},
+            M:{label:"M · MIND",      color:"#1565c0", bg:"#e3f2fd", bdr:"#90caf9"},
+            D:{label:"D · DEVELOP",   color:"#795548", bg:"#efebe9", bdr:"#bcaaa4"},
+            S:{label:"S · SOCIAL",    color:"#ca8a04", bg:"#fffde7", bdr:"#fde68a"},
+            R:{label:"R · REFLECT",   color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
+            L:{label:"L · LOGISTICS", color:"#546e7a", bg:"#f5f5f5", bdr:"#cfd8dc"},
+            C:{label:"C · CREATIVE",  color:"#16a34a", bg:"#f0fdf4", bdr:"#86efac"},
+          };
+          const activeGroups={};
+          EXTRA_ACTIVE.forEach(h=>{const cat=h.cat||h.code[0];if(!activeGroups[cat])activeGroups[cat]=[];activeGroups[cat].push(h);});
+          const libGroups={};
+          LIB_TAGS.forEach(h=>{const cat=h.cat||h.code[0];if(!libGroups[cat])libGroups[cat]=[];libGroups[cat].push(h);});
+          const renderHatBtn=(h,st,onTap,isLib)=>{
+            const catKey=h.cat||h.code[0];
+            const cm=CAT_META[catKey]||{color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
+            const isOn=!!st,isBox=st==="box";
+            return (
+              <button key={h.code} onClick={onTap} style={{padding:"5px 3px",borderRadius:6,border:`${isBox?"2.5px":"1.5px"} solid ${isOn?(isBox?"#1565c0":cm.color):"#e0e0e0"}`,background:isOn?(isBox?"#dbeafe":cm.bg):"#fafafa",cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:0}}>
+                <span style={{fontSize:isLib?8:9,fontWeight:900,color:isOn?(isBox?"#1e40af":cm.color):"#999",lineHeight:1}}>{isBox?"⊠":isOn?"×":"·"} {h.emoji}{h.code}</span>
+                <span style={{fontSize:5.5,color:isOn?"#444":"#999",lineHeight:1,textAlign:"center",whiteSpace:"nowrap",overflow:"hidden",maxWidth:50}}>{h.label}</span>
+              </button>
+            );
+          };
+          return (
+            <div style={{padding:"8px 10px 6px",borderTop:"1px solid #f0f0f0"}}>
+              <div style={{fontSize:7,color:"#7c3aed",letterSpacing:2,fontWeight:900,marginBottom:6,borderBottom:"1px solid #e0e0e0",paddingBottom:3}}>ACTIVE · tap=done · 2×=boxing</div>
+              {Object.entries(activeGroups).map(([cat,hats])=>{
+                const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
+                return (<div key={cat} style={{marginBottom:6}}><div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:3,paddingLeft:2}}>{cm.label}</div><div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>{hats.map(h=>renderHatBtn(h,getExtraSt(h.code),()=>cycleExtra(h.code),false))}</div></div>);
+              })}
+              <div style={{fontSize:7,color:"#555",letterSpacing:2,fontWeight:900,marginTop:8,marginBottom:6,borderBottom:"1px solid #e0e0e0",paddingBottom:3}}>LIBRARY · {LIB_TAGS.length} TAGS · tap=done · 2×=boxing</div>
+              {Object.entries(libGroups).map(([cat,hats])=>{
+                const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
+                return (<div key={cat} style={{marginBottom:6}}><div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:3,paddingLeft:2}}>{cm.label}</div><div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>{hats.map(h=>renderHatBtn(h,getLibSt(h.code),()=>cycleLib(h.code),true))}</div></div>);
+              })}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* TOP 3 TASKS — per-day slot count stored in localStorage, drag uses component-level refs */}
       {(()=>{
         const tasks = data?.tasks?.[viewDay]||{};
@@ -929,8 +1004,8 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         const onTouchEnd=()=>onDragEnd();
 
         return (
-          <div style={{background:"#fff",borderRadius:10,border:"2px solid #111",marginBottom:8,overflow:"hidden"}}>
-            <div style={{padding:"6px 12px",background:"#111",fontSize:9,letterSpacing:3,color:"#fff",fontWeight:800}}>
+          <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+            <div style={{padding:"6px 12px",background:"#2a2118",fontSize:9,letterSpacing:3,color:"#fff",fontWeight:800}}>
               TOP 3 TASKS — {M_LABEL[viewM]} {viewDay}
             </div>
             {slots.map((slot,idx)=>{
@@ -971,8 +1046,8 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         );
       })()}
       {/* Week Priorities with checkboxes */}
-      <div style={{background:"#fff",borderRadius:8,border:"1px solid #ddd",marginBottom:8,overflow:"hidden"}}>
-        <div style={{padding:"5px 12px",background:"#f5f5f5",borderBottom:"1px solid #e8e8e8",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+        <div style={{padding:"5px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:8,fontWeight:800,color:"#333",letterSpacing:2}}>WEEK PRIORITIES</span>
           <span style={{fontSize:8,color:"#aaa"}}>W{w.n}</span>
         </div>
@@ -1001,8 +1076,8 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       </div>
 
       {/* Notes / brainstorm */}
-      <div style={{background:"#fff",borderRadius:8,border:"1px solid #e0e0e0",marginBottom:4,overflow:"hidden"}}>
-        <div style={{padding:"4px 12px",background:"#fafafa",borderBottom:"1px solid #f0f0f0",fontSize:8,letterSpacing:3,color:"#888",fontWeight:800}}>NOTES · BRAINSTORM</div>
+      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:6,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+        <div style={{padding:"4px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",fontSize:8,letterSpacing:3,color:"#888",fontWeight:800}}>NOTES · BRAINSTORM</div>
         <textarea
           value={curNote}
           onChange={e=>setNote(viewM,viewDay,e.target.value)}
@@ -1012,7 +1087,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       </div>
 
       {/* Highlight of the day */}
-      <div style={{background:"#fff",borderRadius:8,border:"1.5px solid #f59e0b",marginBottom:8,overflow:"hidden"}}>
+      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(245,158,11,0.13)"}}>
         <div style={{padding:"4px 12px",background:"#fffbeb",borderBottom:"1px solid #fde68a",fontSize:8,letterSpacing:3,color:"#92400e",fontWeight:800}}>⭐ HIGHLIGHT OF THE DAY</div>
         <textarea
           value={curHighlight}
@@ -1023,8 +1098,16 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       </div>
 
       {/* WINS */}
-      <div style={{background:"#f0fdf4",borderRadius:8,border:"2px solid #22c55e",marginBottom:8,overflow:"hidden"}}>
-        <div style={{padding:"4px 12px",background:"#f0fdf4",borderBottom:"1px solid #bbf7d0",fontSize:8,letterSpacing:3,color:"#14532d",fontWeight:800}}>🏆 WINS</div>
+      <div style={{background:"#f0fdf4",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(34,197,94,0.12)"}}>
+        <div style={{padding:"4px 12px",background:"#f0fdf4",borderBottom:"1px solid #bbf7d0",fontSize:8,letterSpacing:3,color:"#14532d",fontWeight:800,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>🏆 WINS</span>
+          <button onClick={()=>toggleWinsLogged(viewM,viewDay)} style={{display:"flex",alignItems:"center",gap:4,background:"none",border:"none",cursor:"pointer",padding:"2px 4px",borderRadius:4}}>
+            <div style={{width:14,height:14,borderRadius:3,border:`2px solid ${winsLogged?.[viewM+"-"+viewDay]?"#16a34a":"#86efac"}`,background:winsLogged?.[viewM+"-"+viewDay]?"#16a34a":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {winsLogged?.[viewM+"-"+viewDay]&&<span style={{fontSize:9,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
+            </div>
+            <span style={{fontSize:7,color:winsLogged?.[viewM+"-"+viewDay]?"#16a34a":"#86efac",fontWeight:700,letterSpacing:1}}>LOGGED</span>
+          </button>
+        </div>
         <textarea
           value={curWins}
           onChange={e=>setWins(viewM,viewDay,e.target.value)}
@@ -1033,123 +1116,8 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         />
       </div>
 
-            {/* EXTRA HATS — collapsible, default closed */}
-      <div style={{background:"#fff",borderRadius:8,border:"1px solid #e0e0e0",marginBottom:8,overflow:"hidden"}}>
-        <div onClick={()=>setShowLib(x=>!x)} style={{padding:"6px 12px",background:"#f8f8f8",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
-          <span style={{fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>
-            EXTRA HATS
-            {(curExtra.length+curLib.length)>0&&<span style={{fontWeight:400,color:"#7c3aed",marginLeft:6}}>{[...curExtra,...curLib].map(e=>e.includes(":")?e.split(":")[0]:e).join(" · ")}</span>}
-          </span>
-          <span style={{fontSize:9,color:"#aaa"}}>{showLib?"▲":"▼"}</span>
-        </div>
-        {showLib&&(()=>{
-          // Boxing cycle for extra active: off → x → box → off
-          const cycleExtra=(code)=>{
-            const cur=curExtra.find(e=>e===code||e.startsWith(code+":"));
-            if(!cur) { toggleExtraHat(viewM,viewDay,code,"x"); }
-            else {
-              const st=cur.includes(":")?cur.split(":")[1]:"x";
-              if(st==="x") toggleExtraHat(viewM,viewDay,code,"box");
-              else toggleExtraHat(viewM,viewDay,code,null);
-            }
-          };
-          const cycleLib=(code)=>{
-            const cur=curLib.find(e=>e===code||e.startsWith(code+":"));
-            if(!cur) { toggleLibHat(viewM,viewDay,code,"x"); }
-            else {
-              const st=cur.includes(":")?cur.split(":")[1]:"x";
-              if(st==="x") toggleLibHat(viewM,viewDay,code,"box");
-              else toggleLibHat(viewM,viewDay,code,null);
-            }
-          };
-          const getExtraSt=(code)=>{const e=curExtra.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
-          const getLibSt=(code)=>{const e=curLib.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
-
-          // Group EXTRA_ACTIVE by PRMDLSC category
-          const CAT_META={
-            P:{label:"P · PRIORITY",  color:"#7c3aed", bg:"#f5f3ff", bdr:"#c4b5fd"},
-            M:{label:"M · MIND",      color:"#1565c0", bg:"#e3f2fd", bdr:"#90caf9"},
-            D:{label:"D · DEVELOP",   color:"#795548", bg:"#efebe9", bdr:"#bcaaa4"},
-            S:{label:"S · SOCIAL",    color:"#ca8a04", bg:"#fffde7", bdr:"#fde68a"},
-            R:{label:"R · REFLECT",   color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
-            L:{label:"L · LOGISTICS", color:"#546e7a", bg:"#f5f5f5", bdr:"#cfd8dc"},
-            C:{label:"C · CREATIVE",  color:"#16a34a", bg:"#f0fdf4", bdr:"#86efac"},
-          };
-
-          // Build grouped ACTIVE
-          const activeGroups={};
-          EXTRA_ACTIVE.forEach(h=>{
-            const cat=h.cat||h.code[0];
-            if(!activeGroups[cat]) activeGroups[cat]=[];
-            activeGroups[cat].push(h);
-          });
-
-          // Build grouped LIBRARY
-          const libGroups={};
-          LIB_TAGS.forEach(h=>{
-            const cat=h.cat||h.code[0];
-            if(!libGroups[cat]) libGroups[cat]=[];
-            libGroups[cat].push(h);
-          });
-
-          const renderHatBtn=(h, st, onTap, isLib)=>{
-            const catKey=h.cat||h.code[0];
-            const cm=CAT_META[catKey]||{color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
-            const isOn=!!st;
-            const isBox=st==="box";
-            return (
-              <button key={h.code} onClick={onTap} style={{
-                padding:"5px 3px",borderRadius:6,
-                border:`${isBox?"2.5px":"1.5px"} solid ${isOn?(isBox?"#1565c0":cm.color):"#e0e0e0"}`,
-                background:isOn?(isBox?"#dbeafe":cm.bg):"#fafafa",
-                cursor:"pointer",fontFamily:"inherit",
-                display:"flex",flexDirection:"column",alignItems:"center",gap:2,
-                minWidth:0,
-              }}>
-                <span style={{fontSize:isLib?8:9,fontWeight:900,color:isOn?(isBox?"#1e40af":cm.color):"#999",lineHeight:1}}>
-                  {isBox?"⊠":isOn?"×":"·"} {h.emoji}{h.code}
-                </span>
-                <span style={{fontSize:5.5,color:isOn?"#444":"#999",lineHeight:1,textAlign:"center",whiteSpace:"nowrap",overflow:"hidden",maxWidth:50}}>{h.label}</span>
-              </button>
-            );
-          };
-
-          return (
-            <div style={{padding:"8px 10px 6px",borderTop:"1px solid #f0f0f0"}}>
-              {/* ACTIVE section */}
-              <div style={{fontSize:7,color:"#7c3aed",letterSpacing:2,fontWeight:900,marginBottom:6,borderBottom:"1px solid #e0e0e0",paddingBottom:3}}>ACTIVE · tap=done · 2×=boxing</div>
-              {Object.entries(activeGroups).map(([cat,hats])=>{
-                const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
-                return (
-                  <div key={cat} style={{marginBottom:6}}>
-                    <div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:3,paddingLeft:2}}>{cm.label}</div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>
-                      {hats.map(h=>renderHatBtn(h, getExtraSt(h.code), ()=>cycleExtra(h.code), false))}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* LIBRARY section */}
-              <div style={{fontSize:7,color:"#555",letterSpacing:2,fontWeight:900,marginTop:8,marginBottom:6,borderBottom:"1px solid #e0e0e0",paddingBottom:3}}>LIBRARY · {LIB_TAGS.length} TAGS · tap=done · 2×=boxing</div>
-              {Object.entries(libGroups).map(([cat,hats])=>{
-                const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
-                return (
-                  <div key={cat} style={{marginBottom:6}}>
-                    <div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:3,paddingLeft:2}}>{cm.label}</div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>
-                      {hats.map(h=>renderHatBtn(h, getLibSt(h.code), ()=>cycleLib(h.code), true))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-      </div>
-
       {/* INFO legend */}
-      <div style={{background:"#f8f8f8",borderRadius:8,border:"1px solid #e8e8e8",padding:"6px 12px"}}>
+      <div style={{background:"#fff",borderRadius:12,border:"none",padding:"6px 12px",boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
         <div style={{fontSize:7,color:"#bbb",letterSpacing:2,marginBottom:4}}>HAT STATES · ENERGY LEVELS</div>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-start"}}>
           <div>
@@ -1248,6 +1216,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
   const [trkGoals,setTrkGoals]=useState(()=>({...TRK_DEFAULT_GOALS}));
   const [showGoals,setShowGoals]=useState(false);
   const [picker,setPicker]=useState(null); // {day, type:'ex'|'lb'}
+  const [showExp,setShowExp]=useState(false);
   function adjustGoal(code,delta){setTrkGoals(p=>({...p,[code]:Math.max(1,Math.min(7,(p[code]||1)+delta))}));}
 
   // Auto-scroll to today when this month is current
@@ -1297,6 +1266,47 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
         <NBtn onClick={()=>setMonthIdx(x=>Math.max(0,x-1))} on={monthIdx>0}>‹</NBtn>
         <span style={{fontSize:16,fontWeight:900,color:"#111"}}>{month.name} <span style={{fontSize:9,color:"#aaa",fontWeight:400,letterSpacing:2}}>2026</span></span>
         <NBtn onClick={()=>setMonthIdx(x=>Math.min(2,x+1))} on={monthIdx<2}>›</NBtn>
+      </div>
+
+      {/* ALL MONTHS EXPORT */}
+      <div style={{marginBottom:8}}>
+        <button onClick={()=>setShowExp(x=>!x)} style={{background:"none",border:"1px solid #ddd",borderRadius:16,padding:"4px 12px",fontSize:9,letterSpacing:2,color:"#666",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>
+          {showExp?"▲ HIDE ALL-MONTHS EXPORT":"▼ EXPORT ALL MONTHS"}
+        </button>
+        {showExp&&(()=>{
+          const buildAllExport=()=>{
+            let out="";
+            const cutM=TODAY_M,cutD=TODAY_D;
+            MONTHS_ARR.forEach((mo,mi)=>{
+              const mdata=allData[mi];
+              const days=Array.from({length:mo.days},(_,i)=>i+1);
+              const maxDay=(mo.m<cutM)?mo.days:(mo.m===cutM?cutD:0);
+              if(maxDay===0) return;
+              out+="\n"+"=".repeat(40)+"\n"+mo.name.toUpperCase()+" 2026\n"+"=".repeat(40)+"\n";
+              days.filter(d=>d<=maxDay).forEach(d=>{
+                const note=mdata?.notes?.[d];
+                const hl=mdata?.highlights?.[d];
+                const wns=mdata?.wins?.[d];
+                if(!note?.trim()&&!hl?.trim()&&!wns?.trim()) return;
+                out+="\n"+mo.short+" "+d+":\n";
+                if(note?.trim()) out+="  NOTE: "+note.trim()+"\n";
+                if(hl?.trim()) out+="  HIGHLIGHT: "+hl.trim()+"\n";
+                if(wns?.trim()){
+                  out+="  WINS:\n";
+                  wns.trim().split("\n").forEach(line=>{if(line.trim()) out+="    "+line.trim()+"\n";});
+                }
+              });
+            });
+            return out.trim()||"No data yet.";
+          };
+          return (
+            <div style={{marginTop:6,background:"#fff",border:"1px solid #e0e0e0",borderRadius:8,overflow:"hidden"}}>
+              <div style={{padding:"4px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>APR · MAY · JUN 2026 — NOTES · HIGHLIGHTS · WINS</div>
+              <textarea readOnly value={buildAllExport()} style={{width:"100%",minHeight:200,border:"none",outline:"none",resize:"vertical",padding:"8px 12px",fontSize:10,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.5}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
+              <div style={{padding:"4px 12px",fontSize:7,color:"#aaa",borderTop:"1px solid #f0f0f0"}}>Tap textarea to select &amp; copy</div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Weekly goal panel */}
@@ -1898,8 +1908,8 @@ function ChallengePanel() {
       </div>
 
       {/* Reference list — full height, no scroll */}
-      <div style={{background:"#fff",borderRadius:8,border:"1px solid #e0e0e0",marginBottom:8,overflow:"hidden"}}>
-        <div style={{padding:"5px 10px",background:"#f8f8f8",borderBottom:"1px solid #eee",fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>REFERENCE LIST</div>
+      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+        <div style={{padding:"5px 10px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>REFERENCE LIST</div>
         <div style={{padding:"4px 0"}}>
           {cats.map(cat=>{
             const tc=CHALL_CAT_COLOR[cat]||{color:"#555",bg:"#f5f5f5"};
@@ -2160,6 +2170,7 @@ function App() {
   const [allData,setAllData]=useState(()=>lsGet("allData", MONTHS_ARR.map(m=>initMonth(m.days))));
   const [hatCounts,setHatCounts]=useState(()=>lsGet("hatCounts", (()=>{const o={};ALL_HATS.forEach(h=>{o[h.code]=0;});return o;})()));
   const [weekAssess,setWeekAssess]=useState(()=>lsGet("weekAssess",{}));
+  const [winsLogged,setWinsLogged]=useState(()=>lsGet("winsLogged",{}));
   const [timers_unused]=useState([]);
   const ivsRef=useRef([]);
 
@@ -2167,6 +2178,8 @@ function App() {
   useEffect(()=>lsSet("allData",allData),[allData]);
   useEffect(()=>lsSet("hatCounts",hatCounts),[hatCounts]);
   useEffect(()=>lsSet("weekAssess",weekAssess),[weekAssess]);
+  useEffect(()=>lsSet("winsLogged",winsLogged),[winsLogged]);
+  const toggleWinsLogged=(m,day)=>setWinsLogged(p=>{const k=m+"-"+day;return{...p,[k]:!p[k]};});
 
   const setAssess=(field,val)=>setWeekAssess(p=>({...p,[field]:val}));
   // Priorities are stored per week number: weekAssess["w4"] = {priorities:[...]}
@@ -2430,17 +2443,17 @@ function App() {
   };
 
   return (
-    <div style={{minHeight:"100vh",background:"#f4f4f2",fontFamily:"'SF Mono','Courier New',monospace",maxWidth:430,margin:"0 auto",overflow:"hidden"}}>
-      <div style={{background:"#fff",borderBottom:"2px solid #111",padding:"12px 16px 0",position:"sticky",top:0,zIndex:30}}>
+    <div style={{minHeight:"100vh",background:"#f2ede6",fontFamily:"'SF Mono','Courier New',monospace",maxWidth:430,margin:"0 auto",overflow:"hidden"}}>
+      <div style={{background:"#fff",borderBottom:"1px solid #e8e0d5",padding:"12px 16px 0",position:"sticky",top:0,zIndex:30,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#111",letterSpacing:-1}}>26Q2 <span style={{fontSize:9,color:"#aaa",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v9.9</span></div>
-          <div style={{fontSize:10,color:"#777",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · W{Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1])?.n||"?"}</div>
+          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q2 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v9.9</span></div>
+          <div style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · W{Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1])?.n||"?"}</div>
         </div>
         {/* Rotating mantra — tap for next */}
         <div onClick={nextMantra} style={{
-          margin:"7px 0 0",padding:"5px 8px",
-          background:"#f8f8f8",borderRadius:6,cursor:"pointer",
-          borderLeft:"2px solid #111",
+          margin:"7px 0 0",padding:"6px 10px",
+          background:"#faf7f3",borderRadius:8,cursor:"pointer",
+          borderLeft:"3px solid #c9a96e",
           display:"flex",alignItems:"flex-start",gap:6,
         }}>
           {ALL_QUOTES[mantraIdx]?.hat&&(()=>{
@@ -2457,14 +2470,14 @@ function App() {
             const tc=tagColors[cat]||{bg:"#f0f0f0",color:"#555"};
             return <span style={{fontSize:7,fontWeight:900,color:tc.color,background:tc.bg,borderRadius:3,padding:"1px 5px",flexShrink:0,marginTop:2,fontFamily:"'SF Mono','Courier New',monospace"}}>{ALL_QUOTES[mantraIdx].hat}</span>;
           })()}
-          <span style={{fontSize:8.5,color:"#444",fontStyle:"italic",fontWeight:500,lineHeight:1.4,fontFamily:"Georgia,serif",flex:1}}>
+          <span style={{fontSize:8.5,color:"#5a5048",fontStyle:"italic",fontWeight:500,lineHeight:1.4,fontFamily:"Georgia,serif",flex:1}}>
             "{ALL_QUOTES[mantraIdx]?.text}"
           </span>
           <span style={{fontSize:6,color:"#ccc",flexShrink:0,marginTop:2}}>tap›</span>
         </div>
         <div style={{display:"flex",marginTop:8}}>
           {TABS.map((t,i)=>(
-            <button key={t} onClick={()=>setTabIdx(i)} style={{flex:1,background:"none",border:"none",borderBottom:tabIdx===i?"3px solid #111":"3px solid transparent",color:tabIdx===i?"#111":"#aaa",fontSize:10,letterSpacing:1.5,padding:"7px 0 9px",cursor:"pointer",fontFamily:"inherit",fontWeight:tabIdx===i?800:400,textTransform:"uppercase"}}>{t}</button>
+            <button key={t} onClick={()=>setTabIdx(i)} style={{flex:1,background:"none",border:"none",borderBottom:tabIdx===i?"3px solid #c9a96e":"3px solid transparent",color:tabIdx===i?"#1a1a1a":"#b0a898",fontSize:10,letterSpacing:1.5,padding:"7px 0 9px",cursor:"pointer",fontFamily:"inherit",fontWeight:tabIdx===i?800:500,textTransform:"uppercase"}}>{t}</button>
           ))}
         </div>
       </div>
@@ -2472,7 +2485,7 @@ function App() {
       <div style={{position:"relative",overflow:"hidden"}} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
         {TABS.map((t,i)=>(
           <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"14px 12px 40px",boxSizing:"border-box",minHeight:"80vh"}}>
-            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/> }
+            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged}/> }
             {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="extra"&&<ExtraPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="challenge"&&<ChallengePanel/>}
