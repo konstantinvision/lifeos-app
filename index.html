@@ -151,7 +151,7 @@ const TIMER_CONFIGS = [
 const _NOW = new Date();
 const TODAY_M = _NOW.getMonth()+1;  // real current month
 const TODAY_D = _NOW.getDate();      // real current day
-const TABS = ["today","month","extra","challenge"];
+const TABS = ["today","month","extra","atlas"];
 
 const MANTRAS = [
   { hat:null, text:"Be Konstantin. One move = full presence." },
@@ -2138,6 +2138,210 @@ function ExtraPanel({monthIdx, setMonthIdx, allData, toggleExtraHat, toggleLibHa
   );
 }
 
+// ── ATLAS PANEL ──────────────────────────────────────────────────────────────
+function AtlasPanel({allData, winsLogged}) {
+  const [section, setSection] = useState(null); // null = home grid, or "highlights"|"budget"|"challenge"
+  const [budgetData, setBudgetData] = useState(()=>{
+    try{const v=localStorage.getItem("lifeos_budget26");return v?JSON.parse(v):{};} catch(e){return {};}
+  });
+  const saveBudget=(next)=>{setBudgetData(next);try{localStorage.setItem("lifeos_budget26",JSON.stringify(next));}catch(e){}};
+
+  // ── SECTION: HOME GRID ────────────────────────────────────────────────────
+  if(!section) {
+    const tiles = [
+      {id:"highlights", icon:"⭐", label:"Highlights\n& Mood",   color:"#c9a96e", bg:"#fdf8f0", desc:"All days · mood + highlight"},
+      {id:"budget",     icon:"💰", label:"Budget\n2026 Q2",      color:"#4a9d6f", bg:"#f0fdf4", desc:"Income by month"},
+      {id:"challenge",  icon:"📸", label:"Photo\nChallenge",     color:"#7c6aad", bg:"#f5f3ff", desc:"May 2026 · 31 days"},
+    ];
+    return (
+      <div>
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:22,fontWeight:900,color:"#1a1a1a",letterSpacing:-1,lineHeight:1}}>ATLAS</div>
+          <div style={{fontSize:9,color:"#b0a898",letterSpacing:3,fontWeight:600,marginTop:2}}>Q2 2026 · OVERVIEW</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          {tiles.map(tile=>(
+            <button key={tile.id} onClick={()=>setSection(tile.id)} style={{
+              background:tile.bg,border:"none",borderRadius:16,padding:"18px 14px",
+              cursor:"pointer",textAlign:"left",fontFamily:"inherit",
+              boxShadow:`0 4px 16px ${tile.color}22`,
+              transition:"transform .15s,box-shadow .15s",
+              WebkitTapHighlightColor:"transparent",
+            }}>
+              <div style={{fontSize:28,marginBottom:8,lineHeight:1}}>{tile.icon}</div>
+              <div style={{fontSize:13,fontWeight:900,color:"#1a1a1a",lineHeight:1.2,whiteSpace:"pre-line",marginBottom:6}}>{tile.label}</div>
+              <div style={{fontSize:8,color:"#999",letterSpacing:.5,fontWeight:500}}>{tile.desc}</div>
+              <div style={{marginTop:12,width:24,height:3,borderRadius:2,background:tile.color}}/>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── BACK BUTTON ────────────────────────────────────────────────────────────
+  const BackBtn = ()=>(
+    <button onClick={()=>setSection(null)} style={{background:"none",border:"none",cursor:"pointer",padding:"0 0 12px",display:"flex",alignItems:"center",gap:6,fontFamily:"inherit"}}>
+      <span style={{fontSize:14,color:"#b0a898"}}>‹</span>
+      <span style={{fontSize:8,fontWeight:700,color:"#b0a898",letterSpacing:2}}>ATLAS</span>
+    </button>
+  );
+
+  // ── SECTION: HIGHLIGHTS & MOOD ────────────────────────────────────────────
+  if(section==="highlights") {
+    const [showExp,setShowExp]=useState(false);
+    const entries=[];
+    MONTHS_ARR.forEach((mo,mi)=>{
+      const mdata=allData[mi];
+      const maxDay=(mo.m<TODAY_M)?mo.days:(mo.m===TODAY_M?TODAY_D:0);
+      if(maxDay===0) return;
+      for(let d=1;d<=maxDay;d++){
+        const hl=mdata?.highlights?.[d];
+        const mv=mdata?.mood?.[d];
+        const wl=winsLogged?.[mo.m+"-"+d];
+        if(hl?.trim()||mv) entries.push({mo,d,hl:hl?.trim()||"",mv,wl});
+      }
+    });
+    const buildExp=()=>{
+      let out="HIGHLIGHTS & MOOD — Q2 2026\n"+"=".repeat(36)+"\n\n";
+      entries.forEach(({mo,d,hl,mv,wl})=>{
+        out+=`${mo.short} ${d}`;
+        if(mv) out+=`  mood:${mv}`;
+        if(wl) out+=`  ⭐`;
+        out+="\n";
+        if(hl) out+=`  "${hl}"\n`;
+        out+="\n";
+      });
+      return out.trim()||"No entries yet.";
+    };
+    return (
+      <div>
+        <BackBtn/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
+          <div>
+            <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>⭐ Highlights</div>
+            <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>{entries.length} DAYS LOGGED</div>
+          </div>
+          <button onClick={()=>setShowExp(x=>!x)} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>
+            {showExp?"✕ CLOSE":"↗ EXPORT"}
+          </button>
+        </div>
+        {showExp&&(
+          <div style={{marginBottom:12,background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+            <textarea readOnly value={buildExp()} style={{width:"100%",minHeight:160,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
+            <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select · copy manually</div>
+          </div>
+        )}
+        {entries.length===0?(
+          <div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No highlights yet</div>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {entries.map(({mo,d,hl,mv,wl},i)=>(
+              <div key={i} style={{background:"#fff",borderRadius:12,padding:"10px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",display:"flex",gap:10,alignItems:"flex-start"}}>
+                <div style={{flexShrink:0,textAlign:"center",minWidth:32}}>
+                  <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
+                  <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",lineHeight:1}}>{d}</div>
+                  {mv&&<div style={{fontSize:8,fontWeight:900,color:moodColor(mv),marginTop:2}}>{mv}</div>}
+                  {wl&&<div style={{fontSize:10,marginTop:1}}>⭐</div>}
+                </div>
+                <div style={{flex:1,borderLeft:"2px solid #f5ede0",paddingLeft:10}}>
+                  {hl?<div style={{fontSize:11,color:"#3a2e24",lineHeight:1.5,fontStyle:"italic",fontFamily:"Georgia,serif"}}>"{hl}"</div>
+                  :<div style={{fontSize:9,color:"#ccc"}}>mood logged · no highlight</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── SECTION: BUDGET ───────────────────────────────────────────────────────
+  if(section==="budget") {
+    const [showExp,setShowExp]=useState(false);
+    const INCOME_CATS=["Rover","Photography","Gig work","Other"];
+    const getVal=(m,cat)=>parseFloat(budgetData?.[m]?.[cat]||"0")||0;
+    const setVal=(m,cat,v)=>{
+      const next={...budgetData,[m]:{...(budgetData[m]||{}),[cat]:v}};
+      saveBudget(next);
+    };
+    const totalFor=(m)=>INCOME_CATS.reduce((s,c)=>s+getVal(m,c),0);
+    const buildExp=()=>{
+      let out="BUDGET — Q2 2026\n"+"=".repeat(36)+"\n\n";
+      MONTHS_ARR.forEach(mo=>{
+        const tot=totalFor(mo.m);
+        out+=`${mo.name.toUpperCase()}\n`;
+        INCOME_CATS.forEach(c=>{const v=getVal(mo.m,c);if(v>0)out+=`  ${c}: $${v.toFixed(2)}\n`;});
+        out+=`  TOTAL: $${tot.toFixed(2)}\n\n`;
+      });
+      const grand=MONTHS_ARR.reduce((s,mo)=>s+totalFor(mo.m),0);
+      out+=`Q2 TOTAL: $${grand.toFixed(2)}`;
+      return out;
+    };
+    const grand=MONTHS_ARR.reduce((s,mo)=>s+totalFor(mo.m),0);
+    return (
+      <div>
+        <BackBtn/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
+          <div>
+            <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>💰 Budget</div>
+            <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>Q2 INCOME · APR–JUN</div>
+          </div>
+          <button onClick={()=>setShowExp(x=>!x)} style={{background:"#4a9d6f",color:"#fff",border:"none",borderRadius:20,padding:"5px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>
+            {showExp?"✕ CLOSE":"↗ EXPORT"}
+          </button>
+        </div>
+        {showExp&&(
+          <div style={{marginBottom:12,background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+            <textarea readOnly value={buildExp()} style={{width:"100%",minHeight:140,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
+            <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select · copy manually</div>
+          </div>
+        )}
+        {/* Grand total */}
+        <div style={{background:"#1a1a1a",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:9,color:"#b0a898",letterSpacing:2,fontWeight:700}}>Q2 TOTAL</span>
+          <span style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-1}}>${grand.toFixed(2)}</span>
+        </div>
+        {MONTHS_ARR.map(mo=>(
+          <div key={mo.m} style={{background:"#fff",borderRadius:12,padding:"12px 14px",marginBottom:10,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{fontSize:13,fontWeight:900,color:"#1a1a1a"}}>{mo.name}</div>
+              <div style={{fontSize:14,fontWeight:900,color:"#4a9d6f"}}>${totalFor(mo.m).toFixed(2)}</div>
+            </div>
+            {INCOME_CATS.map(cat=>(
+              <div key={cat} style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                <div style={{fontSize:9,color:"#8a7f74",fontWeight:600,width:90}}>{cat}</div>
+                <div style={{display:"flex",alignItems:"center",gap:4}}>
+                  <span style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>$</span>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={budgetData?.[mo.m]?.[cat]||""}
+                    onChange={e=>setVal(mo.m,cat,e.target.value)}
+                    placeholder="0.00"
+                    style={{width:80,border:"none",borderBottom:"1.5px solid #e8e0d5",padding:"2px 4px",fontSize:12,fontWeight:700,color:"#1a1a1a",background:"transparent",outline:"none",fontFamily:"inherit",textAlign:"right"}}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── SECTION: PHOTO CHALLENGE ──────────────────────────────────────────────
+  if(section==="challenge") {
+    return (
+      <div>
+        <BackBtn/>
+        <ChallengePanel/>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
   const [tabIdx,setTabIdx]=useState(0);
@@ -2489,6 +2693,7 @@ function App() {
             {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="extra"&&<ExtraPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="challenge"&&<ChallengePanel/>}
+            {t==="atlas"&&<AtlasPanel allData={allData} winsLogged={winsLogged}/>}
           </div>
         ))}
       </div>
