@@ -151,7 +151,7 @@ const TIMER_CONFIGS = [
 const _NOW = new Date();
 const TODAY_M = _NOW.getMonth()+1;  // real current month
 const TODAY_D = _NOW.getDate();      // real current day
-const TABS = ["today","month","extra","atlas"];
+const TABS = ["today","month","atlas"];
 
 const MANTRAS = [
   { hat:null, text:"Be Konstantin. One move = full presence." },
@@ -889,46 +889,61 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             );
           })}
         </div>
-        {/* Single data row */}
-        <div style={{display:"flex",alignItems:"stretch"}}>
-          <div style={{width:36,flexShrink:0,height:20,background:"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-            <span style={{fontSize:7,fontWeight:900,color:"#333",lineHeight:1}}>{viewDay}</span>
-            <span style={{fontSize:5,color:"#aaa",lineHeight:1}}>{M_LABEL[viewM]}</span>
-          </div>
-          {/* Energy cell — tap cycles */}
-          {(()=>{
-            const curE=data?.energy?.[viewDay];
-            const en=ENERGY.find(e=>e.sym===curE);
+        {/* Data rows — selected day + 2 days back (crosses month boundaries) */}
+        {(()=>{
+          const rowDays=[];
+          let rm=viewM,rd=viewDay;
+          for(let i=0;i<3;i++){
+            rowDays.push({m:rm,d:rd});
+            rd--;
+            if(rd<1){const pi=MONTHS_ARR.findIndex(x=>x.m===rm)-1;if(pi<0)break;rm=MONTHS_ARR[pi].m;rd=MONTHS_ARR[pi].days;}
+          }
+          return rowDays.map((rday,ri)=>{
+            const rData=allData[getMI(rday.m)];
+            const isSel=ri===0;
             return (
-              <div onClick={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(viewM,viewDay,idx===ENERGY.length-1?null:next.sym);}} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
-                <span style={{fontSize:8,fontWeight:900,color:en?en.color:"#ddd",lineHeight:1}}>{curE||"·"}</span>
+              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:isSel?1:0.82,borderTop:ri>0?"1px solid #f0f0f0":"none"}}>
+                <div style={{width:36,flexShrink:0,height:20,background:isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":"#666",lineHeight:1}}>{rday.d}</span>
+                  <span style={{fontSize:5,color:"#aaa",lineHeight:1}}>{M_LABEL[rday.m]}</span>
+                </div>
+                {/* Energy cell — tap cycles */}
+                {(()=>{
+                  const curE=rData?.energy?.[rday.d];
+                  const en=ENERGY.find(e=>e.sym===curE);
+                  return (
+                    <div onClick={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                      <span style={{fontSize:8,fontWeight:900,color:en?en.color:"#ddd",lineHeight:1}}>{curE||"·"}</span>
+                    </div>
+                  );
+                })()}
+                {/* Mood cell — tap cycles 1-10 */}
+                {(()=>{
+                  const mv=rData?.mood?.[rday.d];
+                  return (
+                    <div onClick={()=>cycleMood(rday.m,rday.d,mv>=10?0:(mv||0)+1)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                      <span style={{fontSize:7,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}}>{mv||"·"}</span>
+                    </div>
+                  );
+                })()}
+                {FLAT_HATS.map((h,hi)=>{
+                  const sec=MONTH_SECTIONS.find(s=>s.hats.some(x=>x.code===h.code));
+                  const grp=GROUPS.find(g=>hi>=g.start&&hi<=g.end);
+                  const isFirstInGrp=hi===(grp?grp.start:hi);
+                  const st=rData?.grid?.[h.code]?.[rday.d];
+                  const mk=stMark(st,sec?.color||"#555");
+                  const isTop3=TOP3.some(t=>t.code===h.code);
+                  let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):"#fff";
+                  return (
+                    <div key={h.code} onClick={()=>cycleCell(h.code,rday.m,rday.d)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"55"}`,borderTop:`1px solid ${(sec?.bdr||"#ccc")+"44"}`,borderBottom:`1px solid ${(sec?.bdr||"#ccc")+"44"}`}}>
+                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":mk.c}}>{mk.ch}</span>
+                    </div>
+                  );
+                })}
               </div>
             );
-          })()}
-          {/* Mood cell — tap cycles 1-10 */}
-          {(()=>{
-            const mv=data?.mood?.[viewDay];
-            return (
-              <div onClick={()=>cycleMood(viewM,viewDay,mv>=10?0:(mv||0)+1)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
-                <span style={{fontSize:7,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}}>{mv||"·"}</span>
-              </div>
-            );
-          })()}
-          {FLAT_HATS.map((h,hi)=>{
-            const sec=MONTH_SECTIONS.find(s=>s.hats.some(x=>x.code===h.code));
-            const grp=GROUPS.find(g=>hi>=g.start&&hi<=g.end);
-            const isFirstInGrp=hi===(grp?grp.start:hi);
-            const st=data?.grid?.[h.code]?.[viewDay];
-            const mk=stMark(st,sec?.color||"#555");
-            const isTop3=TOP3.some(t=>t.code===h.code);
-            let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):"#fff";
-            return (
-              <div key={h.code} onClick={()=>cycleCell(h.code,viewM,viewDay)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"55"}`,borderTop:`1px solid ${(sec?.bdr||"#ccc")+"44"}`,borderBottom:`1px solid ${(sec?.bdr||"#ccc")+"44"}`}}>
-                <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":mk.c}}>{mk.ch}</span>
-              </div>
-            );
-          })}
-        </div>
+          });
+        })()}
         {/* Summary footer */}
         <div style={{padding:"2px 8px",background:"#fafafa",borderTop:"1px solid #eee",display:"flex",gap:8,alignItems:"center"}}>
           <span style={{fontSize:7,color:"#bf5000",fontWeight:700}}>ESS {ESSENTIALS.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{ESSENTIALS.length}</span>
@@ -2193,8 +2208,10 @@ function ExtraPanel({monthIdx, setMonthIdx, allData, toggleExtraHat, toggleLibHa
 }
 
 // ── ATLAS SUB-SECTIONS ────────────────────────────────────────────────────────
-function AtlasHighlights({allData, winsLogged, onBack}) {
+function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}) {
   const [showExp,setShowExp]=useState(false);
+  const [editIdx,setEditIdx]=useState(null);
+  const [editVal,setEditVal]=useState("");
   const entries=[];
   MONTHS_ARR.forEach((mo,mi)=>{
     const mdata=allData[mi];
@@ -2203,31 +2220,33 @@ function AtlasHighlights({allData, winsLogged, onBack}) {
     for(let d=1;d<=maxDay;d++){
       const hl=mdata?.highlights?.[d];
       const mv=mdata?.mood?.[d];
-      const wl=winsLogged?.[mo.m+"-"+d];
-      if(hl?.trim()||mv) entries.push({mo,d,hl:hl?.trim()||"",mv,wl});
+      const ev=mdata?.energy?.[d];
+      if(hl?.trim()||mv||ev) entries.push({mo,mi,d,hl:hl?.trim()||"",mv,ev});
     }
   });
   const buildExp=()=>{
-    let out="HIGHLIGHTS & MOOD — Q2 2026\n"+"=".repeat(36)+"\n\n";
-    entries.forEach(({mo,d,hl,mv,wl})=>{
+    let out="✨ HIGHLIGHTS & MOOD — Q2 2026\n"+"=".repeat(36)+"\n\n";
+    entries.forEach(({mo,d,hl,mv,ev})=>{
       out+=`${mo.short} ${d}`;
       if(mv) out+=`  mood:${mv}`;
-      if(wl) out+=`  ⭐`;
+      if(ev) out+=`  energy:${ev}`;
       out+="\n";
       if(hl) out+=`  "${hl}"\n`;
       out+="\n";
     });
     return out.trim()||"No entries yet.";
   };
+  const startEdit=(i,val)=>{setEditIdx(i);setEditVal(val);};
+  const saveEdit=(entry)=>{setHighlight(entry.mo.m,entry.d,editVal);setEditIdx(null);};
   return (
     <div>
-      <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:"0 0 12px",display:"flex",alignItems:"center",gap:6,fontFamily:"inherit"}}>
-        <span style={{fontSize:14,color:"#b0a898"}}>‹</span>
-        <span style={{fontSize:8,fontWeight:700,color:"#b0a898",letterSpacing:2}}>ATLAS</span>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
       </button>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
         <div>
-          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>⭐ Highlights</div>
+          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>✨ Highlights</div>
           <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>{entries.length} DAYS LOGGED</div>
         </div>
         <button onClick={()=>setShowExp(x=>!x)} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>
@@ -2243,21 +2262,49 @@ function AtlasHighlights({allData, winsLogged, onBack}) {
       {entries.length===0
         ?<div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No highlights yet</div>
         :<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {entries.map(({mo,d,hl,mv,wl},i)=>(
-            <div key={i} style={{background:"#fff",borderRadius:12,padding:"10px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",display:"flex",gap:10,alignItems:"flex-start"}}>
-              <div style={{flexShrink:0,textAlign:"center",minWidth:32}}>
-                <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
-                <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",lineHeight:1}}>{d}</div>
-                {mv&&<div style={{fontSize:8,fontWeight:900,color:moodColor(mv),marginTop:2}}>{mv}</div>}
-                {wl&&<div style={{fontSize:10,marginTop:1}}>⭐</div>}
+          {entries.map((entry,i)=>{
+            const {mo,d,hl,mv,ev}=entry;
+            const en=ENERGY.find(e=>e.sym===ev);
+            const isEditing=editIdx===i;
+            return (
+              <div key={i} style={{background:"#fff",borderRadius:12,padding:"10px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+                <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                  {/* Date + mood + energy controls */}
+                  <div style={{flexShrink:0,textAlign:"center",minWidth:36}}>
+                    <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
+                    <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",lineHeight:1}}>{d}</div>
+                    {/* Mood tap */}
+                    <div onClick={()=>cycleMood(mo.m,d,mv>=10?0:(mv||0)+1)} style={{cursor:"pointer",marginTop:3,fontSize:9,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}} title="tap to change mood">
+                      {mv||"·"}
+                    </div>
+                    {/* Energy tap */}
+                    <div onClick={()=>{const idx=ev?ENERGY.findIndex(e=>e.sym===ev):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(mo.m,d,idx===ENERGY.length-1?null:next.sym);}} style={{cursor:"pointer",marginTop:2,fontSize:9,fontWeight:900,color:en?en.color:"#ddd",lineHeight:1}} title="tap to change energy">
+                      {ev||"·"}
+                    </div>
+                  </div>
+                  {/* Highlight text / edit */}
+                  <div style={{flex:1,borderLeft:"2px solid #f5ede0",paddingLeft:10}}>
+                    {isEditing
+                      ?<div>
+                        <textarea value={editVal} onChange={e=>setEditVal(e.target.value)} autoFocus style={{width:"100%",border:"1px solid #c9a96e",borderRadius:8,padding:"6px 8px",fontSize:11,fontFamily:"Georgia,serif",resize:"vertical",minHeight:60,outline:"none",color:"#3a2e24",lineHeight:1.5}}/>
+                        <div style={{display:"flex",gap:6,marginTop:4}}>
+                          <button onClick={()=>saveEdit(entry)} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:12,padding:"4px 10px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>SAVE</button>
+                          <button onClick={()=>setEditIdx(null)} style={{background:"#eee",color:"#666",border:"none",borderRadius:12,padding:"4px 10px",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
+                        </div>
+                      </div>
+                      :<div onClick={()=>startEdit(i,hl)} style={{cursor:"pointer"}}>
+                        {hl
+                          ?<div style={{fontSize:11,color:"#3a2e24",lineHeight:1.5,fontStyle:"italic",fontFamily:"Georgia,serif"}}>"{hl}"</div>
+                          :<div style={{fontSize:9,color:"#ccc"}}>tap to add highlight</div>
+                        }
+                        <div style={{fontSize:7,color:"#c9a96e",marginTop:4,letterSpacing:1}}>✏ edit</div>
+                      </div>
+                    }
+                  </div>
+                </div>
               </div>
-              <div style={{flex:1,borderLeft:"2px solid #f5ede0",paddingLeft:10}}>
-                {hl
-                  ?<div style={{fontSize:11,color:"#3a2e24",lineHeight:1.5,fontStyle:"italic",fontFamily:"Georgia,serif"}}>"{hl}"</div>
-                  :<div style={{fontSize:9,color:"#ccc"}}>mood logged · no highlight</div>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       }
     </div>
@@ -2265,73 +2312,157 @@ function AtlasHighlights({allData, winsLogged, onBack}) {
 }
 
 function AtlasBudget({onBack}) {
-  const [showExp,setShowExp]=useState(false);
-  const [budgetData,setBudgetData]=useState(()=>{
-    try{const v=localStorage.getItem("lifeos_budget26");return v?JSON.parse(v):{};} catch(e){return {};}
-  });
-  const saveBudget=(next)=>{setBudgetData(next);try{localStorage.setItem("lifeos_budget26",JSON.stringify(next));}catch(e){}};
+  const BK="lifeos_budget26";
   const INCOME_CATS=["Rover","Photography","Gig work","Other"];
-  const getVal=(m,cat)=>parseFloat(budgetData?.[m]?.[cat]||"0")||0;
-  const setVal=(m,cat,v)=>saveBudget({...budgetData,[m]:{...(budgetData[m]||{}),[cat]:v}});
-  const totalFor=(m)=>INCOME_CATS.reduce((s,c)=>s+getVal(m,c),0);
-  const grand=MONTHS_ARR.reduce((s,mo)=>s+totalFor(mo.m),0);
+  const CAT_COLOR={"Rover":"#c9a96e","Photography":"#7c6aad","Gig work":"#e07b54","Other":"#6b7280"};
+  const load=()=>{
+    try{
+      const raw=localStorage.getItem(BK);
+      if(!raw) return {entries:[]};
+      const parsed=JSON.parse(raw);
+      if(Array.isArray(parsed.entries)) return parsed;
+      const entries=[];
+      Object.entries(parsed).forEach(([m,cats])=>{
+        if(typeof cats==="object"&&!Array.isArray(cats)){
+          Object.entries(cats).forEach(([cat,val])=>{
+            const num=parseFloat(val)||0;
+            if(num>0) entries.push({id:Date.now()+Math.random(),month:parseInt(m),amount:num,cat,note:"(migrated)",date:""});
+          });
+        }
+      });
+      return {entries};
+    }catch(e){return {entries:[]};}
+  };
+  const [data,setDataRaw]=useState(load);
+  const [showAdd,setShowAdd]=useState(false);
+  const [showExp,setShowExp]=useState(false);
+  const [form,setForm]=useState({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});
+  const [editId,setEditId]=useState(null);
+  const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
+  const entries=data.entries||[];
+  const totalAll=entries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const totalMonth=(m)=>entries.filter(e=>e.month===m).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const addEntry=()=>{
+    const num=parseFloat(form.amount);
+    if(!num||num<=0) return;
+    const entry={id:editId||(Date.now()+Math.random()),month:parseInt(form.month),amount:num,cat:form.cat,note:form.note,date:form.date};
+    const updated=editId?entries.map(e=>e.id===editId?entry:e):[entry,...entries];
+    save({entries:updated});setShowAdd(false);setForm({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});setEditId(null);
+  };
+  const deleteEntry=(id)=>save({entries:entries.filter(e=>e.id!==id)});
+  const startEdit=(e)=>{setForm({month:e.month,amount:String(e.amount),cat:e.cat,note:e.note||"",date:e.date||""});setEditId(e.id);setShowAdd(true);};
   const buildExp=()=>{
-    let out="BUDGET — Q2 2026\n"+"=".repeat(36)+"\n\n";
+    let out="BUDGET Q2 2026\n"+"=".repeat(36)+"\n\n";
     MONTHS_ARR.forEach(mo=>{
-      out+=`${mo.name.toUpperCase()}\n`;
-      INCOME_CATS.forEach(c=>{const v=getVal(mo.m,c);if(v>0) out+=`  ${c}: $${v.toFixed(2)}\n`;});
-      out+=`  TOTAL: $${totalFor(mo.m).toFixed(2)}\n\n`;
+      const mes=entries.filter(e=>e.month===mo.m);
+      if(!mes.length) return;
+      out+=mo.name.toUpperCase()+" -- $"+totalMonth(mo.m).toFixed(2)+"\n";
+      mes.forEach(e=>{out+="  "+(e.date?e.date+" ":"")+e.cat+": $"+parseFloat(e.amount).toFixed(2)+(e.note?" - "+e.note:"")+"\n";});
+      out+="\n";
     });
-    out+=`Q2 TOTAL: $${grand.toFixed(2)}`;
+    out+="Q2 TOTAL: $"+totalAll.toFixed(2);
     return out;
   };
   return (
     <div>
-      <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:"0 0 12px",display:"flex",alignItems:"center",gap:6,fontFamily:"inherit"}}>
-        <span style={{fontSize:14,color:"#b0a898"}}>‹</span>
-        <span style={{fontSize:8,fontWeight:700,color:"#b0a898",letterSpacing:2}}>ATLAS</span>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>{"<"}</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
       </button>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
         <div>
-          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>💰 Budget</div>
-          <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>Q2 INCOME · APR–JUN</div>
+          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>Budget Q2</div>
+          <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>APR-JUN 2026</div>
         </div>
-        <button onClick={()=>setShowExp(x=>!x)} style={{background:"#4a9d6f",color:"#fff",border:"none",borderRadius:20,padding:"5px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>
-          {showExp?"✕ CLOSE":"↗ EXPORT"}
-        </button>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={()=>setShowExp(x=>!x)} style={{background:"#4a9d6f",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showExp?"X":"EXPORT"}</button>
+          <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"CANCEL":"+ ADD"}</button>
+        </div>
+      </div>
+      <div style={{background:"#2a2118",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{fontSize:9,color:"#b0a898",letterSpacing:2,fontWeight:700}}>Q2 TOTAL</span>
+        <span style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-1}}>{"$"+totalAll.toFixed(2)}</span>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:12}}>
+        {MONTHS_ARR.map(mo=>(
+          <div key={mo.m} style={{flex:1,background:"#fff",borderRadius:10,padding:"8px 10px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+            <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
+            <div style={{fontSize:13,fontWeight:900,color:"#4a9d6f",marginTop:2}}>{"$"+totalMonth(mo.m).toFixed(0)}</div>
+          </div>
+        ))}
       </div>
       {showExp&&(
         <div style={{marginBottom:12,background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
           <textarea readOnly value={buildExp()} style={{width:"100%",minHeight:140,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
-          <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select · copy manually</div>
+          <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select - copy manually</div>
         </div>
       )}
-      <div style={{background:"#2a2118",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:9,color:"#b0a898",letterSpacing:2,fontWeight:700}}>Q2 TOTAL</span>
-        <span style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-1}}>${grand.toFixed(2)}</span>
-      </div>
-      {MONTHS_ARR.map(mo=>(
-        <div key={mo.m} style={{background:"#fff",borderRadius:12,padding:"12px 14px",marginBottom:10,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <div style={{fontSize:13,fontWeight:900,color:"#1a1a1a"}}>{mo.name}</div>
-            <div style={{fontSize:14,fontWeight:900,color:"#4a9d6f"}}>${totalFor(mo.m).toFixed(2)}</div>
+      {showAdd&&(
+        <div style={{background:"#fff",borderRadius:12,padding:"14px",marginBottom:16,boxShadow:"0 2px 10px rgba(0,0,0,0.08)"}}>
+          <div style={{fontSize:9,fontWeight:800,color:"#2a2118",letterSpacing:2,marginBottom:12}}>{editId?"EDIT ENTRY":"NEW ENTRY"}</div>
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>AMOUNT ($)</div>
+            <input type="number" min="0" step="0.01" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"
+              style={{width:"100%",boxSizing:"border-box",border:"1px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:14,fontWeight:700,fontFamily:"inherit",outline:"none",background:"#fafafa"}}/>
           </div>
-          {INCOME_CATS.map(cat=>(
-            <div key={cat} style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-              <div style={{fontSize:9,color:"#8a7f74",fontWeight:600,width:90}}>{cat}</div>
-              <div style={{display:"flex",alignItems:"center",gap:4}}>
-                <span style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>$</span>
-                <input type="number" min="0" step="0.01"
-                  value={budgetData?.[mo.m]?.[cat]||""}
-                  onChange={e=>setVal(mo.m,cat,e.target.value)}
-                  placeholder="0.00"
-                  style={{width:80,border:"none",borderBottom:"1.5px solid #e8e0d5",padding:"2px 4px",fontSize:12,fontWeight:700,color:"#1a1a1a",background:"transparent",outline:"none",fontFamily:"inherit",textAlign:"right"}}
-                />
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>CATEGORY</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              {INCOME_CATS.map(c=>(
+                <button key={c} onClick={()=>setForm(f=>({...f,cat:c}))} style={{padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.cat===c?(CAT_COLOR[c]||"#555"):"#f0f0f0",color:form.cat===c?"#fff":"#666"}}>{c}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>MONTH</div>
+            <div style={{display:"flex",gap:5}}>
+              {MONTHS_ARR.map(mo=>(
+                <button key={mo.m} onClick={()=>setForm(f=>({...f,month:mo.m}))} style={{flex:1,padding:"5px 0",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.month===mo.m?"#2a2118":"#f0f0f0",color:form.month===mo.m?"#fff":"#666"}}>{mo.short}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>NOTE (optional)</div>
+            <input type="text" value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="e.g. Paul house sitting, Ace visits..."
+              style={{width:"100%",boxSizing:"border-box",border:"1px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:11,fontFamily:"inherit",outline:"none",background:"#fafafa"}}/>
+          </div>
+          <button onClick={addEntry} style={{width:"100%",background:"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"10px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>{editId?"SAVE CHANGES":"ADD INCOME"}</button>
+        </div>
+      )}
+      {entries.length===0
+        ?<div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No entries yet. Tap + ADD to start.</div>
+        :MONTHS_ARR.map(mo=>{
+          const mes=entries.filter(e=>e.month===mo.m);
+          if(!mes.length) return null;
+          return (
+            <div key={mo.m} style={{marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontSize:10,fontWeight:900,color:"#1a1a1a",letterSpacing:1}}>{mo.name.toUpperCase()}</div>
+                <div style={{fontSize:12,fontWeight:900,color:"#4a9d6f"}}>{"$"+totalMonth(mo.m).toFixed(2)}</div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                {mes.map(e=>(
+                  <div key={e.id} style={{background:"#fff",borderRadius:10,padding:"10px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{width:4,height:36,borderRadius:2,background:CAT_COLOR[e.cat]||"#ccc",flexShrink:0}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:1}}>
+                        <span style={{fontSize:8,fontWeight:800,color:CAT_COLOR[e.cat]||"#555"}}>{e.cat}</span>
+                        {e.date&&<span style={{fontSize:7,color:"#b0a898"}}>{e.date}</span>}
+                      </div>
+                      {e.note&&<div style={{fontSize:9,color:"#6b7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.note}</div>}
+                    </div>
+                    <div style={{fontSize:14,fontWeight:900,color:"#1a1a1a",flexShrink:0}}>{"$"+parseFloat(e.amount).toFixed(2)}</div>
+                    <div style={{display:"flex",gap:3,flexShrink:0}}>
+                      <button onClick={()=>startEdit(e)} style={{background:"#f5f5f5",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer"}}>edit</button>
+                      <button onClick={()=>deleteEntry(e.id)} style={{background:"#fff0f0",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer",color:"#ef4444"}}>X</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      ))}
+          );
+        })
+      }
     </div>
   );
 }
@@ -2339,9 +2470,9 @@ function AtlasBudget({onBack}) {
 function AtlasChallenge({onBack}) {
   return (
     <div>
-      <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:"0 0 12px",display:"flex",alignItems:"center",gap:6,fontFamily:"inherit"}}>
-        <span style={{fontSize:14,color:"#b0a898"}}>‹</span>
-        <span style={{fontSize:8,fontWeight:700,color:"#b0a898",letterSpacing:2}}>ATLAS</span>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
       </button>
       <ChallengePanel/>
     </div>
@@ -2351,28 +2482,221 @@ function AtlasChallenge({onBack}) {
 function AtlasExtra({monthIdx,setMonthIdx,allData,toggleExtraHat,toggleLibHat,onBack}) {
   return (
     <div>
-      <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:"0 0 12px",display:"flex",alignItems:"center",gap:6,fontFamily:"inherit"}}>
-        <span style={{fontSize:14,color:"#b0a898"}}>‹</span>
-        <span style={{fontSize:8,fontWeight:700,color:"#b0a898",letterSpacing:2}}>ATLAS</span>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
       </button>
       <ExtraPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>
     </div>
   );
 }
 
+// ── ATLAS JOBS ────────────────────────────────────────────────────────────────
+function AtlasJobs({onBack}) {
+  const JOBS_KEY="lifeos_jobs26";
+  const JOB_STATUSES=["Resume dropped","Applied online","Interview","Trial shift","Offer","Closed"];
+  const STATUS_COLOR={"Resume dropped":"#6b7280","Applied online":"#3b82f6","Interview":"#f59e0b","Trial shift":"#8b5cf6","Offer":"#16a34a","Closed":"#9ca3af"};
+  const load=()=>{try{const v=localStorage.getItem(JOBS_KEY);return v?JSON.parse(v):[];}catch(e){return [];}};
+  const [jobs,setJobsRaw]=useState(load);
+  const [showAdd,setShowAdd]=useState(false);
+  const [showExp,setShowExp]=useState(false);
+  const [form,setForm]=useState({date:"",company:"",status:"Resume dropped",contact:"",note:""});
+  const [editId,setEditId]=useState(null);
+  const save=(arr)=>{setJobsRaw(arr);localStorage.setItem(JOBS_KEY,JSON.stringify(arr));};
+  const addJob=()=>{
+    if(!form.company.trim()) return;
+    const entry={id:Date.now(),...form,date:form.date||(TODAY_M+"/"+TODAY_D)};
+    const updated=editId?jobs.map(j=>j.id===editId?entry:j):[entry,...jobs];
+    save(updated);setShowAdd(false);setForm({date:"",company:"",status:"Resume dropped",contact:"",note:""});setEditId(null);
+  };
+  const deleteJob=(id)=>save(jobs.filter(j=>j.id!==id));
+  const startEdit=(j)=>{setForm({date:j.date,company:j.company,status:j.status,contact:j.contact||"",note:j.note||""});setEditId(j.id);setShowAdd(true);};
+  const buildExp=()=>{
+    let out="JOB APPLICATIONS — Q2 2026\n"+"=".repeat(36)+"\n\n";
+    jobs.forEach(j=>{
+      out+=`${j.date}  ${j.company}\n`;
+      out+=`  Status: ${j.status}\n`;
+      if(j.contact) out+=`  Contact: ${j.contact}\n`;
+      if(j.note) out+=`  Note: ${j.note}\n`;
+      out+="\n";
+    });
+    return out.trim()||"No applications yet.";
+  };
+  const fld=(label,key,type="text",placeholder="")=>(
+    <div style={{marginBottom:8}}>
+      <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>{label}</div>
+      <input type={type} value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder={placeholder}
+        style={{width:"100%",boxSizing:"border-box",border:"1px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:12,fontFamily:"inherit",outline:"none",background:"#fafafa"}}/>
+    </div>
+  );
+  return (
+    <div>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
+      </button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>💼 Job Applications</div>
+          <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>{jobs.length} ENTRIES</div>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={()=>setShowExp(x=>!x)} style={{background:"#6b7280",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showExp?"✕":"↗ EXPORT"}</button>
+          <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({date:"",company:"",status:"Resume dropped",contact:"",note:"​"});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"✕ CANCEL":"+ ADD"}</button>
+        </div>
+      </div>
+      {showExp&&(
+        <div style={{marginBottom:12,background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+          <textarea readOnly value={buildExp()} style={{width:"100%",minHeight:160,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
+          <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select · copy manually</div>
+        </div>
+      )}
+      {showAdd&&(
+        <div style={{background:"#fff",borderRadius:12,padding:"14px",marginBottom:16,boxShadow:"0 2px 10px rgba(0,0,0,0.08)"}}>
+          <div style={{fontSize:9,fontWeight:800,color:"#2a2118",letterSpacing:2,marginBottom:12}}>{editId?"EDIT ENTRY":"NEW ENTRY"}</div>
+          {fld("DATE","date","text","e.g. JUN 7")}
+          {fld("COMPANY","company","text","Company name")}
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>STATUS</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+              {JOB_STATUSES.map(s=>(
+                <button key={s} onClick={()=>setForm(f=>({...f,status:s}))} style={{padding:"4px 8px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:8,fontWeight:700,background:form.status===s?(STATUS_COLOR[s]||"#555"):"#f0f0f0",color:form.status===s?"#fff":"#666"}}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          {fld("CONTACT (phone / email)","contact","text","Optional")}
+          {fld("NOTE","note","text","Optional comment")}
+          <button onClick={addJob} style={{width:"100%",background:"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"10px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>{editId?"SAVE CHANGES":"ADD APPLICATION"}</button>
+        </div>
+      )}
+      {jobs.length===0
+        ?<div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No applications yet. Tap + ADD to start.</div>
+        :<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {jobs.map(j=>(
+            <div key={j.id} style={{background:"#fff",borderRadius:12,padding:"12px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                    <span style={{fontSize:7,color:"#b0a898",fontWeight:700}}>{j.date}</span>
+                    <span style={{fontSize:7,fontWeight:800,color:STATUS_COLOR[j.status]||"#555",background:(STATUS_COLOR[j.status]||"#555")+"18",borderRadius:10,padding:"2px 7px"}}>{j.status}</span>
+                  </div>
+                  <div style={{fontSize:13,fontWeight:900,color:"#1a1a1a",marginBottom:j.contact||j.note?4:0}}>{j.company}</div>
+                  {j.contact&&<div style={{fontSize:9,color:"#6b7280",marginBottom:2}}>📞 {j.contact}</div>}
+                  {j.note&&<div style={{fontSize:9,color:"#3a2e24",fontStyle:"italic"}}>"{j.note}"</div>}
+                </div>
+                <div style={{display:"flex",gap:4,flexShrink:0,marginLeft:8}}>
+                  <button onClick={()=>startEdit(j)} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"4px 7px",fontSize:9,cursor:"pointer"}}>✏</button>
+                  <button onClick={()=>deleteJob(j.id)} style={{background:"#fff0f0",border:"none",borderRadius:8,padding:"4px 7px",fontSize:9,cursor:"pointer",color:"#ef4444"}}>✕</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      }
+    </div>
+  );
+}
+
+// ── ATLAS WEEK EXPORT ─────────────────────────────────────────────────────────
+function AtlasWeekExport({allData, winsLogged, onBack}) {
+  const [selWeek,setSelWeek]=useState(null);
+  const [output,setOutput]=useState("");
+  const buildWeekExport=(wk)=>{
+    const [sm,sd]=wk.start;const [em,ed]=wk.end;
+    const mi=MONTHS_ARR.findIndex(x=>x.m===sm);
+    const mdata=allData[mi];
+    const mdata2=sm!==em?allData[MONTHS_ARR.findIndex(x=>x.m===em)]:null;
+    let out=`WEEK ${wk.n} EXPORT — ${MONTHS_ARR.find(x=>x.m===sm)?.short||""} ${sd} to ${MONTHS_ARR.find(x=>x.m===em)?.short||""} ${ed}\n`+"=".repeat(44)+"\n\n";
+    let d=sd,m=sm;
+    while(true){
+      const curMI=MONTHS_ARR.findIndex(x=>x.m===m);
+      const curData=allData[curMI];
+      const mo=MONTHS_ARR[curMI];
+      const hl=curData?.highlights?.[d]?.trim();
+      const mv=curData?.mood?.[d];
+      const ev=curData?.energy?.[d];
+      const wins=curData?.wins?.[d]?.trim();
+      const note=curData?.notes?.[d]?.trim();
+      const wl=winsLogged?.[m+"-"+d];
+      out+=`── ${mo?.short} ${d}`;
+      if(mv) out+=` · mood:${mv}`;
+      if(ev) out+=` · energy:${ev}`;
+      if(wl) out+=` ⭐`;
+      out+="\n";
+      if(hl) out+=`  Highlight: "${hl}"\n`;
+      if(wins) out+=`  Wins: ${wins}\n`;
+      if(note) out+=`  Note: ${note}\n`;
+      const tops=["t1","t2","t3"].map(s=>{const tasks=curData?.tasks?.[d]||{};const slot=Object.keys(tasks).find(k=>tasks[k]?.slot===s);return slot?{text:tasks[slot]?.text,done:tasks[slot]?.done}:null;}).filter(Boolean);
+      if(tops.length) out+=`  Tasks: ${tops.map(t=>(t.done?"✓ ":"· ")+t.text).join(" | ")}\n`;
+      const waPri=curData?.weekAssess?.priorities;
+      out+="\n";
+      if(m===em&&d===ed) break;
+      d++;
+      if(d>mo.days){const ni=curMI+1;if(ni>=MONTHS_ARR.length)break;m=MONTHS_ARR[ni].m;d=1;}
+    }
+    const wAssess=allData[mi]?.weekAssess?.["w"+wk.n];
+    if(wAssess?.priorities){out+=`WEEK PRIORITIES:\n`;wAssess.priorities.forEach((p,i)=>{if(p)out+=`  ${i+1}. ${p}\n`;});out+="\n";}
+    out+="— end of Week "+wk.n;
+    return out;
+  };
+  return (
+    <div>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
+      </button>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>📅 Week Export</div>
+        <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>SELECT A WEEK · TAP TO EXPORT</div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+        {Q2_WEEKS.map(wk=>{
+          const [sm,sd]=wk.start;const [em,ed]=wk.end;
+          const smLabel=MONTHS_ARR.find(x=>x.m===sm)?.short||"";
+          const emLabel=MONTHS_ARR.find(x=>x.m===em)?.short||"";
+          const isSel=selWeek?.n===wk.n;
+          const isPast=(sm<TODAY_M)||(sm===TODAY_M&&sd<=TODAY_D);
+          return (
+            <button key={wk.n} onClick={()=>{setSelWeek(wk);setOutput(buildWeekExport(wk));}} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:isSel?"#2a2118":isPast?"#fff":"#f9f9f9",border:`1.5px solid ${isSel?"#c9a96e":isPast?"#e0e0e0":"#ebebeb"}`,borderRadius:10,padding:"10px 14px",cursor:isPast?"pointer":"default",fontFamily:"inherit",opacity:isPast?1:0.45}}>
+              <div style={{textAlign:"left"}}>
+                <span style={{fontSize:10,fontWeight:900,color:isSel?"#c9a96e":isPast?"#1a1a1a":"#aaa"}}>W{wk.n}</span>
+                <span style={{fontSize:8,color:isSel?"#a09080":"#888",marginLeft:8}}>{smLabel} {sd} – {emLabel} {ed}</span>
+              </div>
+              {isSel&&<span style={{fontSize:10,color:"#c9a96e"}}>↗</span>}
+            </button>
+          );
+        })}
+      </div>
+      {output&&(
+        <div style={{background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+          <div style={{padding:"6px 12px",background:"#f2ede6",fontSize:7,fontWeight:800,color:"#2a2118",letterSpacing:2}}>W{selWeek?.n} EXPORT · TAP TO COPY</div>
+          <textarea readOnly value={output} style={{width:"100%",minHeight:200,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
+          <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select · copy manually</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ATLAS PANEL ──────────────────────────────────────────────────────────────
-function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat, toggleLibHat}) {
+function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat, toggleLibHat, cycleEnergy, cycleMood, setHighlight}) {
   const [section, setSection] = useState(null);
   const tiles = [
-    {id:"highlights", icon:"⭐", label:"Highlights\n& Mood",  color:"#c9a96e", bg:"#fdf8f0", desc:"All days · mood + highlight"},
+    {id:"highlights", icon:"✨", label:"Highlights\n& Mood",  color:"#c9a96e", bg:"#fdf8f0", desc:"All days · mood + highlight"},
     {id:"budget",     icon:"💰", label:"Budget\nQ2 2026",     color:"#4a9d6f", bg:"#f0fdf4", desc:"Income by month"},
     {id:"challenge",  icon:"📸", label:"Photo\nChallenge",    color:"#7c6aad", bg:"#f5f3ff", desc:"May 2026 · 31 days"},
     {id:"extra",      icon:"🎯", label:"Extra\nHATs",         color:"#e07b54", bg:"#fff8f5", desc:"Monthly HAT grid"},
+    {id:"jobs",       icon:"💼", label:"Job\nApplications",   color:"#0369a1", bg:"#f0f9ff", desc:"Track your applications"},
+    {id:"weekexport", icon:"📅", label:"Week\nExport",        color:"#7c3aed", bg:"#f5f3ff", desc:"Pick a week · export"},
   ];
-  if(section==="highlights") return <AtlasHighlights allData={allData} winsLogged={winsLogged} onBack={()=>setSection(null)}/>;
+  if(section==="highlights") return <AtlasHighlights allData={allData} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} onBack={()=>setSection(null)}/>;
   if(section==="budget")     return <AtlasBudget onBack={()=>setSection(null)}/>;
   if(section==="challenge")  return <AtlasChallenge onBack={()=>setSection(null)}/>;
   if(section==="extra")      return <AtlasExtra monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} onBack={()=>setSection(null)}/>;
+  if(section==="jobs")       return <AtlasJobs onBack={()=>setSection(null)}/>;
+  if(section==="weekexport") return <AtlasWeekExport allData={allData} winsLogged={winsLogged} onBack={()=>setSection(null)}/>;
   return (
     <div>
       <div style={{marginBottom:20}}>
@@ -2482,7 +2806,7 @@ function App() {
   const onTE=e=>{
     if(!isDrag){tsX.current=null;return;}
     const dx=e.changedTouches[0].clientX-tsX.current;
-    if(Math.abs(dx)>55){if(dx<0&&tabIdx<3)setTabIdx(x=>x+1);if(dx>0&&tabIdx>0)setTabIdx(x=>x-1);}
+    if(Math.abs(dx)>55){if(dx<0&&tabIdx<2)setTabIdx(x=>x+1);if(dx>0&&tabIdx>0)setTabIdx(x=>x-1);}
     setIsDrag(false);setDragX(0);tsX.current=null;
   };
   const slideX=i=>(i-tabIdx)*100+(isDrag?(dragX/wRef.current)*100:0);
@@ -2747,9 +3071,8 @@ function App() {
           <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"16px 14px 48px",boxSizing:"border-box",minHeight:"80vh"}}>
             {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged}/> }
             {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
-            {t==="extra"&&<ExtraPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="challenge"&&<ChallengePanel/>}
-            {t==="atlas"&&<AtlasPanel allData={allData} winsLogged={winsLogged} monthIdx={monthIdx} setMonthIdx={setMonthIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
+            {t==="atlas"&&<AtlasPanel allData={allData} winsLogged={winsLogged} monthIdx={monthIdx} setMonthIdx={setMonthIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight}/>}
           </div>
         ))}
       </div>
