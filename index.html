@@ -708,33 +708,91 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
     const ctx=canvas.getContext("2d");
     const W=canvas.width=window.innerWidth;
     const H=canvas.height=window.innerHeight;
-    const BEES=Array.from({length:18},()=>({
+    const CONFETTI_COLORS=["#c9a96e","#f4c430","#ffd966","#e07b54","#7c6aad","#4a9d6f","#ff8fab","#fff1a8"];
+    // Bees rise from the bottom
+    const BEES=Array.from({length:26},()=>({
       x:Math.random()*W,
-      y:H+20+Math.random()*60,
+      y:H+20+Math.random()*80,
       vx:(Math.random()-0.5)*3.5,
-      vy:-(4+Math.random()*4),
-      size:16+Math.random()*14,
+      vy:-(4.5+Math.random()*4.5),
+      size:18+Math.random()*18,
       wobble:Math.random()*Math.PI*2,
-      wobbleSpeed:0.08+Math.random()*0.08,
+      wobbleSpeed:0.09+Math.random()*0.1,
+      spin:(Math.random()-0.5)*0.12,
+      rot:0,
       alpha:1,
+    }));
+    // Confetti bursts from two lower corners + center
+    const origins=[{x:W*0.5,y:H*0.62},{x:W*0.15,y:H*0.7},{x:W*0.85,y:H*0.7}];
+    const CONFETTI=[];
+    origins.forEach(o=>{
+      for(let i=0;i<34;i++){
+        const ang=-Math.PI/2+(Math.random()-0.5)*2.2;
+        const spd=7+Math.random()*9;
+        CONFETTI.push({
+          x:o.x,y:o.y,
+          vx:Math.cos(ang)*spd,
+          vy:Math.sin(ang)*spd,
+          w:5+Math.random()*7,h:8+Math.random()*8,
+          color:CONFETTI_COLORS[Math.floor(Math.random()*CONFETTI_COLORS.length)],
+          rot:Math.random()*Math.PI*2,
+          vr:(Math.random()-0.5)*0.4,
+          alpha:1,
+        });
+      }
+    });
+    // Sparkles twinkle randomly across the screen
+    const SPARKLES=Array.from({length:22},()=>({
+      x:Math.random()*W,
+      y:H*0.2+Math.random()*H*0.6,
+      size:10+Math.random()*16,
+      phase:Math.random()*Math.PI*2,
+      speed:0.12+Math.random()*0.12,
     }));
     let frame=0;
     const draw=()=>{
       ctx.clearRect(0,0,W,H);
+      // Confetti
+      CONFETTI.forEach(c=>{
+        c.x+=c.vx;c.y+=c.vy;c.vy+=0.22;c.vx*=0.99;c.rot+=c.vr;
+        if(frame>50)c.alpha=Math.max(0,c.alpha-0.016);
+        ctx.save();ctx.globalAlpha=c.alpha;ctx.translate(c.x,c.y);ctx.rotate(c.rot);
+        ctx.fillStyle=c.color;ctx.fillRect(-c.w/2,-c.h/2,c.w,c.h);ctx.restore();
+      });
+      // Sparkles
+      SPARKLES.forEach(s=>{
+        s.phase+=s.speed;
+        const tw=(Math.sin(s.phase)+1)/2;
+        let a=tw;if(frame>70)a*=Math.max(0,1-(frame-70)/60);
+        ctx.globalAlpha=a;ctx.font=`${s.size}px serif`;ctx.textAlign="center";
+        ctx.fillText("✨",s.x,s.y);
+      });
+      // Bees
       BEES.forEach(b=>{
-        b.x+=b.vx+Math.sin(b.wobble)*1.2;
+        b.x+=b.vx+Math.sin(b.wobble)*1.4;
         b.y+=b.vy;
         b.wobble+=b.wobbleSpeed;
-        b.vy+=0.04; // slight gravity
-        if(frame>60) b.alpha=Math.max(0,b.alpha-0.018);
-        ctx.globalAlpha=b.alpha;
-        ctx.font=`${b.size}px serif`;
-        ctx.textAlign="center";
-        ctx.fillText("🐝",b.x,b.y);
+        b.rot+=b.spin;
+        b.vy+=0.04;
+        if(frame>75) b.alpha=Math.max(0,b.alpha-0.02);
+        ctx.save();ctx.globalAlpha=b.alpha;ctx.translate(b.x,b.y);ctx.rotate(Math.sin(b.rot)*0.4);
+        ctx.font=`${b.size}px serif`;ctx.textAlign="center";
+        ctx.fillText("🐝",0,0);ctx.restore();
       });
+      // Center celebration text — pops in then fades
+      if(frame<80){
+        const p=Math.min(1,frame/12);
+        const scale=0.6+p*0.55+Math.sin(frame*0.18)*0.03;
+        const ta=frame<55?1:Math.max(0,1-(frame-55)/25);
+        ctx.save();ctx.globalAlpha=ta;ctx.translate(W/2,H*0.4);ctx.scale(scale,scale);ctx.textAlign="center";
+        ctx.font="900 34px -apple-system,system-ui,sans-serif";
+        ctx.fillStyle="#c9a96e";ctx.fillText("ALL DONE",0,0);
+        ctx.font="20px serif";ctx.fillText("🎉",0,30);
+        ctx.restore();
+      }
       ctx.globalAlpha=1;
       frame++;
-      if(frame<130) beeAnimRef.current=requestAnimationFrame(draw);
+      if(frame<150) beeAnimRef.current=requestAnimationFrame(draw);
       else { ctx.clearRect(0,0,W,H); canvas.style.display="none"; }
     };
     if(beeAnimRef.current) cancelAnimationFrame(beeAnimRef.current);
@@ -898,9 +956,10 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             rd--;
             if(rd<1){const pi=MONTHS_ARR.findIndex(x=>x.m===rm)-1;if(pi<0)break;rm=MONTHS_ARR[pi].m;rd=MONTHS_ARR[pi].days;}
           }
+          rowDays.reverse();
           return rowDays.map((rday,ri)=>{
             const rData=allData[getMI(rday.m)];
-            const isSel=ri===0;
+            const isSel=ri===rowDays.length-1;
             return (
               <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:isSel?1:0.82,borderTop:ri>0?"1px solid #f0f0f0":"none"}}>
                 <div style={{width:36,flexShrink:0,height:20,background:isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
@@ -2266,8 +2325,16 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}
             const {mo,d,hl,mv,ev}=entry;
             const en=ENERGY.find(e=>e.sym===ev);
             const isEditing=editIdx===i;
+            const showDivider=i===0||entries[i-1].mo.m!==mo.m;
             return (
-              <div key={i} style={{background:"#fff",borderRadius:12,padding:"10px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+              <React.Fragment key={i}>
+              {showDivider&&(
+                <div style={{display:"flex",alignItems:"center",gap:8,margin:i===0?"0 0 2px":"10px 0 2px"}}>
+                  <span style={{fontSize:10,fontWeight:900,color:"#c9a96e",letterSpacing:2}}>{mo.name.toUpperCase()}</span>
+                  <span style={{flex:1,height:1,background:"linear-gradient(90deg,#e8dcc8,transparent)"}}/>
+                </div>
+              )}
+              <div style={{background:"#fff",borderRadius:12,padding:"10px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
                 <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
                   {/* Date + mood + energy controls */}
                   <div style={{flexShrink:0,textAlign:"center",minWidth:36}}>
@@ -2303,6 +2370,7 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}
                   </div>
                 </div>
               </div>
+              </React.Fragment>
             );
           })}
         </div>
@@ -2338,7 +2406,7 @@ function AtlasBudget({onBack}) {
   const [showExp,setShowExp]=useState(false);
   const [form,setForm]=useState({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});
   const [editId,setEditId]=useState(null);
-  const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
+  const [selCat,setSelCat]=useState(null);
   const entries=data.entries||[];
   const totalAll=entries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalMonth=(m)=>entries.filter(e=>e.month===m).reduce((s,e)=>s+parseFloat(e.amount||0),0);
@@ -2391,6 +2459,41 @@ function AtlasBudget({onBack}) {
           </div>
         ))}
       </div>
+      {/* Category breakdown */}
+      {totalAll>0&&(
+        <div style={{background:"#fff",borderRadius:12,padding:"12px 14px",marginBottom:12,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+            <span style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5}}>BY CATEGORY</span>
+            {selCat&&<button onClick={()=>setSelCat(null)} style={{background:"none",border:"none",fontSize:8,color:"#c9a96e",fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>✕ CLEAR FILTER</button>}
+          </div>
+          <div style={{display:"flex",height:10,borderRadius:6,overflow:"hidden",marginBottom:10}}>
+            {INCOME_CATS.map(c=>{
+              const ct=entries.filter(e=>e.cat===c).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+              const pct=totalAll?ct/totalAll*100:0;
+              if(pct<=0) return null;
+              return <div key={c} style={{width:pct+"%",background:CAT_COLOR[c]||"#ccc",opacity:selCat&&selCat!==c?0.3:1}}/>;
+            })}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            {INCOME_CATS.map(c=>{
+              const ct=entries.filter(e=>e.cat===c).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+              if(ct<=0) return null;
+              const pct=totalAll?Math.round(ct/totalAll*100):0;
+              const isSel=selCat===c;
+              return (
+                <div key={c} onClick={()=>setSelCat(isSel?null:c)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",background:isSel?(CAT_COLOR[c]||"#ccc")+"14":"transparent",borderRadius:8,padding:"3px 6px",margin:"0 -6px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{width:8,height:8,borderRadius:2,background:CAT_COLOR[c]||"#ccc"}}/>
+                    <span style={{fontSize:9,fontWeight:isSel?900:700,color:"#3a2e24"}}>{c}</span>
+                    <span style={{fontSize:8,color:"#b0a898"}}>{pct}%</span>
+                  </div>
+                  <span style={{fontSize:10,fontWeight:900,color:"#1a1a1a"}}>{"$"+ct.toFixed(2)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {showExp&&(
         <div style={{marginBottom:12,background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
           <textarea readOnly value={buildExp()} style={{width:"100%",minHeight:140,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
@@ -2432,7 +2535,7 @@ function AtlasBudget({onBack}) {
       {entries.length===0
         ?<div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No entries yet. Tap + ADD to start.</div>
         :MONTHS_ARR.map(mo=>{
-          const mes=entries.filter(e=>e.month===mo.m);
+          const mes=entries.filter(e=>e.month===mo.m&&(!selCat||e.cat===selCat));
           if(!mes.length) return null;
           return (
             <div key={mo.m} style={{marginBottom:16}}>
@@ -2542,7 +2645,7 @@ function AtlasJobs({onBack}) {
         </div>
         <div style={{display:"flex",gap:6}}>
           <button onClick={()=>setShowExp(x=>!x)} style={{background:"#6b7280",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showExp?"✕":"↗ EXPORT"}</button>
-          <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({date:"",company:"",status:"Resume dropped",contact:"",note:"​"});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"✕ CANCEL":"+ ADD"}</button>
+          <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({date:"",company:"",status:"Resume dropped",contact:"",note:""});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"✕ CANCEL":"+ ADD"}</button>
         </div>
       </div>
       {showExp&&(
@@ -2573,9 +2676,28 @@ function AtlasJobs({onBack}) {
       )}
       {jobs.length===0
         ?<div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No applications yet. Tap + ADD to start.</div>
-        :<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {jobs.map(j=>(
-            <div key={j.id} style={{background:"#fff",borderRadius:12,padding:"12px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+        :<div>
+          {/* Pipeline summary */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:14}}>
+            {JOB_STATUSES.map(s=>{
+              const n=jobs.filter(j=>j.status===s).length;
+              if(!n) return null;
+              return (
+                <div key={s} style={{display:"flex",alignItems:"center",gap:5,background:(STATUS_COLOR[s]||"#555")+"14",borderRadius:20,padding:"4px 10px"}}>
+                  <span style={{width:7,height:7,borderRadius:"50%",background:STATUS_COLOR[s]||"#555"}}/>
+                  <span style={{fontSize:8,fontWeight:700,color:STATUS_COLOR[s]||"#555"}}>{s}</span>
+                  <span style={{fontSize:9,fontWeight:900,color:"#2a2118"}}>{n}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {[...jobs].sort((a,b)=>{
+            const order=["Offer","Trial shift","Interview","Applied online","Resume dropped","Closed"];
+            const ai=order.indexOf(a.status), bi=order.indexOf(b.status);
+            return (ai<0?99:ai)-(bi<0?99:bi);
+          }).map(j=>(
+            <div key={j.id} style={{background:"#fff",borderRadius:12,padding:"12px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",opacity:j.status==="Closed"?0.62:1,borderLeft:`4px solid ${STATUS_COLOR[j.status]||"#555"}`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
@@ -2593,6 +2715,7 @@ function AtlasJobs({onBack}) {
               </div>
             </div>
           ))}
+          </div>
         </div>
       }
     </div>
