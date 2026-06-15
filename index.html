@@ -872,7 +872,8 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
     if(!wk) return false;
     let cm=wk.start[0],cd=wk.start[1],count=0;
     for(let i=0;i<14;i++){
-      if(allData[getMI(cm)]?.grid?.[code]?.[cd]) count++;
+      const st=allData[getMI(cm)]?.grid?.[code]?.[cd];
+      if(st==="box") count+=2; else if(st) count+=1; // boxing = 2 sessions
       if(cm===wk.end[0]&&cd===wk.end[1]) break;
       cd++;const mi=getMI(cm);
       if(mi>=0&&cd>MONTHS_ARR[mi].days){const ni=mi+1;if(ni>=MONTHS_ARR.length)break;cm=MONTHS_ARR[ni].m;cd=1;}
@@ -1259,10 +1260,11 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                     {checked&&<span style={{fontSize:12,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
                   </button>
                   <textarea value={val} rows={1}
-                    onChange={ev=>setTask(viewM,viewDay,slot,ev.target.value.replace(/\n/g,""))}
+                    ref={el=>{if(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,56)+"px";}}}
+                    onChange={ev=>{setTask(viewM,viewDay,slot,ev.target.value.replace(/\n/g,""));ev.target.style.height="auto";ev.target.style.height=Math.min(ev.target.scrollHeight,56)+"px";}}
                     onKeyDown={ev=>{if(ev.key==="Enter")ev.preventDefault();}}
                     placeholder={isExtra?"Extra task...":"Task "+(idx+1)+"..."}
-                    style={{flex:1,background:"none",border:"none",fontSize:13,fontFamily:"inherit",color:checked?"#9ca3af":isExtra?"#7c3aed":"#111",padding:"10px 0",outline:"none",textDecoration:checked?"line-through":"none",minWidth:0,resize:"none",lineHeight:1.35,maxHeight:"3.2em",overflowY:"auto"}}
+                    style={{flex:1,background:"none",border:"none",fontSize:13,fontFamily:"inherit",color:checked?"#9ca3af":isExtra?"#7c3aed":"#111",padding:"6px 0",outline:"none",textDecoration:checked?"line-through":"none",minWidth:0,resize:"none",lineHeight:1.3,overflowY:"hidden",display:"block"}}
                   />
                   {(()=>{
                     const cs=carryStreak(viewM,viewDay,val);
@@ -1500,13 +1502,14 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
     return getWeekDaysAll(day).filter(p=>p.m===month.m).map(p=>p.d);
   }
   function trkGoalMet(code,day){
-    // Check across all months in the week
+    // Check across all months in the week. Boxing = 2 sessions.
     const wdays=getWeekDaysAll(day);
-    const count=wdays.filter(({m:wm,d:wd})=>{
+    let count=0;
+    wdays.forEach(({m:wm,d:wd})=>{
       const mi=MONTHS_ARR.findIndex(x=>x.m===wm);
-      const wd_data=allData[mi];
-      return wd_data?.grid?.[code]?.[wd];
-    }).length;
+      const st=allData[mi]?.grid?.[code]?.[wd];
+      if(st==="box") count+=2; else if(st) count+=1;
+    });
     return count>=(trkGoals[code]||1);
   }
 
@@ -2444,36 +2447,59 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}
         </div>
       )}
       {(()=>{
-        const pts=entries.filter(e=>e.mv).map(e=>({mv:e.mv,label:e.mo.short+" "+e.d,key:e.mo.m+"-"+e.d}));
-        if(pts.length<2) return null;
-        const W=320,H=88,padX=6,padY=10;
-        const n=pts.length;
-        const xOf=i=>padX+(n===1?0:i*(W-padX*2)/(n-1));
+        const EMAP={"▲▲":10,"▲":8,"■":6,"▼":3,"●":2};
+        const all=entries.filter(e=>e.mv||e.ev).map(e=>({mv:e.mv||null,ev:e.ev?EMAP[e.ev]:null,label:e.mo.short+" "+e.d,key:e.mo.m+"-"+e.d}));
+        const moodPts=all.filter(p=>p.mv!=null);
+        if(moodPts.length<2) return null;
+        const W=320,H=104,padX=22,padY=12;
+        const n=all.length;
+        const xOf=i=>padX+(n===1?0:i*(W-padX-6)/(n-1));
         const yOf=v=>padY+(10-v)/9*(H-padY*2);
-        const linePath=pts.map((p,i)=>(i===0?"M":"L")+xOf(i).toFixed(1)+" "+yOf(p.mv).toFixed(1)).join(" ");
-        const areaPath=linePath+" L"+xOf(n-1).toFixed(1)+" "+(H-padY)+" L"+xOf(0).toFixed(1)+" "+(H-padY)+" Z";
-        const avg=(pts.reduce((s,p)=>s+p.mv,0)/n);
+        const buildPath=(key)=>{
+          let dpath="",started=false;
+          all.forEach((p,i)=>{
+            if(p[key]==null) return;
+            dpath+=(started?"L":"M")+xOf(i).toFixed(1)+" "+yOf(p[key]).toFixed(1)+" ";
+            started=true;
+          });
+          return dpath.trim();
+        };
+        const moodPath=buildPath("mv");
+        const energyPath=buildPath("ev");
+        const moodArea=moodPath?moodPath+" L"+xOf(all.map(p=>p.mv).reduce((last,v,i)=>v!=null?i:last,0)).toFixed(1)+" "+(H-padY)+" L"+xOf(all.findIndex(p=>p.mv!=null)).toFixed(1)+" "+(H-padY)+" Z":"";
+        const avg=(moodPts.reduce((s,p)=>s+p.mv,0)/moodPts.length);
+        const grid=[2,4,6,8,10];
         return (
           <div style={{background:"#fff",borderRadius:12,padding:"12px 12px 8px",marginBottom:14,boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <span style={{fontSize:7,fontWeight:800,color:"#888",letterSpacing:1.5}}>MOOD TREND</span>
-              <span style={{fontSize:8,fontWeight:700,color:"#b0a898"}}>avg {avg.toFixed(1)} · {n} days</span>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <span style={{fontSize:7,fontWeight:800,color:"#888",letterSpacing:1.5}}>MOOD & ENERGY</span>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,fontWeight:700,color:"#c9a96e"}}><span style={{width:10,height:2,background:"#c9a96e",borderRadius:2,display:"inline-block"}}/>MOOD</span>
+                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,fontWeight:700,color:"#8b5cf6"}}><span style={{width:10,height:2,background:"#8b5cf6",borderRadius:2,display:"inline-block"}}/>ENERGY</span>
+              </div>
             </div>
-            <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",display:"block"}} preserveAspectRatio="none">
+            <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",display:"block"}}>
               <defs>
                 <linearGradient id="moodFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#c9a96e" stopOpacity="0.35"/>
+                  <stop offset="0%" stopColor="#c9a96e" stopOpacity="0.28"/>
                   <stop offset="100%" stopColor="#c9a96e" stopOpacity="0"/>
                 </linearGradient>
               </defs>
-              <path d={areaPath} fill="url(#moodFill)"/>
-              <path d={linePath} fill="none" stroke="#c9a96e" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-              {pts.map((p,i)=>(
-                <circle key={p.key} cx={xOf(i)} cy={yOf(p.mv)} r="2.5" fill="#fff" stroke={moodColor(p.mv)} strokeWidth="1.8"/>
+              {grid.map(g=>(
+                <g key={g}>
+                  <line x1={padX} y1={yOf(g)} x2={W-6} y2={yOf(g)} stroke="#f0ece4" strokeWidth="1"/>
+                  <text x={padX-5} y={yOf(g)+3} textAnchor="end" fontSize="7" fill="#c4bcae" fontWeight="700">{g}</text>
+                </g>
               ))}
+              {moodArea&&<path d={moodArea} fill="url(#moodFill)"/>}
+              {energyPath&&<path d={energyPath} fill="none" stroke="#8b5cf6" strokeWidth="1.6" strokeDasharray="3 2" strokeLinejoin="round" strokeLinecap="round" opacity="0.85"/>}
+              {moodPath&&<path d={moodPath} fill="none" stroke="#c9a96e" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"/>}
+              {all.map((p,i)=>p.mv!=null?(
+                <circle key={p.key} cx={xOf(i)} cy={yOf(p.mv)} r="2.4" fill="#fff" stroke="#c9a96e" strokeWidth="1.8"/>
+              ):null)}
             </svg>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:6,color:"#c4bcae",marginTop:2,fontWeight:700}}>
-              <span>{pts[0].label}</span><span>{pts[pts.length-1].label}</span>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:6,color:"#c4bcae",marginTop:2,fontWeight:700,paddingLeft:18}}>
+              <span>{all[0].label}</span><span>avg mood {avg.toFixed(1)} · {moodPts.length} days</span><span>{all[all.length-1].label}</span>
             </div>
           </div>
         );
