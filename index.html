@@ -1015,7 +1015,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             const rData=allData[getMI(rday.m)];
             const isSel=ri===rowDays.length-1;
             return (
-              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:isSel?1:0.82,borderTop:ri>0?"1px solid #f0f0f0":"none"}}>
+              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:isSel?1:0.62,borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",background:isSel?"#fbf6ec":"transparent",marginTop:isSel?2:0}}>
                 <div style={{width:36,flexShrink:0,height:20,background:isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
                   <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":"#666",lineHeight:1}}>{rday.d}</span>
                   <span style={{fontSize:5,color:"#aaa",lineHeight:1}}>{M_LABEL[rday.m]}</span>
@@ -1047,10 +1047,11 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   const mk=stMark(st,sec?.color||"#555");
                   const isTop3=TOP3.some(t=>t.code===h.code);
                   const goalMet=trkWeekMet(h.code,rday.m,rday.d);
-                  let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):goalMet?"#d4d4d4":"#fff";
+                  let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):"#fff";
+                  if(goalMet){ bg="#d4d4d4"; }
                   return (
-                    <div key={h.code} onClick={()=>cycleCell(h.code,rday.m,rday.d)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(sec?.bdr||"#ccc")+"44"}`,borderBottom:`1px solid ${(sec?.bdr||"#ccc")+"44"}`}}>
-                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":goalMet&&!st?"#888":mk.c}}>{mk.ch}</span>
+                    <div key={h.code} onClick={()=>cycleCell(h.code,rday.m,rday.d)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
+                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":goalMet?"#666":mk.c}}>{mk.ch}</span>
                     </div>
                   );
                 })}
@@ -1251,7 +1252,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                 <div ref={el=>rowRefsArr.current[idx]=el}
                   draggable onDragStart={()=>onDragStart(idx)} onDragEnter={()=>onDragEnter(idx)}
                   onDragEnd={onDragEnd} onDragOver={e=>e.preventDefault()}
-                  style={{display:"flex",alignItems:"center",borderBottom:"1px solid #e8e8e8",padding:"4px 6px",gap:6,background:rowBg,borderLeft:isExtra?"3px solid #7c3aed":"none",minHeight:50,opacity:isDraggingThis?0.5:1}}
+                  style={{display:"flex",alignItems:"flex-start",borderBottom:"1px solid #e8e8e8",padding:"7px 6px",gap:6,background:rowBg,borderLeft:isExtra?"3px solid #7c3aed":"none",minHeight:50,opacity:isDraggingThis?0.5:1}}
                 >
                   <div onTouchStart={e=>onTouchStart(idx,e)} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
                     style={{fontSize:14,color:"#ccc",cursor:"grab",flexShrink:0,padding:"4px 2px",touchAction:"none",userSelect:"none",WebkitUserSelect:"none"}}>⠿</div>
@@ -1260,11 +1261,11 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                     {checked&&<span style={{fontSize:12,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
                   </button>
                   <textarea value={val} rows={1}
-                    ref={el=>{if(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,56)+"px";}}}
-                    onChange={ev=>{setTask(viewM,viewDay,slot,ev.target.value.replace(/\n/g,""));ev.target.style.height="auto";ev.target.style.height=Math.min(ev.target.scrollHeight,56)+"px";}}
+                    ref={el=>{if(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,54)+"px";}}}
+                    onChange={ev=>{setTask(viewM,viewDay,slot,ev.target.value.replace(/\n/g,""));ev.target.style.height="auto";ev.target.style.height=Math.min(ev.target.scrollHeight,54)+"px";}}
                     onKeyDown={ev=>{if(ev.key==="Enter")ev.preventDefault();}}
                     placeholder={isExtra?"Extra task...":"Task "+(idx+1)+"..."}
-                    style={{flex:1,background:"none",border:"none",fontSize:13,fontFamily:"inherit",color:checked?"#9ca3af":isExtra?"#7c3aed":"#111",padding:"6px 0",outline:"none",textDecoration:checked?"line-through":"none",minWidth:0,resize:"none",lineHeight:1.3,overflowY:"hidden",display:"block"}}
+                    style={{flex:1,background:"none",border:"none",fontSize:13,fontFamily:"inherit",color:checked?"#9ca3af":isExtra?"#7c3aed":"#111",padding:"8px 0",outline:"none",textDecoration:checked?"line-through":"none",minWidth:0,resize:"none",lineHeight:1.3,overflowY:"auto",display:"block"}}
                   />
                   {(()=>{
                     const cs=carryStreak(viewM,viewDay,val);
@@ -2448,58 +2449,61 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}
       )}
       {(()=>{
         const EMAP={"▲▲":10,"▲":8,"■":6,"▼":3,"●":2};
-        const all=entries.filter(e=>e.mv||e.ev).map(e=>({mv:e.mv||null,ev:e.ev?EMAP[e.ev]:null,label:e.mo.short+" "+e.d,key:e.mo.m+"-"+e.d}));
+        const ELABEL={10:"PEAK",8:"EXC",6:"OK",3:"LOW",2:"REST"};
+        const moodBand=v=>v>=9?"#7c3aed":v>=7?"#16a34a":v>=5?"#eab308":"#ef4444";
+        const all=entries.filter(e=>e.mv||e.ev).map(e=>({mv:e.mv||null,ev:e.ev?EMAP[e.ev]:null,m:e.mo.m,label:e.mo.short+" "+e.d,key:e.mo.m+"-"+e.d}));
         const moodPts=all.filter(p=>p.mv!=null);
         if(moodPts.length<2) return null;
-        const W=320,H=104,padX=22,padY=12;
+        const W=320,H=110,padX=22,padY=12;
         const n=all.length;
-        const xOf=i=>padX+(n===1?0:i*(W-padX-6)/(n-1));
+        const xOf=i=>padX+(n===1?0:i*(W-padX-8)/(n-1));
         const yOf=v=>padY+(10-v)/9*(H-padY*2);
-        const buildPath=(key)=>{
-          let dpath="",started=false;
-          all.forEach((p,i)=>{
-            if(p[key]==null) return;
-            dpath+=(started?"L":"M")+xOf(i).toFixed(1)+" "+yOf(p[key]).toFixed(1)+" ";
-            started=true;
-          });
-          return dpath.trim();
-        };
-        const moodPath=buildPath("mv");
-        const energyPath=buildPath("ev");
-        const moodArea=moodPath?moodPath+" L"+xOf(all.map(p=>p.mv).reduce((last,v,i)=>v!=null?i:last,0)).toFixed(1)+" "+(H-padY)+" L"+xOf(all.findIndex(p=>p.mv!=null)).toFixed(1)+" "+(H-padY)+" Z":"";
-        const avg=(moodPts.reduce((s,p)=>s+p.mv,0)/moodPts.length);
+        let ePath="",started=false;
+        all.forEach((p,i)=>{if(p.ev==null)return;ePath+=(started?"L":"M")+xOf(i).toFixed(1)+" "+yOf(p.ev).toFixed(1)+" ";started=true;});
+        // per-month mood averages
+        const monthAvgs=MONTHS_ARR.map(mo=>{
+          const mp=moodPts.filter(p=>p.m===mo.m);
+          return mp.length?{short:mo.short,avg:(mp.reduce((s,p)=>s+p.mv,0)/mp.length)}:null;
+        }).filter(Boolean);
         const grid=[2,4,6,8,10];
         return (
-          <div style={{background:"#fff",borderRadius:12,padding:"12px 12px 8px",marginBottom:14,boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
+          <div style={{background:"#fff",borderRadius:12,padding:"12px 12px 10px",marginBottom:14,boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <span style={{fontSize:7,fontWeight:800,color:"#888",letterSpacing:1.5}}>MOOD & ENERGY</span>
-              <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,fontWeight:700,color:"#c9a96e"}}><span style={{width:10,height:2,background:"#c9a96e",borderRadius:2,display:"inline-block"}}/>MOOD</span>
-                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,fontWeight:700,color:"#8b5cf6"}}><span style={{width:10,height:2,background:"#8b5cf6",borderRadius:2,display:"inline-block"}}/>ENERGY</span>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,fontWeight:700,color:"#666"}}><span style={{width:9,height:9,borderRadius:"50%",background:"#16a34a",display:"inline-block"}}/>MOOD</span>
+                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,fontWeight:700,color:"#8b5cf6"}}><span style={{width:10,height:0,borderTop:"2px dashed #8b5cf6",display:"inline-block"}}/>ENERGY</span>
               </div>
             </div>
             <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",display:"block"}}>
-              <defs>
-                <linearGradient id="moodFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#c9a96e" stopOpacity="0.28"/>
-                  <stop offset="100%" stopColor="#c9a96e" stopOpacity="0"/>
-                </linearGradient>
-              </defs>
               {grid.map(g=>(
                 <g key={g}>
-                  <line x1={padX} y1={yOf(g)} x2={W-6} y2={yOf(g)} stroke="#f0ece4" strokeWidth="1"/>
+                  <line x1={padX} y1={yOf(g)} x2={W-8} y2={yOf(g)} stroke="#f0ece4" strokeWidth="1"/>
                   <text x={padX-5} y={yOf(g)+3} textAnchor="end" fontSize="7" fill="#c4bcae" fontWeight="700">{g}</text>
                 </g>
               ))}
-              {moodArea&&<path d={moodArea} fill="url(#moodFill)"/>}
-              {energyPath&&<path d={energyPath} fill="none" stroke="#8b5cf6" strokeWidth="1.6" strokeDasharray="3 2" strokeLinejoin="round" strokeLinecap="round" opacity="0.85"/>}
-              {moodPath&&<path d={moodPath} fill="none" stroke="#c9a96e" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"/>}
+              {ePath&&<path d={ePath} fill="none" stroke="#8b5cf6" strokeWidth="1.5" strokeDasharray="3 2" strokeLinejoin="round" strokeLinecap="round" opacity="0.8"/>}
+              {/* neutral mood trend line */}
+              <path d={moodPts.map((p)=>{const i=all.indexOf(p);return (i===all.indexOf(moodPts[0])?"M":"L")+xOf(i).toFixed(1)+" "+yOf(p.mv).toFixed(1);}).join(" ")} fill="none" stroke="#ddd" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+              {/* mood dots colored by band */}
               {all.map((p,i)=>p.mv!=null?(
-                <circle key={p.key} cx={xOf(i)} cy={yOf(p.mv)} r="2.4" fill="#fff" stroke="#c9a96e" strokeWidth="1.8"/>
+                <circle key={p.key} cx={xOf(i)} cy={yOf(p.mv)} r="3" fill={moodBand(p.mv)} stroke="#fff" strokeWidth="1"/>
               ):null)}
             </svg>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:6,color:"#c4bcae",marginTop:2,fontWeight:700,paddingLeft:18}}>
-              <span>{all[0].label}</span><span>avg mood {avg.toFixed(1)} · {moodPts.length} days</span><span>{all[all.length-1].label}</span>
+            {/* band legend */}
+            <div style={{display:"flex",gap:9,justifyContent:"center",margin:"6px 0 8px",flexWrap:"wrap"}}>
+              {[["#7c3aed","9-10"],["#16a34a","7-8"],["#eab308","5-6"],["#ef4444","1-4"]].map(([c,r])=>(
+                <span key={r} style={{display:"flex",alignItems:"center",gap:3,fontSize:7,color:"#999",fontWeight:700}}><span style={{width:7,height:7,borderRadius:"50%",background:c}}/>{r}</span>
+              ))}
+            </div>
+            {/* per-month averages */}
+            <div style={{display:"flex",gap:6,borderTop:"1px solid #f2efe9",paddingTop:8}}>
+              {monthAvgs.map(ma=>(
+                <div key={ma.short} style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:6,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{ma.short}</div>
+                  <div style={{fontSize:13,fontWeight:900,color:moodBand(ma.avg),marginTop:1}}>{ma.avg.toFixed(1)}</div>
+                </div>
+              ))}
             </div>
           </div>
         );
