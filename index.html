@@ -15,6 +15,8 @@
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
     body{background:#f2ede6;overscroll-behavior:none;}
     #root{min-height:100vh;min-height:-webkit-fill-available;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+    button{transition:transform .12s ease, background-color .15s ease, box-shadow .15s ease, opacity .15s ease;}
+    button:active{transform:scale(.96);}
   </style>
   <script>
     if('serviceWorker' in navigator){
@@ -646,6 +648,20 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
   const getSlotCount=(m,d,tasks)=>{let filled=0;if(tasks){for(let s=1;s<=10;s++){if((tasks["t"+s]||"").trim())filled=s;}}return Math.max(3,filled,taskSlotsMap[m+"-"+d]||3);};
   const addTaskSlot=(m,d)=>{const cur=getSlotCount(m,d);if(cur<10)saveTaskSlotsMap({...taskSlotsMap,[m+"-"+d]:cur+1});};
 
+  // ESCALATION — isolated store, keyed by task text. Flagged items auto-land as T1 on Monday.
+  const [escalations,setEscalations]=useState(()=>{
+    try{const v=localStorage.getItem("lifeos_escalations26");return v?JSON.parse(v):{}}catch(e){return {};}
+  });
+  const saveEscalations=(next)=>{setEscalations(next);try{localStorage.setItem("lifeos_escalations26",JSON.stringify(next));}catch(e){}};
+  const escKey=(text)=>(text||"").replace(/\u200b/g,"").trim().toLowerCase();
+  const isEscalated=(text)=>{const k=escKey(text);return !!(k&&escalations[k]);};
+  const toggleEscalation=(text)=>{
+    const k=escKey(text);if(!k) return;
+    const next={...escalations};
+    if(next[k]) delete next[k]; else next[k]={text:(text||"").replace(/\u200b/g,"").trim(),since:TODAY_M+"-"+TODAY_D};
+    saveEscalations(next);
+  };
+
   // Drag refs at component level
   const dragIdxRef=useRef(null);
   const dragOverIdxRef=useRef(null);
@@ -848,6 +864,34 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
   const allTasksDone=(m,d)=>{
     return ["t1","t2","t3"].every(slot=>isTaskChecked(m,d,slot));
   };
+  // TRACKING weekly goal met — mirrors Month tab. Boxing already shows as a mark on its day.
+  const TRK_CODES=TRK_ALL.map(h=>h.code);
+  const trkWeekMet=(code,m,d)=>{
+    if(!TRK_CODES.includes(code)) return false;
+    const wk=Q2_WEEKS.find(w=>m*100+d>=w.start[0]*100+w.start[1]&&m*100+d<=w.end[0]*100+w.end[1]);
+    if(!wk) return false;
+    let cm=wk.start[0],cd=wk.start[1],count=0;
+    for(let i=0;i<14;i++){
+      if(allData[getMI(cm)]?.grid?.[code]?.[cd]) count++;
+      if(cm===wk.end[0]&&cd===wk.end[1]) break;
+      cd++;const mi=getMI(cm);
+      if(mi>=0&&cd>MONTHS_ARR[mi].days){const ni=mi+1;if(ni>=MONTHS_ARR.length)break;cm=MONTHS_ARR[ni].m;cd=1;}
+    }
+    return count>=(TRK_DEFAULT_GOALS[code]||1);
+  };
+  const carryStreak=(m,d,text)=>{
+    const t=(text||"").replace(/\u200b/g,"").trim();
+    if(!t) return 0;
+    let count=0,cm=m,cd=d;
+    for(let back=0;back<14;back++){
+      cd--;
+      if(cd<1){const pi=MONTHS_ARR.findIndex(x=>x.m===cm)-1;if(pi<0)break;cm=MONTHS_ARR[pi].m;cd=MONTHS_ARR[pi].days;}
+      const dayTasks=allData[getMI(cm)]?.tasks?.[cd]||{};
+      const found=Object.keys(dayTasks).some(k=>(dayTasks[k]||"").replace(/\u200b/g,"").trim()===t);
+      if(found) count++; else break;
+    }
+    return count;
+  };
 
   return (
     <div style={{position:"relative"}}>
@@ -1001,10 +1045,11 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   const st=rData?.grid?.[h.code]?.[rday.d];
                   const mk=stMark(st,sec?.color||"#555");
                   const isTop3=TOP3.some(t=>t.code===h.code);
-                  let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):"#fff";
+                  const goalMet=trkWeekMet(h.code,rday.m,rday.d);
+                  let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):goalMet?"#d4d4d4":"#fff";
                   return (
-                    <div key={h.code} onClick={()=>cycleCell(h.code,rday.m,rday.d)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"55"}`,borderTop:`1px solid ${(sec?.bdr||"#ccc")+"44"}`,borderBottom:`1px solid ${(sec?.bdr||"#ccc")+"44"}`}}>
-                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":mk.c}}>{mk.ch}</span>
+                    <div key={h.code} onClick={()=>cycleCell(h.code,rday.m,rday.d)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(sec?.bdr||"#ccc")+"44"}`,borderBottom:`1px solid ${(sec?.bdr||"#ccc")+"44"}`}}>
+                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":goalMet&&!st?"#888":mk.c}}>{mk.ch}</span>
                     </div>
                   );
                 })}
@@ -1152,6 +1197,40 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             <div style={{padding:"6px 12px",background:"#2a2118",fontSize:9,letterSpacing:3,color:"#fff",fontWeight:800}}>
               TOP 3 TASKS — {M_LABEL[viewM]} {viewDay}
             </div>
+            {(()=>{
+              const flagged=Object.values(escalations);
+              if(!flagged.length) return null;
+              const presentToday=new Set(slots.map(s=>(tasks[s]||"").replace(/\u200b/g,"").trim().toLowerCase()));
+              const pending=flagged.filter(f=>!presentToday.has((f.text||"").trim().toLowerCase()));
+              if(!pending.length) return null;
+              const addToTop=(text)=>{
+                // Snapshot, insert escalated text at position 0, push rest down
+                const snap=slots.map(s=>({text:tasks[s]||"",chk:isTaskChecked(viewM,viewDay,s),car:isCarried(viewM,viewDay,s)}));
+                const arr=[{text,chk:false,car:false},...snap];
+                const next={...taskChecks};
+                arr.forEach((st,i)=>{
+                  if(i>=slots.length) return;
+                  const slot=slots[i];
+                  if((tasks[slot]||"")!==st.text) setTask(viewM,viewDay,slot,st.text);
+                  const kC=viewM+"-"+viewDay+"-"+slot+"-c",kR=viewM+"-"+viewDay+"-"+slot+"-r";
+                  if(st.chk) next[kC]=true; else delete next[kC];
+                  if(st.car) next[kR]=true; else delete next[kR];
+                });
+                saveTaskChecks(next);
+              };
+              return (
+                <div style={{background:"#fff7ed",borderBottom:"1px solid #fed7aa",padding:"8px 12px"}}>
+                  <div style={{fontSize:7,fontWeight:900,color:"#b45309",letterSpacing:1.5,marginBottom:6}}>⚡ ESCALATED — START THESE FIRST</div>
+                  {pending.map((f,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:i<pending.length-1?5:0}}>
+                      <span style={{fontSize:11,color:"#7c2d12",fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.text}</span>
+                      <button onClick={()=>addToTop(f.text)} style={{flexShrink:0,background:"#f59e0b",color:"#fff",border:"none",borderRadius:12,padding:"4px 10px",fontSize:8,fontWeight:900,letterSpacing:0.5,cursor:"pointer",fontFamily:"inherit"}}>↑ ADD TO T1</button>
+                      <button onClick={()=>toggleEscalation(f.text)} title="Remove flag" style={{flexShrink:0,background:"none",border:"none",fontSize:12,color:"#c4906a",cursor:"pointer",padding:"2px 4px",fontFamily:"inherit"}}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             {slots.map((slot,idx)=>{
               const val=tasks[slot]||"";
               const checked=isTaskChecked(viewM,viewDay,slot);
@@ -1160,10 +1239,18 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
               const isDraggingThis=draggingSlot===idx;
               const rowBg=isDraggingThis?"#f0f4ff":checked?"#f0fdf4":carried?"#fff5f5":"#fff";
               return (
-                <div key={slot} ref={el=>rowRefsArr.current[idx]=el}
+                <React.Fragment key={slot}>
+                {idx===3&&(
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"5px 12px",background:"#faf9f7",borderBottom:"1px solid #ece8e2"}}>
+                    <span style={{fontSize:7,fontWeight:900,color:"#a89e8e",letterSpacing:2}}>BACKLOG</span>
+                    <span style={{flex:1,height:1,background:"#ece8e2"}}/>
+                    <span style={{fontSize:6,color:"#c4bcae",fontWeight:700,letterSpacing:1}}>NOT COMMITMENTS</span>
+                  </div>
+                )}
+                <div ref={el=>rowRefsArr.current[idx]=el}
                   draggable onDragStart={()=>onDragStart(idx)} onDragEnter={()=>onDragEnter(idx)}
                   onDragEnd={onDragEnd} onDragOver={e=>e.preventDefault()}
-                  style={{display:"flex",alignItems:"center",borderBottom:"1px solid #e8e8e8",padding:"0 6px",gap:6,background:rowBg,borderLeft:isExtra?"3px solid #7c3aed":"none",minHeight:50,opacity:isDraggingThis?0.5:1}}
+                  style={{display:"flex",alignItems:"center",borderBottom:"1px solid #e8e8e8",padding:"4px 6px",gap:6,background:rowBg,borderLeft:isExtra?"3px solid #7c3aed":"none",minHeight:50,opacity:isDraggingThis?0.5:1}}
                 >
                   <div onTouchStart={e=>onTouchStart(idx,e)} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
                     style={{fontSize:14,color:"#ccc",cursor:"grab",flexShrink:0,padding:"4px 2px",touchAction:"none",userSelect:"none",WebkitUserSelect:"none"}}>⠿</div>
@@ -1171,14 +1258,36 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                     style={{width:26,height:26,borderRadius:6,border:"2px solid "+(checked?"#16a34a":"#ddd"),background:checked?"#16a34a":"#fff",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
                     {checked&&<span style={{fontSize:12,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
                   </button>
-                  <input value={val}
-                    onChange={ev=>setTask(viewM,viewDay,slot,ev.target.value)}
+                  <textarea value={val} rows={1}
+                    onChange={ev=>setTask(viewM,viewDay,slot,ev.target.value.replace(/\n/g,""))}
+                    onKeyDown={ev=>{if(ev.key==="Enter")ev.preventDefault();}}
                     placeholder={isExtra?"Extra task...":"Task "+(idx+1)+"..."}
-                    style={{flex:1,background:"none",border:"none",fontSize:13,fontFamily:"inherit",color:checked?"#9ca3af":isExtra?"#7c3aed":"#111",padding:"12px 0",outline:"none",textDecoration:checked?"line-through":"none",minWidth:0}}
+                    style={{flex:1,background:"none",border:"none",fontSize:13,fontFamily:"inherit",color:checked?"#9ca3af":isExtra?"#7c3aed":"#111",padding:"10px 0",outline:"none",textDecoration:checked?"line-through":"none",minWidth:0,resize:"none",lineHeight:1.35,maxHeight:"3.2em",overflowY:"auto"}}
                   />
+                  {(()=>{
+                    const cs=carryStreak(viewM,viewDay,val);
+                    if(cs<2||checked) return null;
+                    const isPromotable=idx>0; // already in T1? no need to promote
+                    return (
+                      <button onClick={()=>{if(isPromotable) moveSlot(idx,0);}}
+                        title={isPromotable?"Promote to T1":"This is your oldest task"}
+                        style={{flexShrink:0,display:"flex",alignItems:"center",gap:3,background:"#fff7ed",border:"1px solid #f59e0b",borderRadius:12,padding:"3px 7px",cursor:isPromotable?"pointer":"default",fontFamily:"inherit"}}>
+                        <span style={{fontSize:8,fontWeight:900,color:"#b45309"}}>{cs+1}d</span>
+                        {isPromotable&&<span style={{fontSize:8,fontWeight:900,color:"#f59e0b"}}>↑T1</span>}
+                      </button>
+                    );
+                  })()}
+                  {val.replace(/\u200b/g,"").trim()&&(
+                    <button onClick={()=>toggleEscalation(val)}
+                      title={isEscalated(val)?"Escalated — flagged":"Flag as escalated"}
+                      style={{flexShrink:0,width:28,height:28,borderRadius:6,border:"1.5px solid "+(isEscalated(val)?"#f59e0b":"#e8e8e8"),background:isEscalated(val)?"#fff7ed":"#fafafa",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:12,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
+                      <span style={{opacity:isEscalated(val)?1:0.35}}>⚡</span>
+                    </button>
+                  )}
                   <button onClick={()=>toggleCarry(viewM,viewDay,slot)}
                     style={{width:32,height:32,borderRadius:6,border:"1.5px solid "+(carried?"#ef4444":"#e0e0e0"),background:carried?"#fee2e2":"#f5f5f5",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:14,color:carried?"#ef4444":"#bbb",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>→</button>
                 </div>
+                </React.Fragment>
               );
             })}
             <div style={{padding:"8px 10px",background:allDone?"#f0fdf4":"#fafafa",borderTop:"1px solid #e8e8e8",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -2334,8 +2443,43 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}
           <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select · copy manually</div>
         </div>
       )}
+      {(()=>{
+        const pts=entries.filter(e=>e.mv).map(e=>({mv:e.mv,label:e.mo.short+" "+e.d,key:e.mo.m+"-"+e.d}));
+        if(pts.length<2) return null;
+        const W=320,H=88,padX=6,padY=10;
+        const n=pts.length;
+        const xOf=i=>padX+(n===1?0:i*(W-padX*2)/(n-1));
+        const yOf=v=>padY+(10-v)/9*(H-padY*2);
+        const linePath=pts.map((p,i)=>(i===0?"M":"L")+xOf(i).toFixed(1)+" "+yOf(p.mv).toFixed(1)).join(" ");
+        const areaPath=linePath+" L"+xOf(n-1).toFixed(1)+" "+(H-padY)+" L"+xOf(0).toFixed(1)+" "+(H-padY)+" Z";
+        const avg=(pts.reduce((s,p)=>s+p.mv,0)/n);
+        return (
+          <div style={{background:"#fff",borderRadius:12,padding:"12px 12px 8px",marginBottom:14,boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:7,fontWeight:800,color:"#888",letterSpacing:1.5}}>MOOD TREND</span>
+              <span style={{fontSize:8,fontWeight:700,color:"#b0a898"}}>avg {avg.toFixed(1)} · {n} days</span>
+            </div>
+            <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",display:"block"}} preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="moodFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#c9a96e" stopOpacity="0.35"/>
+                  <stop offset="100%" stopColor="#c9a96e" stopOpacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d={areaPath} fill="url(#moodFill)"/>
+              <path d={linePath} fill="none" stroke="#c9a96e" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+              {pts.map((p,i)=>(
+                <circle key={p.key} cx={xOf(i)} cy={yOf(p.mv)} r="2.5" fill="#fff" stroke={moodColor(p.mv)} strokeWidth="1.8"/>
+              ))}
+            </svg>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:6,color:"#c4bcae",marginTop:2,fontWeight:700}}>
+              <span>{pts[0].label}</span><span>{pts[pts.length-1].label}</span>
+            </div>
+          </div>
+        );
+      })()}
       {entries.length===0
-        ?<div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No highlights yet</div>
+        ?<EmptyState icon="✨" line="One line a day: your mood, energy, and the moment that mattered. It becomes your emotional arc each quarter."/>
         :<div style={{display:"flex",flexDirection:"column",gap:8}}>
           {entries.map((entry,i)=>{
             const {mo,d,hl,mv,ev}=entry;
@@ -2395,10 +2539,27 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}
   );
 }
 
+function EmptyState({icon,line,onAdd,addLabel}){
+  return (
+    <div style={{textAlign:"center",padding:"44px 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+      <div style={{fontSize:38,opacity:0.55}}>{icon}</div>
+      <div style={{fontSize:12,color:"#9a9286",lineHeight:1.5,maxWidth:220}}>{line}</div>
+      {onAdd&&<button onClick={onAdd} style={{background:"#2a2118",color:"#fff",border:"none",borderRadius:20,padding:"9px 18px",fontSize:10,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{addLabel}</button>}
+    </div>
+  );
+}
+function fmtMoney(n,dec){
+  const v=parseFloat(n)||0;
+  return "$"+v.toLocaleString("en-US",{minimumFractionDigits:dec===0?0:2,maximumFractionDigits:dec===0?0:2});
+}
 function AtlasBudget({onBack}) {
   const BK="lifeos_budget26";
-  const INCOME_CATS=["Rover","Photography","Gig work","Other"];
-  const CAT_COLOR={"Rover":"#c9a96e","Photography":"#7c6aad","Gig work":"#e07b54","Other":"#6b7280"};
+  const GOAL=3000;
+  const EARNED_CATS=["Rover","Photography","Gig","Business"];
+  const OTHER_CATS=["Rent","OW/Gov"];
+  const INCOME_CATS=[...EARNED_CATS,...OTHER_CATS];
+  const CAT_COLOR={"Rover":"#c9a96e","Photography":"#7c6aad","Gig":"#e07b54","Business":"#2f8f5b","Rent":"#5b8def","OW/Gov":"#9ca3af","Gig work":"#e07b54","Other":"#9ca3af"};
+  const isEarned=(cat)=>EARNED_CATS.includes(cat)||cat==="Gig work";
   const load=()=>{
     try{
       const raw=localStorage.getItem(BK);
@@ -2429,16 +2590,20 @@ function AtlasBudget({onBack}) {
   const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
   const entries=data.entries||[];
   const totalAll=entries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const totalEarned=entries.filter(e=>isEarned(e.cat)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const totalOther=totalAll-totalEarned;
+  const pendingTotal=entries.filter(e=>e.pending).reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalMonth=(m)=>entries.filter(e=>e.month===m).reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const addEntry=()=>{
     const num=parseFloat(String(form.amount).replace(",",".").trim());
     if(!num||num<=0){setAmtErr(true);return;}
     setAmtErr(false);
-    const entry={id:editId||(Date.now()+Math.random()),month:parseInt(form.month),amount:num,cat:form.cat,note:form.note,date:form.date};
+    const entry={id:editId||(Date.now()+Math.random()),month:parseInt(form.month),amount:num,cat:form.cat,note:form.note,date:form.date,pending:editId?(entries.find(e=>e.id===editId)?.pending||false):false};
     const updated=editId?entries.map(e=>e.id===editId?entry:e):[entry,...entries];
     save({entries:updated});setShowAdd(false);setForm({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});setEditId(null);
   };
   const deleteEntry=(id)=>save({entries:entries.filter(e=>e.id!==id)});
+  const togglePending=(id)=>save({entries:entries.map(e=>e.id===id?{...e,pending:!e.pending}:e)});
   const startEdit=(e)=>{setForm({month:e.month,amount:String(e.amount),cat:e.cat,note:e.note||"",date:e.date||""});setEditId(e.id);setShowAdd(true);};
   const buildExp=()=>{
     let out="BUDGET Q2 2026\n"+"=".repeat(36)+"\n\n";
@@ -2446,7 +2611,7 @@ function AtlasBudget({onBack}) {
       const mes=entries.filter(e=>e.month===mo.m);
       if(!mes.length) return;
       out+=mo.name.toUpperCase()+" -- $"+totalMonth(mo.m).toFixed(2)+"\n";
-      mes.forEach(e=>{out+="  "+(e.date?e.date+" ":"")+e.cat+": $"+parseFloat(e.amount).toFixed(2)+(e.note?" - "+e.note:"")+"\n";});
+      mes.forEach(e=>{out+="  "+(e.date?e.date+" ":"")+e.cat+": $"+parseFloat(e.amount).toFixed(2)+(e.pending?" [PENDING]":"")+(e.note?" - "+e.note:"")+"\n";});
       out+="\n";
     });
     out+="Q2 TOTAL: $"+totalAll.toFixed(2);
@@ -2468,15 +2633,35 @@ function AtlasBudget({onBack}) {
           <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"CANCEL":"+ ADD"}</button>
         </div>
       </div>
-      <div style={{background:"#2a2118",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:9,color:"#b0a898",letterSpacing:2,fontWeight:700}}>Q2 TOTAL</span>
-        <span style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-1}}>{"$"+totalAll.toFixed(2)}</span>
+      <div style={{background:"#2a2118",borderRadius:14,padding:"16px 18px",marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+          <span style={{fontSize:9,color:"#b0a898",letterSpacing:2,fontWeight:700}}>EARNED TOWARD GOAL</span>
+          <span style={{fontSize:9,color:"#b0a898",fontWeight:700}}>{Math.round(totalEarned/GOAL*100)}%</span>
+        </div>
+        <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:10}}>
+          <span style={{fontSize:24,fontWeight:900,color:"#c9a96e",letterSpacing:-1}}>{fmtMoney(totalEarned,0)}</span>
+          <span style={{fontSize:12,color:"#7a7266",fontWeight:700}}>/ {fmtMoney(GOAL,0)}</span>
+        </div>
+        <div style={{height:8,borderRadius:6,background:"#3d3329",overflow:"hidden"}}>
+          <div style={{height:"100%",width:Math.min(100,totalEarned/GOAL*100)+"%",background:"linear-gradient(90deg,#c9a96e,#f4c430)",borderRadius:6,transition:"width .4s ease"}}/>
+        </div>
+        {pendingTotal>0&&<div style={{fontSize:8,color:"#d4a574",marginTop:6,fontWeight:700,letterSpacing:0.5}}>⏳ includes {fmtMoney(pendingTotal,0)} pending (not paid yet)</div>}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:12,paddingTop:10,borderTop:"1px solid #3d3329"}}>
+          <div>
+            <div style={{fontSize:7,color:"#7a7266",letterSpacing:1,fontWeight:700}}>TOTAL CASH IN</div>
+            <div style={{fontSize:14,fontWeight:900,color:"#fff",marginTop:1}}>{fmtMoney(totalAll,0)}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:7,color:"#7a7266",letterSpacing:1,fontWeight:700}}>OTHER (RENT · OW)</div>
+            <div style={{fontSize:14,fontWeight:900,color:"#9ca3af",marginTop:1}}>{fmtMoney(totalOther,0)}</div>
+          </div>
+        </div>
       </div>
       <div style={{display:"flex",gap:6,marginBottom:12}}>
         {MONTHS_ARR.map(mo=>(
           <div key={mo.m} style={{flex:1,background:"#fff",borderRadius:10,padding:"8px 10px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
             <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
-            <div style={{fontSize:13,fontWeight:900,color:"#4a9d6f",marginTop:2}}>{"$"+totalMonth(mo.m).toFixed(0)}</div>
+            <div style={{fontSize:13,fontWeight:900,color:"#4a9d6f",marginTop:2}}>{fmtMoney(totalMonth(mo.m),0)}</div>
           </div>
         ))}
       </div>
@@ -2508,7 +2693,7 @@ function AtlasBudget({onBack}) {
                     <span style={{fontSize:9,fontWeight:isSel?900:700,color:"#3a2e24"}}>{c}</span>
                     <span style={{fontSize:8,color:"#b0a898"}}>{pct}%</span>
                   </div>
-                  <span style={{fontSize:10,fontWeight:900,color:"#1a1a1a"}}>{"$"+ct.toFixed(2)}</span>
+                  <span style={{fontSize:10,fontWeight:900,color:"#1a1a1a"}}>{fmtMoney(ct)}</span>
                 </div>
               );
             })}
@@ -2532,8 +2717,15 @@ function AtlasBudget({onBack}) {
           </div>
           <div style={{marginBottom:8}}>
             <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>CATEGORY</div>
+            <div style={{fontSize:7,fontWeight:700,color:"#c9a96e",letterSpacing:1,marginBottom:4}}>EARNED — counts toward $3,000</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:7}}>
+              {EARNED_CATS.map(c=>(
+                <button key={c} onClick={()=>setForm(f=>({...f,cat:c}))} style={{padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.cat===c?(CAT_COLOR[c]||"#555"):"#f0f0f0",color:form.cat===c?"#fff":"#666"}}>{c}</button>
+              ))}
+            </div>
+            <div style={{fontSize:7,fontWeight:700,color:"#9ca3af",letterSpacing:1,marginBottom:4}}>OTHER — tracked, not counted</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-              {INCOME_CATS.map(c=>(
+              {OTHER_CATS.map(c=>(
                 <button key={c} onClick={()=>setForm(f=>({...f,cat:c}))} style={{padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.cat===c?(CAT_COLOR[c]||"#555"):"#f0f0f0",color:form.cat===c?"#fff":"#666"}}>{c}</button>
               ))}
             </div>
@@ -2556,7 +2748,7 @@ function AtlasBudget({onBack}) {
         </div>
       )}
       {entries.length===0
-        ?<div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No entries yet. Tap + ADD to start.</div>
+        ?<EmptyState icon="💰" line="Track every dollar you earn this quarter. Start with your last Rover or photography payment." onAdd={()=>{setShowAdd(true);setEditId(null);}} addLabel="+ ADD INCOME"/>
         :MONTHS_ARR.map(mo=>{
           const mes=entries.filter(e=>e.month===mo.m&&(!selCat||e.cat===selCat));
           if(!mes.length) return null;
@@ -2564,23 +2756,27 @@ function AtlasBudget({onBack}) {
             <div key={mo.m} style={{marginBottom:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                 <div style={{fontSize:10,fontWeight:900,color:"#1a1a1a",letterSpacing:1}}>{mo.name.toUpperCase()}</div>
-                <div style={{fontSize:12,fontWeight:900,color:"#4a9d6f"}}>{"$"+totalMonth(mo.m).toFixed(2)}</div>
+                <div style={{fontSize:12,fontWeight:900,color:"#4a9d6f"}}>{fmtMoney(totalMonth(mo.m))}</div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:5}}>
                 {mes.map(e=>(
-                  <div key={e.id} style={{background:"#fff",borderRadius:10,padding:"10px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",display:"flex",alignItems:"stretch",gap:10}}>
-                    <div style={{width:4,borderRadius:2,background:CAT_COLOR[e.cat]||"#ccc",flexShrink:0,minHeight:36}}/>
+                  <div key={e.id} style={{background:e.pending?"#fffdf7":"#fff",borderRadius:10,padding:"10px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",display:"flex",alignItems:"stretch",gap:10,border:e.pending?"1.5px dashed #d4a574":"1.5px solid transparent"}}>
+                    <div style={{width:4,borderRadius:2,background:CAT_COLOR[e.cat]||"#ccc",flexShrink:0,minHeight:36,opacity:e.pending?0.5:1}}/>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:1,flexWrap:"wrap"}}>
                         <span style={{fontSize:8,fontWeight:800,color:CAT_COLOR[e.cat]||"#555"}}>{e.cat}</span>
                         {e.date&&<span style={{fontSize:7,color:"#b0a898"}}>{e.date}</span>}
+                        {e.pending&&<span style={{fontSize:7,fontWeight:900,color:"#b8860b",background:"#fdf3dc",borderRadius:8,padding:"1px 6px",letterSpacing:0.5}}>⏳ PENDING</span>}
                       </div>
                       {e.note&&<div style={{fontSize:11,color:"#3a2e24",lineHeight:1.45,marginTop:2,wordBreak:"break-word"}}>{e.note}</div>}
                     </div>
-                    <div style={{fontSize:14,fontWeight:900,color:"#1a1a1a",flexShrink:0}}>{"$"+parseFloat(e.amount).toFixed(2)}</div>
-                    <div style={{display:"flex",gap:3,flexShrink:0}}>
-                      <button onClick={()=>startEdit(e)} style={{background:"#f5f5f5",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer"}}>edit</button>
-                      <button onClick={()=>deleteEntry(e.id)} style={{background:"#fff0f0",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer",color:"#ef4444"}}>X</button>
+                    <div style={{fontSize:14,fontWeight:900,color:e.pending?"#b8860b":"#1a1a1a",flexShrink:0}}>{fmtMoney(e.amount)}</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0}}>
+                      <button onClick={()=>togglePending(e.id)} title={e.pending?"Mark as paid":"Mark as pending"} style={{background:e.pending?"#fdf3dc":"#f0f9f0",border:"none",borderRadius:6,padding:"3px 6px",fontSize:8,cursor:"pointer",fontWeight:800,color:e.pending?"#b8860b":"#16a34a",letterSpacing:0.3}}>{e.pending?"mark paid":"pending"}</button>
+                      <div style={{display:"flex",gap:3}}>
+                        <button onClick={()=>startEdit(e)} style={{background:"#f5f5f5",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer"}}>edit</button>
+                        <button onClick={()=>deleteEntry(e.id)} style={{background:"#fff0f0",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer",color:"#ef4444"}}>X</button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -2698,7 +2894,7 @@ function AtlasJobs({onBack}) {
         </div>
       )}
       {jobs.length===0
-        ?<div style={{textAlign:"center",padding:"40px 20px",color:"#ccc",fontSize:11}}>No applications yet. Tap + ADD to start.</div>
+        ?<EmptyState icon="💼" line="Every application, trial, and interview in one place. Add the last place you applied or dropped a resume." onAdd={()=>{setShowAdd(true);setEditId(null);}} addLabel="+ ADD APPLICATION"/>
         :<div>
           {/* Pipeline summary */}
           <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:14}}>
@@ -2952,8 +3148,46 @@ function AtlasVision({onBack}) {
           </div>
         </div>
         :text
-          ?<div style={{background:"#fff",borderRadius:12,padding:"16px 16px",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
-            <div style={{fontSize:12.5,fontFamily:"Georgia,serif",color:"#3a2e24",lineHeight:1.7,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{text}</div>
+          ?<div style={{background:"#fff",borderRadius:12,padding:"18px 18px",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+            {(()=>{
+              const lines=text.split("\n");
+              const out=[];
+              lines.forEach((raw,i)=>{
+                const line=raw.replace(/\u200b/g,"");
+                const t=line.trim();
+                if(t===""){ out.push(<div key={i} style={{height:10}}/>); return; }
+                const letters=t.replace(/[^A-Za-zА-Яа-я]/g,"");
+                const isUpper=letters.length>=2 && letters===letters.toUpperCase() && t.length<=48;
+                const startsEmoji=/^[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}✦✧★☆▲■]/u.test(t);
+                const isHeading=isUpper||(startsEmoji&&t.length<=48)||(/[:：]$/.test(t)&&t.length<=42);
+                const isBullet=/^[-•·*–—]\s+/.test(t);
+                const isQuote=/^["“«].*["”»]$/.test(t);
+                const isNumbered=/^\d+[.)]\s+/.test(t);
+                if(isHeading){
+                  out.push(<div key={i} style={{fontSize:11,fontWeight:900,color:"#b8860b",letterSpacing:1.5,textTransform:"none",marginTop:out.length?14:0,marginBottom:4,fontFamily:"inherit"}}>{t.replace(/[:：]$/,"")}</div>);
+                } else if(isQuote){
+                  out.push(<div key={i} style={{fontSize:13,fontFamily:"Georgia,serif",fontStyle:"italic",color:"#7a5c2e",lineHeight:1.55,margin:"6px 0",paddingLeft:10,borderLeft:"2px solid #e6d3a8"}}>{t}</div>);
+                } else if(isBullet){
+                  out.push(
+                    <div key={i} style={{display:"flex",gap:8,margin:"3px 0",paddingLeft:4}}>
+                      <span style={{color:"#c9a96e",fontWeight:900,flexShrink:0,lineHeight:1.6}}>•</span>
+                      <span style={{fontSize:12.5,fontFamily:"Georgia,serif",color:"#3a2e24",lineHeight:1.6}}>{t.replace(/^[-•·*–—]\s+/,"")}</span>
+                    </div>
+                  );
+                } else if(isNumbered){
+                  const m=t.match(/^(\d+)[.)]\s+(.*)$/);
+                  out.push(
+                    <div key={i} style={{display:"flex",gap:8,margin:"3px 0",paddingLeft:4}}>
+                      <span style={{color:"#c9a96e",fontWeight:900,flexShrink:0,lineHeight:1.6,minWidth:16}}>{m[1]}.</span>
+                      <span style={{fontSize:12.5,fontFamily:"Georgia,serif",color:"#3a2e24",lineHeight:1.6}}>{m[2]}</span>
+                    </div>
+                  );
+                } else {
+                  out.push(<div key={i} style={{fontSize:12.5,fontFamily:"Georgia,serif",color:"#3a2e24",lineHeight:1.7,margin:"2px 0",wordBreak:"break-word"}}>{t}</div>);
+                }
+              });
+              return out;
+            })()}
           </div>
           :<div style={{textAlign:"center",padding:"36px 20px",color:"#b0a898",fontSize:11,lineHeight:1.6}}>
             Your Vision lives here.<br/>Tap ✏ EDIT and paste the latest version<br/>from Notion. It saves on this device.
@@ -3362,7 +3596,7 @@ function App() {
         ))}
       </div>
 
-      <div style={{padding:"8px 12px 16px",display:"flex",gap:5,justifyContent:"center",flexWrap:"nowrap",alignItems:"center"}}>
+      <div style={{padding:"8px 12px calc(16px + env(safe-area-inset-bottom))",display:"flex",gap:5,justifyContent:"center",flexWrap:"nowrap",alignItems:"center"}}>
         <button onClick={()=>setShowExport(x=>!x)} style={{
           background:"#111",color:"#fff",border:"none",borderRadius:20,
           padding:"7px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",
