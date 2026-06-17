@@ -3188,7 +3188,8 @@ function AtlasVision({onBack}) {
                 if(t===""){ out.push(<div key={i} style={{height:10}}/>); return; }
                 const letters=t.replace(/[^A-Za-zА-Яа-я]/g,"");
                 const isUpper=letters.length>=2 && letters===letters.toUpperCase() && t.length<=48;
-                const startsEmoji=/^[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}✦✧★☆▲■]/u.test(t);
+                const _cp0=t.codePointAt(0);
+                const startsEmoji=(_cp0>=0x1F000&&_cp0<=0x1FAFF)||(_cp0>=0x2600&&_cp0<=0x27BF)||"✦✧★☆▲■".indexOf(t[0])>=0;
                 const isHeading=isUpper||(startsEmoji&&t.length<=48)||(/[:：]$/.test(t)&&t.length<=42);
                 const isBullet=/^[-•·*–—]\s+/.test(t);
                 const isQuote=/^["“«].*["”»]$/.test(t);
@@ -3695,8 +3696,26 @@ function App() {
   );
 }
 
+    class ErrorBoundary extends React.Component {
+      constructor(p){super(p);this.state={err:null};}
+      static getDerivedStateFromError(err){return {err};}
+      render(){
+        if(this.state.err){
+          const msg=(this.state.err&&this.state.err.message)||String(this.state.err);
+          return React.createElement("div",{style:{padding:"40px 20px",fontFamily:"-apple-system,system-ui,sans-serif",maxWidth:420,margin:"0 auto"}},
+            React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#2a2118",marginBottom:8}},"App hit an error"),
+            React.createElement("div",{style:{fontSize:12,color:"#666",lineHeight:1.5,marginBottom:6}},"Your data is safe. The buttons below fix the most common causes without losing your tasks, wins, budget, or grid."),
+            React.createElement("div",{style:{fontSize:10,color:"#b45309",background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:8,padding:"8px 10px",marginBottom:16,wordBreak:"break-word",fontFamily:"monospace"}},msg),
+            React.createElement("button",{onClick:()=>{try{localStorage.removeItem("lifeos_vision26");}catch(e){}location.reload();},style:{display:"block",width:"100%",background:"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"14px",fontSize:12,fontWeight:800,marginBottom:10,cursor:"pointer"}},"Clear Vision text & reload"),
+            React.createElement("button",{onClick:()=>{try{localStorage.removeItem("lifeos_escalations26");}catch(e){}location.reload();},style:{display:"block",width:"100%",background:"#6b5d4f",color:"#fff",border:"none",borderRadius:10,padding:"14px",fontSize:12,fontWeight:800,marginBottom:10,cursor:"pointer"}},"Clear escalation flags & reload"),
+            React.createElement("button",{onClick:()=>location.reload(),style:{display:"block",width:"100%",background:"#eee",color:"#444",border:"none",borderRadius:10,padding:"14px",fontSize:12,fontWeight:800,cursor:"pointer"}},"Just reload")
+          );
+        }
+        return this.props.children;
+      }
+    }
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    root.render(React.createElement(ErrorBoundary,null,React.createElement(App)));
   </script>
 </body>
 </html>
