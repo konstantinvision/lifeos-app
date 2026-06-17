@@ -48,9 +48,63 @@
 </head>
 <body>
   <div id="root"></div>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    // Resilient loader: try jsDelivr, then unpkg, then cloudflare for each library.
+    // A single CDN outage can no longer white-screen the app.
+    (function(){
+      var LIBS=[
+        {name:"React",urls:[
+          "https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js",
+          "https://unpkg.com/react@18.3.1/umd/react.production.min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"
+        ],check:function(){return window.React;}},
+        {name:"ReactDOM",urls:[
+          "https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js",
+          "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"
+        ],check:function(){return window.ReactDOM;}},
+        {name:"Babel",urls:[
+          "https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js",
+          "https://unpkg.com/@babel/standalone@7.25.6/babel.min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.25.6/babel.min.js"
+        ],check:function(){return window.Babel;}}
+      ];
+      function loadOne(lib,done){
+        var i=0;
+        function attempt(){
+          if(lib.check()){done(true);return;}
+          if(i>=lib.urls.length){done(false);return;}
+          var s=document.createElement("script");
+          s.src=lib.urls[i++];
+          s.onload=function(){lib.check()?done(true):attempt();};
+          s.onerror=attempt;
+          document.head.appendChild(s);
+        }
+        attempt();
+      }
+      function chain(idx){
+        if(idx>=LIBS.length){
+          // All loaded. Run the babel script block.
+          try{ window.Babel.transformScriptTags(); }
+          catch(e){ showFail("Babel failed to process the app: "+e.message); }
+          return;
+        }
+        loadOne(LIBS[idx],function(ok){
+          if(!ok){ showFail("Could not load "+LIBS[idx].name+" from any source. Check your internet connection and reload."); return; }
+          chain(idx+1);
+        });
+      }
+      function showFail(msg){
+        document.getElementById("root").innerHTML=
+          '<div style="padding:40px 24px;font-family:-apple-system,system-ui,sans-serif;max-width:420px;margin:0 auto">'+
+          '<div style="font-size:18px;font-weight:900;color:#2a2118;margin-bottom:8px">Could not start</div>'+
+          '<div style="font-size:13px;color:#666;line-height:1.5;margin-bottom:16px">Your data is safe and untouched. This is a network or loading problem, not your information.</div>'+
+          '<div style="font-size:11px;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px;margin-bottom:16px">'+msg+'</div>'+
+          '<button onclick="location.reload()" style="width:100%;background:#2a2118;color:#fff;border:none;border-radius:10px;padding:14px;font-size:12px;font-weight:800">Reload</button></div>';
+      }
+      chain(0);
+    })();
+  </script>
   <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useCallback } = React;
 const MONTHS_ARR = [
