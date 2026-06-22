@@ -128,6 +128,12 @@ const Q2_WEEKS = [
   { n:13, start:[6,29], end:[7,5],   sm:"JUN", em:"JUL" },
 ];
 
+// Resolve which Q2_WEEKS index contains a given month/day. Returns -1 if none.
+function weekIdxForDay(m,d){
+  const key=m*100+d;
+  return Q2_WEEKS.findIndex(w=>key>=w.start[0]*100+w.start[1]&&key<=w.end[0]*100+w.end[1]);
+}
+
 const ESS_SPORT = [{ code:"MS", label:"Sport" }, { code:"MM", label:"Mind" }];
 const ESS_RJ    = [{ code:"RJ", label:"Journal AM" }, { code:"RJ2", label:"Journal PM" }];
 const ESSENTIALS = [...ESS_SPORT, ...ESS_RJ];
@@ -1055,23 +1061,17 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             );
           })}
         </div>
-        {/* Data rows — selected day + 2 days back (crosses month boundaries) */}
+        {/* Data rows — full current week (7 days, crosses month boundaries) */}
         {(()=>{
-          const rowDays=[];
-          let rm=viewM,rd=viewDay;
-          for(let i=0;i<3;i++){
-            rowDays.push({m:rm,d:rd});
-            rd--;
-            if(rd<1){const pi=MONTHS_ARR.findIndex(x=>x.m===rm)-1;if(pi<0)break;rm=MONTHS_ARR[pi].m;rd=MONTHS_ARR[pi].days;}
-          }
-          rowDays.reverse();
+          const rowDays=wd;
           return rowDays.map((rday,ri)=>{
             const rData=allData[getMI(rday.m)];
-            const isSel=ri===rowDays.length-1;
+            const isSel=rday.m===viewM&&rday.d===viewDay;
+            const isToday=rday.m===TODAY_M&&rday.d===TODAY_D;
             return (
-              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:isSel?1:0.62,borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",background:isSel?"#fbf6ec":"transparent",marginTop:isSel?2:0}}>
+              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:1,borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",background:isSel?"#fbf6ec":isToday?"#fdfaf3":"transparent",marginTop:isSel?2:0}}>
                 <div style={{width:36,flexShrink:0,height:20,background:isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-                  <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":"#666",lineHeight:1}}>{rday.d}</span>
+                  <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":isToday?"#c9a96e":"#666",lineHeight:1}}>{rday.d}</span>
                   <span style={{fontSize:5,color:"#aaa",lineHeight:1}}>{M_LABEL[rday.m]}</span>
                 </div>
                 {/* Energy cell — tap cycles */}
@@ -1079,8 +1079,8 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   const curE=rData?.energy?.[rday.d];
                   const en=ENERGY.find(e=>e.sym===curE);
                   return (
-                    <div onClick={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
-                      <span style={{fontSize:8,fontWeight:900,color:en?en.color:"#ddd",lineHeight:1}}>{curE||"·"}</span>
+                    <div onClick={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color:"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                      <span style={{fontSize:8,fontWeight:900,color:en?"#fff":"#ddd",lineHeight:1}}>{curE||"·"}</span>
                     </div>
                   );
                 })()}
@@ -1516,7 +1516,7 @@ function isWeekEnd(month,day) {
   return em===month.m&&ed===day;
 }
 
-function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMood,setTabIdx,setViewDay,setViewM,toggleExtraHat,toggleLibHat}) {
+function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMood,setTabIdx,setViewDay,setViewM,setWeekIdx,toggleExtraHat,toggleLibHat}) {
   const month=MONTHS_ARR[monthIdx];
   const data=allData[monthIdx];
   const DAYS=Array.from({length:month.days},(_,i)=>i+1);
@@ -1739,7 +1739,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                     height:C,
                   }}>
                     {/* Day number — tap to jump to Today */}
-                    <div onClick={()=>{setViewDay(day);setViewM(month.m);setTabIdx(0);}} style={{
+                    <div onClick={()=>{const wi=weekIdxForDay(month.m,day);if(wi>=0)setWeekIdx(wi);setViewDay(day);setViewM(month.m);setTabIdx(0);}} style={{
                       width:COL_DAY-3,flexShrink:0,
                       display:"flex",alignItems:"center",justifyContent:"flex-end",
                       paddingRight:4,
@@ -2450,7 +2450,7 @@ function ExtraPanel({monthIdx, setMonthIdx, allData, toggleExtraHat, toggleLibHa
 }
 
 // ── ATLAS SUB-SECTIONS ────────────────────────────────────────────────────────
-function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}) {
+function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay, onBack}) {
   const [showExp,setShowExp]=useState(false);
   const [editIdx,setEditIdx]=useState(null);
   const [editVal,setEditVal]=useState("");
@@ -2582,8 +2582,11 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, onBack}
                 <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
                   {/* Date + mood + energy controls */}
                   <div style={{flexShrink:0,textAlign:"center",minWidth:36}}>
-                    <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
-                    <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",lineHeight:1}}>{d}</div>
+                    <div onClick={()=>goToDay&&goToDay(mo.m,d)} style={{cursor:"pointer"}} title="open this day">
+                      <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
+                      <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",lineHeight:1}}>{d}</div>
+                      <div style={{fontSize:6,color:"#c9a96e",fontWeight:800,letterSpacing:1,marginTop:1}}>OPEN ›</div>
+                    </div>
                     {/* Mood tap */}
                     <div onClick={()=>cycleMood(mo.m,d,mv>=10?0:(mv||0)+1)} style={{cursor:"pointer",marginTop:3,fontSize:9,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}} title="tap to change mood">
                       {mv||"·"}
@@ -2642,7 +2645,9 @@ function AtlasBudget({onBack}) {
   const EARNED_CATS=["Rover","Photography","Gig","Business"];
   const OTHER_CATS=["Rent","OW/Gov"];
   const INCOME_CATS=[...EARNED_CATS,...OTHER_CATS];
-  const CAT_COLOR={"Rover":"#c9a96e","Photography":"#7c6aad","Gig":"#e07b54","Business":"#2f8f5b","Rent":"#5b8def","OW/Gov":"#9ca3af","Gig work":"#e07b54","Other":"#9ca3af"};
+  const CAT_COLOR={"Rover":"#2f8f5b","Photography":"#7c6aad","Gig":"#e07b54","Business":"#9333ea","Rent":"#5b8def","OW/Gov":"#9ca3af","Gig work":"#e07b54","Other":"#9ca3af"};
+  const CAT_EMOJI={"Rover":"🐾"};
+  const catLabel=(c)=>(CAT_EMOJI[c]?CAT_EMOJI[c]+" ":"")+c;
   const isEarned=(cat)=>EARNED_CATS.includes(cat)||cat==="Gig work";
   const load=()=>{
     try{
@@ -2671,6 +2676,10 @@ function AtlasBudget({onBack}) {
   const [editId,setEditId]=useState(null);
   const [selCat,setSelCat]=useState(null);
   const [amtErr,setAmtErr]=useState(false);
+  const dragId=useRef(null);
+  const dragOverId=useRef(null);
+  const rowRefs=useRef({});
+  const [draggingId,setDraggingId]=useState(null);
   const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
   const entries=data.entries||[];
   const totalAll=entries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
@@ -2689,6 +2698,43 @@ function AtlasBudget({onBack}) {
   const deleteEntry=(id)=>save({entries:entries.filter(e=>e.id!==id)});
   const togglePending=(id)=>save({entries:entries.map(e=>e.id===id?{...e,pending:!e.pending}:e)});
   const startEdit=(e)=>{setForm({month:e.month,amount:String(e.amount),cat:e.cat,note:e.note||"",date:e.date||""});setEditId(e.id);setShowAdd(true);};
+  // Reorder: move dragged entry to just before target entry in the flat array.
+  // Only reorders within the same month (month is fixed per entry).
+  const moveEntry=(fromId,toId)=>{
+    if(fromId===toId) return;
+    const arr=[...entries];
+    const fi=arr.findIndex(e=>e.id===fromId);
+    const ti=arr.findIndex(e=>e.id===toId);
+    if(fi<0||ti<0) return;
+    if(arr[fi].month!==arr[ti].month) return; // keep within month group
+    const [moved]=arr.splice(fi,1);
+    const ti2=arr.findIndex(e=>e.id===toId);
+    arr.splice(ti2,0,moved);
+    save({entries:arr});
+  };
+  const onDragStartE=(id)=>{dragId.current=id;setDraggingId(id);};
+  const onDragEnterE=(id)=>{dragOverId.current=id;};
+  const onDragEndE=()=>{
+    if(dragId.current!=null&&dragOverId.current!=null&&dragId.current!==dragOverId.current){
+      moveEntry(dragId.current,dragOverId.current);
+    }
+    dragId.current=null;dragOverId.current=null;setDraggingId(null);
+  };
+  const onTouchStartE=(id)=>{dragId.current=id;setDraggingId(id);};
+  const onTouchMoveE=(e)=>{
+    if(dragId.current==null) return;
+    e.preventDefault();
+    const y=e.touches[0].clientY;
+    let closest=dragId.current,minDist=Infinity;
+    Object.entries(rowRefs.current).forEach(([id,ref])=>{
+      if(!ref) return;
+      const rect=ref.getBoundingClientRect();
+      const dist=Math.abs(y-(rect.top+rect.height/2));
+      if(dist<minDist){minDist=dist;closest=id;}
+    });
+    dragOverId.current=closest;
+  };
+  const onTouchEndE=()=>onDragEndE();
   const buildExp=()=>{
     let out="BUDGET Q2 2026\n"+"=".repeat(36)+"\n\n";
     MONTHS_ARR.forEach(mo=>{
@@ -2774,7 +2820,7 @@ function AtlasBudget({onBack}) {
                 <div key={c} onClick={()=>setSelCat(isSel?null:c)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",background:isSel?(CAT_COLOR[c]||"#ccc")+"14":"transparent",borderRadius:8,padding:"3px 6px",margin:"0 -6px"}}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
                     <span style={{width:8,height:8,borderRadius:2,background:CAT_COLOR[c]||"#ccc"}}/>
-                    <span style={{fontSize:9,fontWeight:isSel?900:700,color:"#3a2e24"}}>{c}</span>
+                    <span style={{fontSize:9,fontWeight:isSel?900:700,color:"#3a2e24"}}>{catLabel(c)}</span>
                     <span style={{fontSize:8,color:"#b0a898"}}>{pct}%</span>
                   </div>
                   <span style={{fontSize:10,fontWeight:900,color:"#1a1a1a"}}>{fmtMoney(ct)}</span>
@@ -2804,13 +2850,13 @@ function AtlasBudget({onBack}) {
             <div style={{fontSize:7,fontWeight:700,color:"#c9a96e",letterSpacing:1,marginBottom:4}}>EARNED — counts toward $3,000</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:7}}>
               {EARNED_CATS.map(c=>(
-                <button key={c} onClick={()=>setForm(f=>({...f,cat:c}))} style={{padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.cat===c?(CAT_COLOR[c]||"#555"):"#f0f0f0",color:form.cat===c?"#fff":"#666"}}>{c}</button>
+                <button key={c} onClick={()=>setForm(f=>({...f,cat:c}))} style={{padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.cat===c?(CAT_COLOR[c]||"#555"):"#f0f0f0",color:form.cat===c?"#fff":"#666"}}>{catLabel(c)}</button>
               ))}
             </div>
             <div style={{fontSize:7,fontWeight:700,color:"#9ca3af",letterSpacing:1,marginBottom:4}}>OTHER — tracked, not counted</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
               {OTHER_CATS.map(c=>(
-                <button key={c} onClick={()=>setForm(f=>({...f,cat:c}))} style={{padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.cat===c?(CAT_COLOR[c]||"#555"):"#f0f0f0",color:form.cat===c?"#fff":"#666"}}>{c}</button>
+                <button key={c} onClick={()=>setForm(f=>({...f,cat:c}))} style={{padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.cat===c?(CAT_COLOR[c]||"#555"):"#f0f0f0",color:form.cat===c?"#fff":"#666"}}>{catLabel(c)}</button>
               ))}
             </div>
           </div>
@@ -2829,6 +2875,9 @@ function AtlasBudget({onBack}) {
               style={{width:"100%",boxSizing:"border-box",border:"1px solid #e0e0e0",borderRadius:8,padding:"8px 10px",fontSize:13,fontFamily:"inherit",outline:"none",background:"#fafafa",resize:"vertical",minHeight:64,lineHeight:1.5}}/>
           </div>
           <button onClick={addEntry} onMouseDown={e=>e.preventDefault()} style={{width:"100%",background:"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:11,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>{editId?"SAVE CHANGES":"ADD INCOME"}</button>
+          {editId&&(
+            <button onClick={()=>{if(window.confirm("Delete this entry?")){deleteEntry(editId);setShowAdd(false);setEditId(null);setForm({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});}}} onMouseDown={e=>e.preventDefault()} style={{width:"100%",marginTop:8,background:"#fff0f0",color:"#ef4444",border:"1.5px solid #f5c2c2",borderRadius:10,padding:"10px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>DELETE ENTRY</button>
+          )}
         </div>
       )}
       {entries.length===0
@@ -2844,11 +2893,15 @@ function AtlasBudget({onBack}) {
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:5}}>
                 {mes.map(e=>(
-                  <div key={e.id} style={{background:e.pending?"#fffdf7":"#fff",borderRadius:10,padding:"10px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",display:"flex",alignItems:"stretch",gap:10,border:e.pending?"1.5px dashed #d4a574":"1.5px solid transparent"}}>
+                  <div key={e.id} ref={el=>{rowRefs.current[e.id]=el;}}
+                    draggable onDragStart={()=>onDragStartE(e.id)} onDragEnter={()=>onDragEnterE(e.id)} onDragEnd={onDragEndE} onDragOver={ev=>ev.preventDefault()}
+                    style={{background:e.pending?"#fffdf7":"#fff",borderRadius:10,padding:"10px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",display:"flex",alignItems:"stretch",gap:8,border:e.pending?"1.5px dashed #d4a574":"1.5px solid transparent",opacity:draggingId===e.id?0.4:1}}>
+                    <div onTouchStart={()=>onTouchStartE(e.id)} onTouchMove={onTouchMoveE} onTouchEnd={onTouchEndE}
+                      title="drag to reorder" style={{display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,width:18,cursor:"grab",color:"#c9b8a0",fontSize:13,touchAction:"none",WebkitTapHighlightColor:"transparent",lineHeight:1}}>⠿</div>
                     <div style={{width:4,borderRadius:2,background:CAT_COLOR[e.cat]||"#ccc",flexShrink:0,minHeight:36,opacity:e.pending?0.5:1}}/>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:1,flexWrap:"wrap"}}>
-                        <span style={{fontSize:8,fontWeight:800,color:CAT_COLOR[e.cat]||"#555"}}>{e.cat}</span>
+                        <span style={{fontSize:8,fontWeight:800,color:CAT_COLOR[e.cat]||"#555"}}>{catLabel(e.cat)}</span>
                         {e.date&&<span style={{fontSize:7,color:"#b0a898"}}>{e.date}</span>}
                         {e.pending&&<span style={{fontSize:7,fontWeight:900,color:"#b8860b",background:"#fdf3dc",borderRadius:8,padding:"1px 6px",letterSpacing:0.5}}>⏳ PENDING</span>}
                       </div>
@@ -2857,10 +2910,7 @@ function AtlasBudget({onBack}) {
                     <div style={{fontSize:14,fontWeight:900,color:e.pending?"#b8860b":"#1a1a1a",flexShrink:0}}>{fmtMoney(e.amount)}</div>
                     <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0}}>
                       <button onClick={()=>togglePending(e.id)} title={e.pending?"Mark as paid":"Mark as pending"} style={{background:e.pending?"#fdf3dc":"#f0f9f0",border:"none",borderRadius:6,padding:"3px 6px",fontSize:8,cursor:"pointer",fontWeight:800,color:e.pending?"#b8860b":"#16a34a",letterSpacing:0.3}}>{e.pending?"mark paid":"pending"}</button>
-                      <div style={{display:"flex",gap:3}}>
-                        <button onClick={()=>startEdit(e)} style={{background:"#f5f5f5",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer"}}>edit</button>
-                        <button onClick={()=>deleteEntry(e.id)} style={{background:"#fff0f0",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer",color:"#ef4444"}}>X</button>
-                      </div>
+                      <button onClick={()=>startEdit(e)} style={{background:"#f5f5f5",border:"none",borderRadius:6,padding:"3px 6px",fontSize:9,cursor:"pointer"}}>edit</button>
                     </div>
                   </div>
                 ))}
@@ -3283,7 +3333,7 @@ function AtlasVision({onBack}) {
 }
 
 // ── ATLAS PANEL ──────────────────────────────────────────────────────────────
-function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat, toggleLibHat, cycleEnergy, cycleMood, setHighlight}) {
+function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat, toggleLibHat, cycleEnergy, cycleMood, setHighlight, setViewDay, setViewM, setWeekIdx, setTabIdx}) {
   const [section, setSection] = useState(null);
   const tiles = [
     {id:"highlights", icon:"✨", label:"Highlights\n& Mood",  color:"#c9a96e", bg:"#fdf8f0", desc:"All days · mood + highlight"},
@@ -3294,7 +3344,7 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
     {id:"weekexport", icon:"📤", label:"Exports",             color:"#7c3aed", bg:"#f5f3ff", desc:"Week · month · all"},
     {id:"vision",     icon:"🎯", label:"Vision",              color:"#b8860b", bg:"#fdf8f0", desc:"Read it every morning"},
   ];
-  if(section==="highlights") return <AtlasHighlights allData={allData} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} onBack={()=>setSection(null)}/>;
+  if(section==="highlights") return <AtlasHighlights allData={allData} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} goToDay={(m,d)=>{const wi=weekIdxForDay(m,d);if(wi>=0)setWeekIdx(wi);setViewM(m);setViewDay(d);setTabIdx(0);}} onBack={()=>setSection(null)}/>;
   if(section==="budget")     return <AtlasBudget onBack={()=>setSection(null)}/>;
   if(section==="challenge")  return <AtlasChallenge onBack={()=>setSection(null)}/>;
   if(section==="extra")      return <AtlasExtra monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} onBack={()=>setSection(null)}/>;
@@ -3674,9 +3724,9 @@ function App() {
         {TABS.map((t,i)=>(
           <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"16px 14px 48px",boxSizing:"border-box",minHeight:"80vh"}}>
             {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged}/> }
-            {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
+            {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="challenge"&&<ChallengePanel/>}
-            {t==="atlas"&&<AtlasPanel allData={allData} winsLogged={winsLogged} monthIdx={monthIdx} setMonthIdx={setMonthIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight}/>}
+            {t==="atlas"&&<AtlasPanel allData={allData} winsLogged={winsLogged} monthIdx={monthIdx} setMonthIdx={setMonthIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} setTabIdx={setTabIdx}/>}
           </div>
         ))}
       </div>
