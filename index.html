@@ -129,9 +129,36 @@ const Q2_WEEKS = [
 ];
 
 // Resolve which Q2_WEEKS index contains a given month/day. Returns -1 if none.
-function weekIdxForDay(m,d){
-  const key=m*100+d;
+function weekIdxForDay(m,d){  const key=m*100+d;
   return Q2_WEEKS.findIndex(w=>key>=w.start[0]*100+w.start[1]&&key<=w.end[0]*100+w.end[1]);
+}
+
+// 3-letter English weekday for a 2026 month/day (MON, TUE, ...).
+const WD_NAMES=["SUN","MON","TUE","WED","THU","FRI","SAT"];
+function weekdayShort(m,d){
+  try{ return WD_NAMES[new Date(2026,m-1,d).getDay()]; }catch(e){ return ""; }
+}
+
+// Copy text to clipboard without visibly selecting on-screen text (no blue highlight).
+function copyText(txt){  try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt); return true; } }catch(e){}
+  try{
+    const t=document.createElement("textarea");
+    t.value=txt; t.style.position="fixed"; t.style.top="-9999px"; t.style.opacity="0";
+    document.body.appendChild(t); t.select(); document.execCommand("copy"); document.body.removeChild(t);
+    return true;
+  }catch(e){ return false; }
+}
+
+// Download text as a .txt file. Falls back to clipboard copy if download is blocked.
+function downloadText(filename,text){
+  try{
+    const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); setTimeout(()=>{try{URL.revokeObjectURL(url);}catch(e){}},1000);
+    return true;
+  }catch(e){ return copyText(text); }
 }
 
 const ESS_SPORT = [{ code:"MS", label:"Sport" }, { code:"MM", label:"Mind" }];
@@ -689,6 +716,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
   const data = allData[getMI(viewM)];
   const w = Q2_WEEKS[weekIdx];
   const wd = weekDays();
+  const [dayCopied,setDayCopied]=useState(false);
   const essDone = ESSENTIALS.filter(h=>data?.grid?.[h.code]?.[viewDay]).length;
   const dayPct = top3pct(data, viewDay);
   const wkPct = weeklyTop3(allData, wd);
@@ -959,26 +987,24 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       {/* 🐝 BEE CANVAS — fullscreen overlay */}
       <canvas ref={beeCanvasRef} style={{display:"none",position:"fixed",top:0,left:0,width:"100%",height:"100%",zIndex:999,pointerEvents:"none"}}/>
 
-      {/* Daily progress bar */}
-      <div style={{background:"#fff",borderRadius:14,border:"none",marginBottom:12,padding:"10px 14px",boxShadow:dayPct===100?"0 4px 20px rgba(20,83,45,0.15)":"0 2px 10px rgba(0,0,0,0.07)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-          <span style={{fontSize:8,fontWeight:900,letterSpacing:2,color:dayPct===100?"#14532d":"#555"}}>
-            {M_LABEL[viewM]} {viewDay} · TOP 3 HATs
-          </span>
-          <span style={{fontSize:14,fontWeight:900,color:dayPct===100?"#14532d":dayPct>0?"#1b5e20":"#ccc"}}>
-            {dayPct}%
-          </span>
+      {/* Daily progress — hero */}
+      <div style={{position:"relative",overflow:"hidden",background:dayPct===100?"linear-gradient(135deg,#14532d,#1b5e20)":"linear-gradient(135deg,#332817,#241c12)",borderRadius:20,marginBottom:14,padding:"16px 18px",boxShadow:dayPct===100?"0 8px 28px rgba(20,83,45,0.28)":"0 6px 22px rgba(42,33,24,0.22)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:dayPct===100?"#bbf7d0":"#c9a96e",textTransform:"uppercase"}}>{M_LABEL[viewM]} {viewDay} · Today</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:8,marginTop:6}}>
+              <span style={{fontSize:38,fontWeight:900,letterSpacing:-1.5,color:"#fff",lineHeight:1}}>{dayPct}<span style={{fontSize:18,color:dayPct===100?"#bbf7d0":"#c9a96e"}}>%</span></span>
+              <span style={{fontSize:9,color:"#a89e8c",fontWeight:700,letterSpacing:1,marginBottom:3}}>of Top 3</span>
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:7,color:"#8a7f6d",fontWeight:800,letterSpacing:1}}>WEEK W{w.n}</div>
+            <div style={{fontSize:16,fontWeight:900,color:"#e8dcc8",lineHeight:1.1}}>{wkPct}%</div>
+            <div style={{fontSize:7,color:"#8a7f6d",fontWeight:700,marginTop:4}}>{TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TOP3.length} HATs</div>
+          </div>
         </div>
-        <div style={{background:"#e8f5e9",borderRadius:20,height:7,overflow:"hidden"}}>
-          <div style={{
-            background:dayPct===100?"#14532d":"#22c55e",
-            height:"100%",width:dayPct+"%",borderRadius:20,
-            transition:"width .4s cubic-bezier(.4,0,.2,1)",
-          }}/>
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-          <span style={{fontSize:7,color:"#aaa"}}>week W{w.n}: {wkPct}%</span>
-          <span style={{fontSize:7,color:"#aaa"}}>{TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TOP3.length} hats</span>
+        <div style={{marginTop:12,background:"rgba(255,255,255,0.10)",borderRadius:20,height:8,overflow:"hidden"}}>
+          <div style={{background:dayPct===100?"linear-gradient(90deg,#4ade80,#bbf7d0)":"linear-gradient(90deg,#c9a96e,#e8c98f)",height:"100%",width:dayPct+"%",borderRadius:20,transition:"width .45s cubic-bezier(.4,0,.2,1)",boxShadow:dayPct>0?"0 0 12px rgba(201,169,110,0.45)":"none"}}/>
         </div>
       </div>
       {/* Week nav + 5-4-3-2-1 */}
@@ -990,13 +1016,13 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         <NBtn onClick={()=>setWeekIdx(x=>Math.min(12,x+1))} on={weekIdx<12}>›</NBtn>
       </div>
       {/* 5-4-3-2-1 + speed mantra */}
-      <div style={{textAlign:"center",marginBottom:6}}>
-        <span style={{display:"inline-block",background:"#e8e8e8",color:"#444",borderRadius:20,padding:"3px 14px",fontSize:9,fontWeight:900,letterSpacing:4,fontFamily:"'SF Mono','Courier New',monospace"}}>5 · 4 · 3 · 2 · 1 GO</span>
-        <div style={{marginTop:3,fontSize:8,fontWeight:700,color:"#999",letterSpacing:2}}>⚡ LIGHT SPEED · WHAT'S NEXT?</div>
+      <div style={{textAlign:"center",marginBottom:8}}>
+        <span style={{display:"inline-block",background:"#f3ece0",color:"#8a6d3b",border:"1px solid #e6d8c0",borderRadius:20,padding:"4px 16px",fontSize:9,fontWeight:900,letterSpacing:4,fontFamily:"'SF Mono','Courier New',monospace"}}>5 · 4 · 3 · 2 · 1 GO</span>
+        <div style={{marginTop:4,fontSize:8,fontWeight:700,color:"#b3a894",letterSpacing:2}}>⚡ LIGHT SPEED · WHAT'S NEXT?</div>
       </div>
 
       {/* Day strip — full width, equal cells */}
-      <div style={{display:"flex",gap:3,marginBottom:6}}>
+      <div style={{display:"flex",gap:4,marginBottom:10}}>
         {wd.map(({m,d})=>{
           const dd=allData[getMI(m)];const de=dd?.energy?.[d];const dp=top3pct(dd,d);
           const hasNote=!!(dd?.notes?.[d]?.trim());
@@ -1016,11 +1042,11 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             return s;
           })();
           return (
-            <button key={m+"-"+d} onClick={()=>{setViewDay(d);setViewM(m);}} style={{flex:1,background:isV?"#2a2118":"#fff",border:`1.5px solid ${isT&&!isV?"#c9a96e":"transparent"}`,borderRadius:10,padding:"4px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,position:"relative",boxShadow:isV?"0 2px 8px rgba(0,0,0,0.18)":"0 1px 4px rgba(0,0,0,0.07)"}}>
+            <button key={m+"-"+d} onClick={()=>{setViewDay(d);setViewM(m);}} style={{flex:1,background:isV?"#2a2118":"#fff",border:`1.5px solid ${isT&&!isV?"#c9a96e":"transparent"}`,borderRadius:12,padding:"5px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,position:"relative",boxShadow:isV?"0 4px 14px rgba(42,33,24,0.22)":"0 1px 5px rgba(42,33,24,0.06)",transition:"transform .12s ease"}}>
               {hasNote&&<div style={{position:"absolute",top:3,right:3,width:5,height:5,borderRadius:"50%",background:isV?"#c9a96e":"#7c3aed"}}/>}
               {isWL&&<div style={{position:"absolute",top:2,left:3,fontSize:8,lineHeight:1}}>⭐</div>}
-              <div style={{fontSize:6,color:isV?"#a09080":"#bbb",letterSpacing:.5}}>{M_LABEL[m]}</div>
-              <div style={{fontSize:16,fontWeight:isT?900:600,color:isV?"#fff":"#1a1a1a",lineHeight:1.1}}>{d}</div>
+              <div style={{fontSize:6,fontWeight:800,color:isV?"#c9a96e":isT?"#9a7b3c":"#b0a898",letterSpacing:.5}}>{weekdayShort(m,d)}</div>
+              <div style={{fontSize:16,fontWeight:isT?900:600,color:isV?"#fff":isT?"#9a7b3c":"#1a1a1a",lineHeight:1.1}}>{d}</div>
               <div style={{fontSize:9,color:isV?"#999":de?ecol(de):"#ddd",marginTop:2}}>{de||"·"}</div>
               <div style={{fontSize:8,fontWeight:800,color:isV?"#aaa":dp===100?"#14532d":dp>0?"#555":"#e0e0e0"}}>{dp>0?dp+"%":""}</div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",minHeight:13,marginTop:1,paddingLeft:1,paddingRight:1}}>
@@ -1031,9 +1057,14 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           );
         })}
       </div>
+      {/* Copy selected day */}
+      <button onClick={()=>{copyText(buildDayText(viewM,viewDay,allData));setDayCopied(true);setTimeout(()=>setDayCopied(false),1800);}}
+        style={{width:"100%",marginBottom:12,background:dayCopied?"#16a34a":"#fff",color:dayCopied?"#fff":"#8a7f6d",border:"1px solid "+(dayCopied?"#16a34a":"#ece6dc"),borderRadius:12,padding:"8px 0",fontSize:9,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 1px 5px rgba(42,33,24,0.05)",touchAction:"manipulation"}}>
+        {dayCopied?"✓ COPIED":"⧉ COPY THIS DAY · "+weekdayShort(viewM,viewDay)+" "+M_LABEL[viewM]+" "+viewDay}
+      </button>
 
       {/* HAT MINI GRID — energy · mood · 14 hats */}
-      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         {/* Header row: group labels */}
         <div style={{display:"flex"}}>
           <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",height:12}}/>
@@ -1072,7 +1103,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
               <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:1,borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",background:isSel?"#fbf6ec":isToday?"#fdfaf3":"transparent",marginTop:isSel?2:0}}>
                 <div style={{width:36,flexShrink:0,height:20,background:isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
                   <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":isToday?"#c9a96e":"#666",lineHeight:1}}>{rday.d}</span>
-                  <span style={{fontSize:5,color:"#aaa",lineHeight:1}}>{M_LABEL[rday.m]}</span>
+                  <span style={{fontSize:5,fontWeight:700,color:isToday?"#c9a96e":"#aaa",lineHeight:1,letterSpacing:.3}}>{weekdayShort(rday.m,rday.d)}</span>
                 </div>
                 {/* Energy cell — tap cycles */}
                 {(()=>{
@@ -1122,7 +1153,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       </div>
 
       {/* EXTRA HATS — collapsible, before tasks */}
-      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         <div onClick={()=>setShowLib(x=>!x)} style={{padding:"6px 12px",background:"#faf7f3",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
           <span style={{fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>
             EXTRA HATS
@@ -1249,9 +1280,12 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         const onTouchEnd=()=>onDragEnd();
 
         return (
-          <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
-            <div style={{padding:"6px 12px",background:"#2a2118",fontSize:9,letterSpacing:3,color:"#fff",fontWeight:800}}>
-              TOP 3 TASKS — {M_LABEL[viewM]} {viewDay}
+          <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
+            <div style={{padding:"9px 14px",background:"linear-gradient(135deg,#332817,#241c12)",display:"flex",alignItems:"center",gap:8}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:"#c9a96e",flexShrink:0,boxShadow:"0 0 8px rgba(201,169,110,0.6)"}}/>
+              <span style={{fontSize:9,letterSpacing:3,color:"#fff",fontWeight:800}}>TOP 3 TASKS</span>
+              <span style={{flex:1}}/>
+              <span style={{fontSize:8,letterSpacing:1,color:"#a89e8c",fontWeight:700}}>{M_LABEL[viewM]} {viewDay}</span>
             </div>
             {(()=>{
               const flagged=Object.values(escalations);
@@ -1321,28 +1355,32 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                     placeholder={isExtra?"Extra task...":"Task "+(idx+1)+"..."}
                     style={{flex:1,background:"none",border:"none",fontSize:13,fontFamily:"inherit",color:checked?"#9ca3af":isExtra?"#7c3aed":"#111",padding:"8px 0",outline:"none",textDecoration:checked?"line-through":"none",minWidth:0,resize:"none",lineHeight:1.3,overflowY:"auto",display:"block"}}
                   />
-                  {(()=>{
-                    const cs=carryStreak(viewM,viewDay,val);
-                    if(cs<2||checked) return null;
-                    const isPromotable=idx>0; // already in T1? no need to promote
-                    return (
-                      <button onClick={()=>{if(isPromotable) moveSlot(idx,0);}}
-                        title={isPromotable?"Promote to T1":"This is your oldest task"}
-                        style={{flexShrink:0,display:"flex",alignItems:"center",gap:3,background:"#fff7ed",border:"1px solid #f59e0b",borderRadius:12,padding:"3px 7px",cursor:isPromotable?"pointer":"default",fontFamily:"inherit"}}>
-                        <span style={{fontSize:8,fontWeight:900,color:"#b45309"}}>{cs+1}d</span>
-                        {isPromotable&&<span style={{fontSize:8,fontWeight:900,color:"#f59e0b"}}>↑T1</span>}
-                      </button>
-                    );
-                  })()}
-                  {val.replace(/\u200b/g,"").trim()&&(
-                    <button onClick={()=>toggleEscalation(val)}
-                      title={isEscalated(val)?"Escalated — flagged":"Flag as escalated"}
-                      style={{flexShrink:0,width:28,height:28,borderRadius:6,border:"1.5px solid "+(isEscalated(val)?"#f59e0b":"#e8e8e8"),background:isEscalated(val)?"#fff7ed":"#fafafa",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:12,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
-                      <span style={{opacity:isEscalated(val)?1:0.35}}>⚡</span>
-                    </button>
-                  )}
-                  <button onClick={()=>toggleCarry(viewM,viewDay,slot)}
-                    style={{width:32,height:32,borderRadius:6,border:"1.5px solid "+(carried?"#ef4444":"#e0e0e0"),background:carried?"#fee2e2":"#f5f5f5",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:14,color:carried?"#ef4444":"#bbb",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>→</button>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      {val.replace(/\u200b/g,"").trim()&&(
+                        <button onClick={()=>toggleEscalation(val)}
+                          title={isEscalated(val)?"Escalated — flagged":"Flag as escalated"}
+                          style={{width:28,height:28,borderRadius:6,border:"1.5px solid "+(isEscalated(val)?"#f59e0b":"#e8e8e8"),background:isEscalated(val)?"#fff7ed":"#fafafa",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:12,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
+                          <span style={{opacity:isEscalated(val)?1:0.35}}>⚡</span>
+                        </button>
+                      )}
+                      <button onClick={()=>toggleCarry(viewM,viewDay,slot)}
+                        style={{width:32,height:32,borderRadius:6,border:"1.5px solid "+(carried?"#ef4444":"#e0e0e0"),background:carried?"#fee2e2":"#f5f5f5",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:14,color:carried?"#ef4444":"#bbb",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>→</button>
+                    </div>
+                    {(()=>{
+                      const cs=carryStreak(viewM,viewDay,val);
+                      if(cs<2||checked) return null;
+                      const isPromotable=idx>0;
+                      return (
+                        <button onClick={()=>{if(isPromotable) moveSlot(idx,0);}}
+                          title={isPromotable?"Promote to T1 (carried "+(cs+1)+" days)":"This is your oldest task"}
+                          style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3,background:"#fff7ed",border:"1px solid #f59e0b",borderRadius:10,padding:"2px 6px",cursor:isPromotable?"pointer":"default",fontFamily:"inherit"}}>
+                          <span style={{fontSize:7,fontWeight:900,color:"#b45309"}}>{cs+1}d</span>
+                          {isPromotable&&<span style={{fontSize:7,fontWeight:900,color:"#f59e0b"}}>↑T1</span>}
+                        </button>
+                      );
+                    })()}
+                  </div>
                 </div>
                 </React.Fragment>
               );
@@ -1356,7 +1394,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         );
       })()}
       {/* Week Priorities with checkboxes */}
-      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         <div style={{padding:"5px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:8,fontWeight:800,color:"#333",letterSpacing:2}}>WEEK PRIORITIES</span>
           <span style={{fontSize:8,color:"#aaa"}}>W{w.n}</span>
@@ -1613,7 +1651,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
           return (
             <div style={{marginTop:6,background:"#fff",border:"1px solid #e0e0e0",borderRadius:8,overflow:"hidden"}}>
               <div style={{padding:"4px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>APR · MAY · JUN 2026 — NOTES · HIGHLIGHTS · WINS</div>
-              <textarea readOnly value={buildAllExport()} style={{width:"100%",minHeight:200,border:"none",outline:"none",resize:"vertical",padding:"8px 12px",fontSize:10,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.5}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
+              <textarea readOnly value={buildAllExport()} style={{width:"100%",minHeight:200,border:"none",outline:"none",resize:"vertical",padding:"8px 12px",fontSize:10,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.5}} onClick={e=>copyText(e.target.value)}/>
               <div style={{padding:"4px 12px",fontSize:7,color:"#aaa",borderTop:"1px solid #f0f0f0"}}>Tap textarea to select &amp; copy</div>
             </div>
           );
@@ -2491,76 +2529,109 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay
           <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>✨ Highlights</div>
           <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>{entries.length} DAYS LOGGED</div>
         </div>
-        <button onClick={()=>setShowExp(x=>!x)} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>
-          {showExp?"✕ CLOSE":"↗ EXPORT"}
+        <button onClick={()=>{copyText(buildExp());setShowExp(true);setTimeout(()=>setShowExp(false),1800);}} style={{background:showExp?"#16a34a":"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"7px 14px",fontSize:8.5,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",fontWeight:800,boxShadow:"0 2px 8px rgba(0,0,0,0.12)",whiteSpace:"nowrap"}}>
+          {showExp?"✓ COPIED":"⧉ EXPORT HIGHLIGHTS"}
         </button>
       </div>
-      {showExp&&(
-        <div style={{marginBottom:12,background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
-          <textarea readOnly value={buildExp()} style={{width:"100%",minHeight:160,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
-          <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select · copy manually</div>
-        </div>
-      )}
       {(()=>{
-        const EMAP={"▲▲":10,"▲":8,"■":6,"▼":3,"●":2};
-        const ELABEL={10:"PEAK",8:"EXC",6:"OK",3:"LOW",2:"REST"};
         const moodBand=v=>v>=9?"#7c3aed":v>=7?"#16a34a":v>=5?"#eab308":"#ef4444";
-        const all=entries.filter(e=>e.mv||e.ev).map(e=>({mv:e.mv||null,ev:e.ev?EMAP[e.ev]:null,m:e.mo.m,label:e.mo.short+" "+e.d,key:e.mo.m+"-"+e.d}));
-        const moodPts=all.filter(p=>p.mv!=null);
-        if(moodPts.length<2) return null;
-        const W=320,H=110,padX=22,padY=12;
-        const n=all.length;
-        const xOf=i=>padX+(n===1?0:i*(W-padX-8)/(n-1));
-        const yOf=v=>padY+(10-v)/9*(H-padY*2);
-        let ePath="",started=false;
-        all.forEach((p,i)=>{if(p.ev==null)return;ePath+=(started?"L":"M")+xOf(i).toFixed(1)+" "+yOf(p.ev).toFixed(1)+" ";started=true;});
-        // per-month mood averages
+        const ECOL={"▲▲":"#6d28d9","▲":"#8b5cf6","■":"#16a34a","▼":"#d97706","●":"#9ca3af"};
+        const EH={"▲▲":5,"▲":4,"■":3,"▼":2,"●":1};
+        const ELAB={"▲▲":"PEAK","▲":"EXC","■":"OK","▼":"UND","●":"REST"};
+        const moodAll=entries.filter(e=>e.mv).map(e=>({v:e.mv,m:e.mo.m,key:e.mo.m+"-"+e.d,label:e.mo.short+" "+e.d}));
+        const enAll=entries.filter(e=>e.ev).map(e=>({sym:e.ev,m:e.mo.m,key:e.mo.m+"-"+e.d,label:e.mo.short+" "+e.d}));
         const monthAvgs=MONTHS_ARR.map(mo=>{
-          const mp=moodPts.filter(p=>p.m===mo.m);
-          return mp.length?{short:mo.short,avg:(mp.reduce((s,p)=>s+p.mv,0)/mp.length)}:null;
+          const mp=moodAll.filter(p=>p.m===mo.m);
+          return mp.length?{short:mo.short,avg:(mp.reduce((s,p)=>s+p.v,0)/mp.length)}:null;
         }).filter(Boolean);
-        const grid=[2,4,6,8,10];
-        return (
-          <div style={{background:"#fff",borderRadius:12,padding:"12px 12px 10px",marginBottom:14,boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-              <span style={{fontSize:7,fontWeight:800,color:"#888",letterSpacing:1.5}}>MOOD & ENERGY</span>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,fontWeight:700,color:"#666"}}><span style={{width:9,height:9,borderRadius:"50%",background:"#16a34a",display:"inline-block"}}/>MOOD</span>
-                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,fontWeight:700,color:"#8b5cf6"}}><span style={{width:10,height:0,borderTop:"2px dashed #8b5cf6",display:"inline-block"}}/>ENERGY</span>
+        // ---- MOOD CHART (area + line + dots) ----
+        const moodChart=(()=>{
+          if(moodAll.length<2) return null;
+          const W=320,H=104,padX=20,padTop=10,padBot=14;
+          const n=moodAll.length;
+          const xOf=i=>padX+(n===1?0:i*(W-padX-8)/(n-1));
+          const yOf=v=>padTop+(10-v)/9*(H-padTop-padBot);
+          const pts=moodAll.map((p,i)=>({x:xOf(i),y:yOf(p.v),v:p.v,key:p.key}));
+          const lineD=pts.map((p,i)=>(i?"L":"M")+p.x.toFixed(1)+" "+p.y.toFixed(1)).join(" ");
+          const areaD=lineD+" L "+pts[n-1].x.toFixed(1)+" "+(H-padBot)+" L "+pts[0].x.toFixed(1)+" "+(H-padBot)+" Z";
+          return (
+            <div style={{background:"#fff",borderRadius:14,padding:"12px 12px 10px",marginBottom:12,boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <span style={{fontSize:8,fontWeight:800,color:"#7c3aed",letterSpacing:1.5}}>● MOOD</span>
+                <span style={{fontSize:7,color:"#b0a898",fontWeight:700}}>1–10 daily</span>
+              </div>
+              <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",display:"block"}}>
+                <defs>
+                  <linearGradient id="moodFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.22"/>
+                    <stop offset="100%" stopColor="#7c3aed" stopOpacity="0"/>
+                  </linearGradient>
+                </defs>
+                {[2,4,6,8,10].map(g=>(
+                  <g key={g}>
+                    <line x1={padX} y1={yOf(g)} x2={W-8} y2={yOf(g)} stroke="#f2efe9" strokeWidth="1"/>
+                    <text x={padX-5} y={yOf(g)+3} textAnchor="end" fontSize="7" fill="#c4bcae" fontWeight="700">{g}</text>
+                  </g>
+                ))}
+                <path d={areaD} fill="url(#moodFill)"/>
+                <path d={lineD} fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" opacity="0.55"/>
+                {pts.map(p=>(
+                  <circle key={p.key} cx={p.x} cy={p.y} r="3.4" fill={moodBand(p.v)} stroke="#fff" strokeWidth="1.4"/>
+                ))}
+              </svg>
+              <div style={{display:"flex",gap:9,justifyContent:"center",margin:"4px 0 6px",flexWrap:"wrap"}}>
+                {[["#7c3aed","9-10"],["#16a34a","7-8"],["#eab308","5-6"],["#ef4444","1-4"]].map(([c,r])=>(
+                  <span key={r} style={{display:"flex",alignItems:"center",gap:3,fontSize:7,color:"#999",fontWeight:700}}><span style={{width:7,height:7,borderRadius:"50%",background:c}}/>{r}</span>
+                ))}
+              </div>
+              {monthAvgs.length>0&&(
+                <div style={{display:"flex",gap:6,borderTop:"1px solid #f2efe9",paddingTop:8}}>
+                  {monthAvgs.map(ma=>(
+                    <div key={ma.short} style={{flex:1,textAlign:"center"}}>
+                      <div style={{fontSize:6,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{ma.short} AVG</div>
+                      <div style={{fontSize:13,fontWeight:900,color:moodBand(ma.avg),marginTop:1}}>{ma.avg.toFixed(1)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })();
+        // ---- ENERGY CHART (color bars per level) ----
+        const energyChart=(()=>{
+          if(enAll.length<1) return null;
+          const W=320,H=92,padX=8,padTop=8,padBot=16;
+          const n=enAll.length;
+          const slot=(W-padX*2)/n;
+          const bw=Math.min(slot*0.66,16);
+          const maxH=H-padTop-padBot;
+          return (
+            <div style={{background:"#fff",borderRadius:14,padding:"12px 12px 10px",marginBottom:14,boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <span style={{fontSize:8,fontWeight:800,color:"#6d28d9",letterSpacing:1.5}}>▲ ENERGY</span>
+                <span style={{fontSize:7,color:"#b0a898",fontWeight:700}}>{n} days</span>
+              </div>
+              <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",display:"block"}}>
+                <line x1={padX} y1={H-padBot} x2={W-padX} y2={H-padBot} stroke="#ece8e2" strokeWidth="1"/>
+                {enAll.map((p,i)=>{
+                  const h=EH[p.sym]/5*maxH;
+                  const x=padX+slot*i+(slot-bw)/2;
+                  const y=(H-padBot)-h;
+                  return <rect key={p.key} x={x.toFixed(1)} y={y.toFixed(1)} width={bw.toFixed(1)} height={h.toFixed(1)} rx="2" fill={ECOL[p.sym]||"#ccc"}/>;
+                })}
+              </svg>
+              <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:6,flexWrap:"wrap"}}>
+                {["▲▲","▲","■","▼","●"].map(s=>(
+                  <span key={s} style={{display:"flex",alignItems:"center",gap:3,fontSize:7,color:"#777",fontWeight:700}}>
+                    <span style={{width:8,height:8,borderRadius:2,background:ECOL[s]}}/>{ELAB[s]}
+                  </span>
+                ))}
               </div>
             </div>
-            <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",display:"block"}}>
-              {grid.map(g=>(
-                <g key={g}>
-                  <line x1={padX} y1={yOf(g)} x2={W-8} y2={yOf(g)} stroke="#f0ece4" strokeWidth="1"/>
-                  <text x={padX-5} y={yOf(g)+3} textAnchor="end" fontSize="7" fill="#c4bcae" fontWeight="700">{g}</text>
-                </g>
-              ))}
-              {ePath&&<path d={ePath} fill="none" stroke="#8b5cf6" strokeWidth="1.5" strokeDasharray="3 2" strokeLinejoin="round" strokeLinecap="round" opacity="0.8"/>}
-              {/* neutral mood trend line */}
-              <path d={moodPts.map((p)=>{const i=all.indexOf(p);return (i===all.indexOf(moodPts[0])?"M":"L")+xOf(i).toFixed(1)+" "+yOf(p.mv).toFixed(1);}).join(" ")} fill="none" stroke="#ddd" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
-              {/* mood dots colored by band */}
-              {all.map((p,i)=>p.mv!=null?(
-                <circle key={p.key} cx={xOf(i)} cy={yOf(p.mv)} r="3" fill={moodBand(p.mv)} stroke="#fff" strokeWidth="1"/>
-              ):null)}
-            </svg>
-            {/* band legend */}
-            <div style={{display:"flex",gap:9,justifyContent:"center",margin:"6px 0 8px",flexWrap:"wrap"}}>
-              {[["#7c3aed","9-10"],["#16a34a","7-8"],["#eab308","5-6"],["#ef4444","1-4"]].map(([c,r])=>(
-                <span key={r} style={{display:"flex",alignItems:"center",gap:3,fontSize:7,color:"#999",fontWeight:700}}><span style={{width:7,height:7,borderRadius:"50%",background:c}}/>{r}</span>
-              ))}
-            </div>
-            {/* per-month averages */}
-            <div style={{display:"flex",gap:6,borderTop:"1px solid #f2efe9",paddingTop:8}}>
-              {monthAvgs.map(ma=>(
-                <div key={ma.short} style={{flex:1,textAlign:"center"}}>
-                  <div style={{fontSize:6,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{ma.short}</div>
-                  <div style={{fontSize:13,fontWeight:900,color:moodBand(ma.avg),marginTop:1}}>{ma.avg.toFixed(1)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
+          );
+        })();
+        if(!moodChart&&!energyChart) return null;
+        return <React.Fragment>{moodChart}{energyChart}</React.Fragment>;
       })()}
       {entries.length===0
         ?<EmptyState icon="✨" line="One line a day: your mood, energy, and the moment that mattered. It becomes your emotional arc each quarter."/>
@@ -2570,12 +2641,22 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay
             const en=ENERGY.find(e=>e.sym===ev);
             const isEditing=editIdx===i;
             const showDivider=i===0||entries[i-1].mo.m!==mo.m;
+            const wkN=(()=>{const wi=weekIdxForDay(mo.m,d);return wi>=0?Q2_WEEKS[wi].n:null;})();
+            const prevWkN=i>0?(()=>{const wi=weekIdxForDay(entries[i-1].mo.m,entries[i-1].d);return wi>=0?Q2_WEEKS[wi].n:null;})():null;
+            const showWeek=!showDivider&&i>0&&wkN!==prevWkN;
             return (
               <React.Fragment key={i}>
               {showDivider&&(
-                <div style={{display:"flex",alignItems:"center",gap:8,margin:i===0?"0 0 2px":"10px 0 2px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,margin:i===0?"0 0 4px":"12px 0 4px"}}>
                   <span style={{fontSize:10,fontWeight:900,color:"#c9a96e",letterSpacing:2}}>{mo.name.toUpperCase()}</span>
+                  {wkN&&<span style={{fontSize:7,fontWeight:800,color:"#cbb896",letterSpacing:1}}>W{wkN}</span>}
                   <span style={{flex:1,height:1,background:"linear-gradient(90deg,#e8dcc8,transparent)"}}/>
+                </div>
+              )}
+              {showWeek&&(
+                <div style={{display:"flex",alignItems:"center",gap:6,margin:"8px 0 3px"}}>
+                  <span style={{fontSize:7,fontWeight:800,color:"#cbb896",letterSpacing:1.5}}>W{wkN}</span>
+                  <span style={{flex:1,height:1,background:"repeating-linear-gradient(90deg,#ece4d6 0 5px,transparent 5px 10px)"}}/>
                 </div>
               )}
               <div style={{background:"#fff",borderRadius:12,padding:"10px 14px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
@@ -2583,7 +2664,7 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay
                   {/* Date + mood + energy controls */}
                   <div style={{flexShrink:0,textAlign:"center",minWidth:36}}>
                     <div onClick={()=>goToDay&&goToDay(mo.m,d)} style={{cursor:"pointer"}} title="open this day">
-                      <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
+                      <div style={{fontSize:7,color:"#c9a96e",fontWeight:800,letterSpacing:1}}>{weekdayShort(mo.m,d)}</div>
                       <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",lineHeight:1}}>{d}</div>
                       <div style={{fontSize:6,color:"#c9a96e",fontWeight:800,letterSpacing:1,marginTop:1}}>OPEN ›</div>
                     </div>
@@ -2672,14 +2753,10 @@ function AtlasBudget({onBack}) {
   const [data,setDataRaw]=useState(load);
   const [showAdd,setShowAdd]=useState(false);
   const [showExp,setShowExp]=useState(false);
-  const [form,setForm]=useState({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});
+  const [form,setForm]=useState({month:TODAY_M,amount:"",cat:"Rover",client:"",note:"",date:""});
   const [editId,setEditId]=useState(null);
   const [selCat,setSelCat]=useState(null);
   const [amtErr,setAmtErr]=useState(false);
-  const dragId=useRef(null);
-  const dragOverId=useRef(null);
-  const rowRefs=useRef({});
-  const [draggingId,setDraggingId]=useState(null);
   const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
   const entries=data.entries||[];
   const totalAll=entries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
@@ -2691,57 +2768,29 @@ function AtlasBudget({onBack}) {
     const num=parseFloat(String(form.amount).replace(",",".").trim());
     if(!num||num<=0){setAmtErr(true);return;}
     setAmtErr(false);
-    const entry={id:editId||(Date.now()+Math.random()),month:parseInt(form.month),amount:num,cat:form.cat,note:form.note,date:form.date,pending:editId?(entries.find(e=>e.id===editId)?.pending||false):false};
+    const entry={id:editId||(Date.now()+Math.random()),month:parseInt(form.month),amount:num,cat:form.cat,client:(form.client||"").trim(),note:form.note,date:form.date,pending:editId?(entries.find(e=>e.id===editId)?.pending||false):false};
     const updated=editId?entries.map(e=>e.id===editId?entry:e):[entry,...entries];
-    save({entries:updated});setShowAdd(false);setForm({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});setEditId(null);
+    save({entries:updated});setShowAdd(false);setForm({month:TODAY_M,amount:"",cat:"Rover",client:"",note:"",date:""});setEditId(null);
   };
   const deleteEntry=(id)=>save({entries:entries.filter(e=>e.id!==id)});
   const togglePending=(id)=>save({entries:entries.map(e=>e.id===id?{...e,pending:!e.pending}:e)});
-  const startEdit=(e)=>{setForm({month:e.month,amount:String(e.amount),cat:e.cat,note:e.note||"",date:e.date||""});setEditId(e.id);setShowAdd(true);};
-  // Reorder: move dragged entry to just before target entry in the flat array.
-  // Only reorders within the same month (month is fixed per entry).
-  const moveEntry=(fromId,toId)=>{
-    if(fromId===toId) return;
+  const startEdit=(e)=>{setForm({month:e.month,amount:String(e.amount),cat:e.cat,client:e.client||"",note:e.note||"",date:e.date||""});setEditId(e.id);setShowAdd(true);};
+  // Swap two entries' positions in the flat array (used by up/down within a month).
+  const swapById=(idA,idB)=>{
+    if(!idA||!idB) return;
     const arr=[...entries];
-    const fi=arr.findIndex(e=>e.id===fromId);
-    const ti=arr.findIndex(e=>e.id===toId);
-    if(fi<0||ti<0) return;
-    if(arr[fi].month!==arr[ti].month) return; // keep within month group
-    const [moved]=arr.splice(fi,1);
-    const ti2=arr.findIndex(e=>e.id===toId);
-    arr.splice(ti2,0,moved);
+    const a=arr.findIndex(e=>e.id===idA), b=arr.findIndex(e=>e.id===idB);
+    if(a<0||b<0) return;
+    const t=arr[a]; arr[a]=arr[b]; arr[b]=t;
     save({entries:arr});
   };
-  const onDragStartE=(id)=>{dragId.current=id;setDraggingId(id);};
-  const onDragEnterE=(id)=>{dragOverId.current=id;};
-  const onDragEndE=()=>{
-    if(dragId.current!=null&&dragOverId.current!=null&&dragId.current!==dragOverId.current){
-      moveEntry(dragId.current,dragOverId.current);
-    }
-    dragId.current=null;dragOverId.current=null;setDraggingId(null);
-  };
-  const onTouchStartE=(id)=>{dragId.current=id;setDraggingId(id);};
-  const onTouchMoveE=(e)=>{
-    if(dragId.current==null) return;
-    e.preventDefault();
-    const y=e.touches[0].clientY;
-    let closest=dragId.current,minDist=Infinity;
-    Object.entries(rowRefs.current).forEach(([id,ref])=>{
-      if(!ref) return;
-      const rect=ref.getBoundingClientRect();
-      const dist=Math.abs(y-(rect.top+rect.height/2));
-      if(dist<minDist){minDist=dist;closest=id;}
-    });
-    dragOverId.current=closest;
-  };
-  const onTouchEndE=()=>onDragEndE();
   const buildExp=()=>{
     let out="BUDGET Q2 2026\n"+"=".repeat(36)+"\n\n";
     MONTHS_ARR.forEach(mo=>{
       const mes=entries.filter(e=>e.month===mo.m);
       if(!mes.length) return;
       out+=mo.name.toUpperCase()+" -- $"+totalMonth(mo.m).toFixed(2)+"\n";
-      mes.forEach(e=>{out+="  "+(e.date?e.date+" ":"")+e.cat+": $"+parseFloat(e.amount).toFixed(2)+(e.pending?" [PENDING]":"")+(e.note?" - "+e.note:"")+"\n";});
+      mes.forEach(e=>{out+="  "+(e.date?e.date+" ":"")+e.cat+(e.client?" ("+e.client+")":"")+": $"+parseFloat(e.amount).toFixed(2)+(e.pending?" [PENDING]":"")+(e.note?" - "+e.note:"")+"\n";});
       out+="\n";
     });
     out+="Q2 TOTAL: $"+totalAll.toFixed(2);
@@ -2759,8 +2808,8 @@ function AtlasBudget({onBack}) {
           <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>APR-JUN 2026</div>
         </div>
         <div style={{display:"flex",gap:6}}>
-          <button onClick={()=>setShowExp(x=>!x)} style={{background:"#4a9d6f",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showExp?"X":"EXPORT"}</button>
-          <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"CANCEL":"+ ADD"}</button>
+          <button onClick={()=>{copyText(buildExp());setShowExp(true);setTimeout(()=>setShowExp(false),1800);}} style={{background:showExp?"#16a34a":"#4a9d6f",color:"#fff",border:"none",borderRadius:20,padding:"7px 12px",fontSize:8.5,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",fontWeight:800,boxShadow:"0 2px 8px rgba(0,0,0,0.12)",whiteSpace:"nowrap"}}>{showExp?"✓ COPIED":"⧉ EXPORT BUDGET"}</button>
+          <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({month:TODAY_M,amount:"",cat:"Rover",client:"",note:"",date:""});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"CANCEL":"+ ADD"}</button>
         </div>
       </div>
       <div style={{background:"#2a2118",borderRadius:14,padding:"16px 18px",marginBottom:12}}>
@@ -2830,12 +2879,6 @@ function AtlasBudget({onBack}) {
           </div>
         </div>
       )}
-      {showExp&&(
-        <div style={{marginBottom:12,background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
-          <textarea readOnly value={buildExp()} style={{width:"100%",minHeight:140,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
-          <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select - copy manually</div>
-        </div>
-      )}
       {showAdd&&(
         <div style={{background:"#fff",borderRadius:12,padding:"14px",marginBottom:16,boxShadow:"0 2px 10px rgba(0,0,0,0.08)"}}>
           <div style={{fontSize:9,fontWeight:800,color:"#2a2118",letterSpacing:2,marginBottom:12}}>{editId?"EDIT ENTRY":"NEW ENTRY"}</div>
@@ -2861,6 +2904,25 @@ function AtlasBudget({onBack}) {
             </div>
           </div>
           <div style={{marginBottom:8}}>
+            <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>CLIENT (optional)</div>
+            <input list="budgetClients" value={form.client} onChange={e=>setForm(f=>({...f,client:e.target.value}))} placeholder="e.g. Ace / Elina, Baxter, Brian..."
+              style={{width:"100%",boxSizing:"border-box",border:"1px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",outline:"none",background:"#fafafa"}}/>
+            <datalist id="budgetClients">
+              {[...new Set(entries.map(x=>x.client).filter(Boolean))].map(c=><option key={c} value={c}/>)}
+            </datalist>
+            {(()=>{
+              const recent=[...new Set(entries.map(x=>x.client).filter(Boolean))].slice(0,6);
+              if(!recent.length) return null;
+              return (
+                <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
+                  {recent.map(c=>(
+                    <button key={c} onClick={()=>setForm(f=>({...f,client:c}))} style={{padding:"3px 9px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.client===c?"#2a2118":"#f0f0f0",color:form.client===c?"#fff":"#666"}}>{c}</button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+          <div style={{marginBottom:8}}>
             <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>MONTH</div>
             <div style={{display:"flex",gap:5}}>
               {MONTHS_ARR.map(mo=>(
@@ -2876,7 +2938,7 @@ function AtlasBudget({onBack}) {
           </div>
           <button onClick={addEntry} onMouseDown={e=>e.preventDefault()} style={{width:"100%",background:"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:11,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>{editId?"SAVE CHANGES":"ADD INCOME"}</button>
           {editId&&(
-            <button onClick={()=>{if(window.confirm("Delete this entry?")){deleteEntry(editId);setShowAdd(false);setEditId(null);setForm({month:TODAY_M,amount:"",cat:"Rover",note:"",date:""});}}} onMouseDown={e=>e.preventDefault()} style={{width:"100%",marginTop:8,background:"#fff0f0",color:"#ef4444",border:"1.5px solid #f5c2c2",borderRadius:10,padding:"10px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>DELETE ENTRY</button>
+            <button onClick={()=>{if(window.confirm("Delete this entry?")){deleteEntry(editId);setShowAdd(false);setEditId(null);setForm({month:TODAY_M,amount:"",cat:"Rover",client:"",note:"",date:""});}}} onMouseDown={e=>e.preventDefault()} style={{width:"100%",marginTop:8,background:"#fff0f0",color:"#ef4444",border:"1.5px solid #f5c2c2",borderRadius:10,padding:"10px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>DELETE ENTRY</button>
           )}
         </div>
       )}
@@ -2892,16 +2954,17 @@ function AtlasBudget({onBack}) {
                 <div style={{fontSize:12,fontWeight:900,color:"#4a9d6f"}}>{fmtMoney(totalMonth(mo.m))}</div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                {mes.map(e=>(
-                  <div key={e.id} ref={el=>{rowRefs.current[e.id]=el;}}
-                    draggable onDragStart={()=>onDragStartE(e.id)} onDragEnter={()=>onDragEnterE(e.id)} onDragEnd={onDragEndE} onDragOver={ev=>ev.preventDefault()}
-                    style={{background:e.pending?"#fffdf7":"#fff",borderRadius:10,padding:"10px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",display:"flex",alignItems:"stretch",gap:8,border:e.pending?"1.5px dashed #d4a574":"1.5px solid transparent",opacity:draggingId===e.id?0.4:1}}>
-                    <div onTouchStart={()=>onTouchStartE(e.id)} onTouchMove={onTouchMoveE} onTouchEnd={onTouchEndE}
-                      title="drag to reorder" style={{display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,width:18,cursor:"grab",color:"#c9b8a0",fontSize:13,touchAction:"none",WebkitTapHighlightColor:"transparent",lineHeight:1}}>⠿</div>
+                {mes.map((e,mi2)=>(
+                  <div key={e.id} style={{background:e.pending?"#fffdf7":"#fff",borderRadius:10,padding:"10px 10px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",display:"flex",alignItems:"stretch",gap:8,border:e.pending?"1.5px dashed #d4a574":"1.5px solid transparent"}}>
+                    <div style={{display:"flex",flexDirection:"column",justifyContent:"center",gap:2,flexShrink:0}}>
+                      <button onClick={()=>{if(mi2>0)swapById(e.id,mes[mi2-1].id);}} disabled={mi2===0} title="move up" style={{width:22,height:20,borderRadius:5,border:"1px solid #ece6dc",background:mi2===0?"#f6f4f0":"#fff",color:mi2===0?"#d8d2c8":"#8a7f6d",cursor:mi2===0?"default":"pointer",fontSize:10,fontWeight:900,padding:0,lineHeight:1,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>▲</button>
+                      <button onClick={()=>{if(mi2<mes.length-1)swapById(e.id,mes[mi2+1].id);}} disabled={mi2===mes.length-1} title="move down" style={{width:22,height:20,borderRadius:5,border:"1px solid #ece6dc",background:mi2===mes.length-1?"#f6f4f0":"#fff",color:mi2===mes.length-1?"#d8d2c8":"#8a7f6d",cursor:mi2===mes.length-1?"default":"pointer",fontSize:10,fontWeight:900,padding:0,lineHeight:1,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>▼</button>
+                    </div>
                     <div style={{width:4,borderRadius:2,background:CAT_COLOR[e.cat]||"#ccc",flexShrink:0,minHeight:36,opacity:e.pending?0.5:1}}/>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:1,flexWrap:"wrap"}}>
                         <span style={{fontSize:8,fontWeight:800,color:CAT_COLOR[e.cat]||"#555"}}>{catLabel(e.cat)}</span>
+                        {e.client&&<span style={{fontSize:9,fontWeight:800,color:"#2a2118"}}>{e.client}</span>}
                         {e.date&&<span style={{fontSize:7,color:"#b0a898"}}>{e.date}</span>}
                         {e.pending&&<span style={{fontSize:7,fontWeight:900,color:"#b8860b",background:"#fdf3dc",borderRadius:8,padding:"1px 6px",letterSpacing:0.5}}>⏳ PENDING</span>}
                       </div>
@@ -2997,16 +3060,10 @@ function AtlasJobs({onBack}) {
           <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>{jobs.length} ENTRIES</div>
         </div>
         <div style={{display:"flex",gap:6}}>
-          <button onClick={()=>setShowExp(x=>!x)} style={{background:"#6b7280",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showExp?"✕":"↗ EXPORT"}</button>
+          <button onClick={()=>{copyText(buildExp());setShowExp(true);setTimeout(()=>setShowExp(false),1800);}} style={{background:showExp?"#16a34a":"#6b7280",color:"#fff",border:"none",borderRadius:20,padding:"7px 12px",fontSize:8.5,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",fontWeight:800,boxShadow:"0 2px 8px rgba(0,0,0,0.12)",whiteSpace:"nowrap"}}>{showExp?"✓ COPIED":"⧉ EXPORT JOBS"}</button>
           <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({date:"",company:"",status:"Resume dropped",contact:"",note:""});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"✕ CANCEL":"+ ADD"}</button>
         </div>
       </div>
-      {showExp&&(
-        <div style={{marginBottom:12,background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
-          <textarea readOnly value={buildExp()} style={{width:"100%",minHeight:160,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
-          <div style={{padding:"4px 12px 6px",fontSize:7,color:"#bbb"}}>Tap to select · copy manually</div>
-        </div>
-      )}
       {showAdd&&(
         <div style={{background:"#fff",borderRadius:12,padding:"14px",marginBottom:16,boxShadow:"0 2px 10px rgba(0,0,0,0.08)"}}>
           <div style={{fontSize:9,fontWeight:800,color:"#2a2118",letterSpacing:2,marginBottom:12}}>{editId?"EDIT ENTRY":"NEW ENTRY"}</div>
@@ -3173,18 +3230,44 @@ function buildMonthStats(mo, allData){
   out+=`\n(Full notes + highlights + wins text lives in the Month tab export)\n— end of ${mo.name} stats —`;
   return out;
 }
+function buildDayText(m,d,allData){
+  const mi=_exGMI(m);
+  const data=allData[mi];
+  const M={4:"APR",5:"MAY",6:"JUN",7:"JUL"};
+  let out=`LIFE OS — DAY EXPORT · ${weekdayShort(m,d)} ${M[m]||m} ${d}, 2026\n`;
+  out+="=".repeat(40)+"\n";
+  if(!data){ out+="\nNo data for this day.\n"; return out; }
+  const en=data.energy?.[d], mv=data.mood?.[d];
+  out+=`Energy: ${en||"—"}   Mood: ${mv?mv+"/10":"—"}\n\n`;
+  const tc=_exReadLS("lifeos_v8_taskChecks")||{};
+  const t=data.tasks?.[d]||{};
+  out+="TOP 3 TASKS:\n";
+  let any=false;
+  for(let s=1;s<=10;s++){
+    const slot="t"+s; const val=(t[slot]||"").replace(/\u200b/g,"").trim();
+    if(!val){ if(s<=3) continue; else break; }
+    const chk=!!tc[m+"-"+d+"-"+slot+"-c"];
+    out+=`  ${s<=3?"T"+s:"  "} [${chk?"✓":"·"}] ${val}\n`; any=true;
+  }
+  if(!any) out+="  (none set)\n";
+  const marks=ALL_HATS.filter(h=>data.grid?.[h.code]?.[d]).map(h=>h.code+(data.grid[h.code][d]==="box"?"⊠":"✓"));
+  out+=`\nHATS MARKED: ${marks.length?marks.join("  "):"—"}\n`;
+  const note=data.notes?.[d]; if(note?.trim()) out+=`\nNOTE:\n  ${note.trim().split("\n").join("\n  ")}\n`;
+  const hl=data.highlights?.[d]; if(hl?.trim()) out+=`\n✨ HIGHLIGHT:\n  ${hl.trim()}\n`;
+  const wns=data.wins?.[d]; if(wns?.trim()){ out+=`\nWINS:\n`; wns.trim().split("\n").forEach(l=>{if(l.trim())out+=`  ${l.trim()}\n`;}); }
+  out+=`\n— end of day export —`;
+  return out;
+}
 function AtlasWeekExport({allData, winsLogged, onBack}) {
-  const [mode,setMode]=useState("week");
   const [selWeek,setSelWeek]=useState(null);
   const [selMonth,setSelMonth]=useState(null);
   const [output,setOutput]=useState("");
   const pastWeeks=Q2_WEEKS.filter(wk=>(wk.start[0]<TODAY_M)||(wk.start[0]===TODAY_M&&wk.start[1]<=TODAY_D));
   const exportAll=()=>{
     const parts=pastWeeks.map(wk=>buildWeekText(wk,allData));
-    setSelWeek(null);
+    setSelWeek(null);setSelMonth(null);
     setOutput(parts.join("\n\n"+"=".repeat(44)+"\n\n"));
   };
-  const switchMode=(m)=>{setMode(m);setOutput("");setSelWeek(null);setSelMonth(null);};
   return (
     <div>
       <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
@@ -3195,50 +3278,46 @@ function AtlasWeekExport({allData, winsLogged, onBack}) {
         <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>📤 Exports</div>
         <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>WEEK · MONTH · ALL — FOR CLAUDE SESSIONS</div>
       </div>
-      {/* Mode toggle */}
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["week","WEEKS"],["month","MONTH STATS"]].map(([m,lbl])=>(
-          <button key={m} onClick={()=>switchMode(m)} style={{flex:1,padding:"8px 0",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:800,letterSpacing:1.5,background:mode===m?"#2a2118":"#fff",color:mode===m?"#c9a96e":"#888",boxShadow:mode===m?"none":"0 1px 4px rgba(0,0,0,0.06)"}}>{lbl}</button>
-        ))}
+      {/* WEEKS — compact rows with per-week download */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <span style={{fontSize:8,fontWeight:800,color:"#888",letterSpacing:2}}>WEEKS</span>
+        <button onClick={exportAll} style={{background:"#fdf8f0",border:"1px solid #c9a96e",borderRadius:14,padding:"3px 10px",fontSize:8,fontWeight:800,letterSpacing:1,color:"#2a2118",cursor:"pointer",fontFamily:"inherit"}}>↗ ALL</button>
       </div>
-      {mode==="week"&&(
-        <div>
-          <button onClick={exportAll} style={{width:"100%",marginBottom:10,padding:"11px 0",borderRadius:10,border:"1.5px solid #c9a96e",cursor:"pointer",fontFamily:"inherit",fontSize:10,fontWeight:800,letterSpacing:1.5,background:"#fdf8f0",color:"#2a2118"}}>↗ EXPORT ALL WEEKS (W1–W{pastWeeks.length?pastWeeks[pastWeeks.length-1].n:1})</button>
-          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
-            {Q2_WEEKS.map(wk=>{
-              const isSel=selWeek?.n===wk.n;
-              const isPast=(wk.start[0]<TODAY_M)||(wk.start[0]===TODAY_M&&wk.start[1]<=TODAY_D);
-              return (
-                <button key={wk.n} disabled={!isPast} onClick={()=>{setSelWeek(wk);setOutput(buildWeekText(wk,allData));}} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:isSel?"#2a2118":isPast?"#fff":"#f9f9f9",border:`1.5px solid ${isSel?"#c9a96e":isPast?"#e0e0e0":"#ebebeb"}`,borderRadius:10,padding:"10px 14px",cursor:isPast?"pointer":"default",fontFamily:"inherit",opacity:isPast?1:0.45}}>
-                  <div style={{textAlign:"left"}}>
-                    <span style={{fontSize:10,fontWeight:900,color:isSel?"#c9a96e":isPast?"#1a1a1a":"#aaa"}}>W{wk.n}</span>
-                    <span style={{fontSize:8,color:isSel?"#a09080":"#888",marginLeft:8}}>{wk.sm} {wk.start[1]} – {wk.em} {wk.end[1]}</span>
-                  </div>
-                  {isSel&&<span style={{fontSize:10,color:"#c9a96e"}}>↗</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {mode==="month"&&(
-        <div style={{display:"flex",gap:6,marginBottom:14}}>
-          {MONTHS_ARR.map(mo=>{
-            const isSel=selMonth===mo.m;
-            const hasData=(mo.m<TODAY_M)||(mo.m===TODAY_M);
-            return (
-              <button key={mo.m} disabled={!hasData} onClick={()=>{setSelMonth(mo.m);setOutput(buildMonthStats(mo,allData));}} style={{flex:1,padding:"12px 0",borderRadius:10,border:`1.5px solid ${isSel?"#c9a96e":"#e0e0e0"}`,cursor:hasData?"pointer":"default",fontFamily:"inherit",fontSize:11,fontWeight:900,background:isSel?"#2a2118":"#fff",color:isSel?"#c9a96e":hasData?"#1a1a1a":"#bbb",opacity:hasData?1:0.45}}>{mo.short}</button>
-            );
-          })}
-        </div>
-      )}
+      <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:16}}>
+        {Q2_WEEKS.map(wk=>{
+          const isSel=selWeek?.n===wk.n;
+          const isPast=(wk.start[0]<TODAY_M)||(wk.start[0]===TODAY_M&&wk.start[1]<=TODAY_D);
+          if(!isPast) return null;
+          return (
+            <div key={wk.n} style={{display:"flex",alignItems:"center",gap:8,background:isSel?"#2a2118":"#fff",border:`1px solid ${isSel?"#c9a96e":"#ececec"}`,borderRadius:8,padding:"5px 6px 5px 12px"}}>
+              <button onClick={()=>{setSelWeek(wk);setSelMonth(null);setOutput(buildWeekText(wk,allData));}} style={{flex:1,textAlign:"left",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"3px 0"}}>
+                <span style={{fontSize:10,fontWeight:900,color:isSel?"#c9a96e":"#1a1a1a"}}>W{wk.n}</span>
+                <span style={{fontSize:8,color:isSel?"#a09080":"#999",marginLeft:8}}>{wk.sm} {wk.start[1]}–{wk.em} {wk.end[1]}</span>
+              </button>
+              <button onClick={()=>downloadText("LifeOS_W"+wk.n+".txt",buildWeekText(wk,allData))} title="download this week" style={{flexShrink:0,width:28,height:28,borderRadius:7,border:"1px solid "+(isSel?"#c9a96e":"#e0d8c8"),background:isSel?"#3a3026":"#fdf8f0",color:"#c9a96e",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",padding:0,lineHeight:1,touchAction:"manipulation"}}>↓</button>
+            </div>
+          );
+        })}
+      </div>
+      {/* MONTH STATS — compact */}
+      <div style={{fontSize:8,fontWeight:800,color:"#888",letterSpacing:2,marginBottom:8}}>MONTH STATS</div>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {MONTHS_ARR.map(mo=>{
+          const isSel=selMonth===mo.m;
+          const hasData=(mo.m<TODAY_M)||(mo.m===TODAY_M);
+          if(!hasData) return null;
+          return (
+            <button key={mo.m} onClick={()=>{setSelMonth(mo.m);setSelWeek(null);setOutput(buildMonthStats(mo,allData));}} style={{flex:1,padding:"10px 0",borderRadius:9,border:`1px solid ${isSel?"#c9a96e":"#e0e0e0"}`,cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:900,background:isSel?"#2a2118":"#fff",color:isSel?"#c9a96e":"#1a1a1a"}}>{mo.short}</button>
+          );
+        })}
+      </div>
       {output&&(
         <div style={{background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 12px",background:"#f2ede6"}}>
-            <span style={{fontSize:7,fontWeight:800,color:"#2a2118",letterSpacing:2}}>{mode==="week"?(selWeek?`W${selWeek.n} EXPORT`:"ALL WEEKS EXPORT"):"MONTH STATS"}</span>
-            <button onClick={()=>{const ta=document.getElementById("exOut");if(ta){ta.select();try{document.execCommand("copy");}catch(x){}}}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:12,padding:"3px 10px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>COPY</button>
+            <span style={{fontSize:7,fontWeight:800,color:"#2a2118",letterSpacing:2}}>{selWeek?`W${selWeek.n} EXPORT`:selMonth?"MONTH STATS":"ALL WEEKS EXPORT"}</span>
+            <button onClick={()=>{const ta=document.getElementById("exOut");if(ta)copyText(ta.value);}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:12,padding:"3px 10px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>COPY</button>
           </div>
-          <textarea id="exOut" readOnly value={output} style={{width:"100%",minHeight:220,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>{e.target.select();try{document.execCommand("copy");}catch(x){}}}/>
+          <textarea id="exOut" readOnly value={output} style={{width:"100%",minHeight:220,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>copyText(e.target.value)}/>
         </div>
       )}
     </div>
