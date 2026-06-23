@@ -111,6 +111,7 @@ const MONTHS_ARR = [
   { name:"April", short:"APR", days:30, m:4 },
   { name:"May",   short:"MAY", days:31, m:5 },
   { name:"June",  short:"JUN", days:30, m:6 },
+  { name:"July",  short:"JUL", days:31, m:7 },
 ];
 const Q2_WEEKS = [
   { n:1,  start:[4,6],  end:[4,12],  sm:"APR", em:"APR" },
@@ -1068,29 +1069,31 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         {/* Header row: group labels */}
         <div style={{display:"flex"}}>
           <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",height:12}}/>
-          <div style={{width:20,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:"#888"}}></div>
-          <div style={{width:20,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:"#888"}}></div>
+          <div style={{width:18,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:"#888"}}></div>
+          <div style={{width:18,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:"#888"}}></div>
           {[
             {label:"ESS", cols:4, color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
             {label:"TOP 3", cols:3, color:"#1b5e20", bg:"#e8f5e9", bdr:"#66bb6a"},
             {label:"TRACKING", cols:7, color:"#555", bg:"#f5f5f5", bdr:"#bbb"},
           ].map((g,gi)=>(
-            <div key={gi} style={{width:g.cols*20,flexShrink:0,height:12,background:g.bg,borderLeft:`2px solid ${g.bdr}`,borderTop:`1px solid ${g.bdr}`,borderBottom:`1px solid ${g.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:g.color,letterSpacing:1,boxSizing:"border-box"}}>{g.label}</div>
+            <div key={gi} style={{width:g.cols*18,flexShrink:0,height:12,background:g.bg,borderLeft:`2px solid ${g.bdr}`,borderTop:`1px solid ${g.bdr}`,borderBottom:`1px solid ${g.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:g.color,letterSpacing:1,boxSizing:"border-box"}}>{g.label}</div>
           ))}
+          <div style={{width:24,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"2px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",boxSizing:"border-box"}}/>
         </div>
         {/* Code row */}
         <div style={{display:"flex"}}>
           <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",borderBottom:"2px solid #ccc",height:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,color:"#bbb"}}>HAT</div>
-          <div style={{width:20,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:"#888"}}>⚡</div>
-          <div style={{width:20,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:"#888"}}>😊</div>
+          <div style={{width:18,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:"#888"}}>⚡</div>
+          <div style={{width:18,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:"#888"}}>😊</div>
           {FLAT_HATS.map((h,hi)=>{
             const sec=MONTH_SECTIONS.find(s=>s.hats.some(x=>x.code===h.code));
             const grp=GROUPS.find(g=>hi>=g.start&&hi<=g.end);
             const isFirstInGrp=hi===(grp?grp.start:hi);
             return (
-              <div key={h.code} style={{width:20,height:16,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",background:sec?.bg||"#fff",borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"88"}`,borderBottom:"2px solid #ccc",fontSize:6,fontWeight:800,color:sec?.color||"#555"}}>{h.code==="RJ2"?"R2":h.code}</div>
+              <div key={h.code} style={{width:18,height:16,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",background:sec?.bg||"#fff",borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"88"}`,borderBottom:"2px solid #ccc",fontSize:6,fontWeight:800,color:sec?.color||"#555"}}>{h.code==="RJ2"?"R2":h.code}</div>
             );
           })}
+          <div style={{width:24,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"2px solid #ccc",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:900,color:"#1b5e20",boxSizing:"border-box"}}>%</div>
         </div>
         {/* Data rows — full current week (7 days, crosses month boundaries) */}
         {(()=>{
@@ -1110,7 +1113,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   const curE=rData?.energy?.[rday.d];
                   const en=ENERGY.find(e=>e.sym===curE);
                   return (
-                    <div onClick={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color:"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                    <div onClick={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color:"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
                       <span style={{fontSize:8,fontWeight:900,color:en?"#fff":"#ddd",lineHeight:1}}>{curE||"·"}</span>
                     </div>
                   );
@@ -1119,7 +1122,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                 {(()=>{
                   const mv=rData?.mood?.[rday.d];
                   return (
-                    <div onClick={()=>cycleMood(rday.m,rday.d,mv>=10?0:(mv||0)+1)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                    <div onClick={()=>cycleMood(rday.m,rday.d,mv>=10?0:(mv||0)+1)} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
                       <span style={{fontSize:7,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}}>{mv||"·"}</span>
                     </div>
                   );
@@ -1135,11 +1138,16 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):"#fff";
                   if(goalMet){ bg="#d4d4d4"; }
                   return (
-                    <div key={h.code} onClick={()=>cycleCell(h.code,rday.m,rday.d)} style={{width:20,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
+                    <div key={h.code} onClick={()=>cycleCell(h.code,rday.m,rday.d)} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
                       <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":goalMet?"#666":mk.c}}>{mk.ch}</span>
                     </div>
                   );
                 })}
+                {(()=>{const pp=top3pct(rData,rday.d);return (
+                  <div style={{width:24,flexShrink:0,height:20,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",borderLeft:"2px solid #ddd",background:isSel?"#f3ede2":isToday?"#fdfaf3":"#fafafa"}}>
+                    <span style={{fontSize:8,fontWeight:800,color:pp===100?"#14532d":pp>0?"#16a34a":"#ddd"}}>{pp>0?pp:""}</span>
+                  </div>
+                );})()}
               </div>
             );
           });
@@ -1614,7 +1622,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <NBtn onClick={()=>setMonthIdx(x=>Math.max(0,x-1))} on={monthIdx>0}>‹</NBtn>
         <span style={{fontSize:16,fontWeight:900,color:"#111"}}>{month.name} <span style={{fontSize:9,color:"#aaa",fontWeight:400,letterSpacing:2}}>2026</span></span>
-        <NBtn onClick={()=>setMonthIdx(x=>Math.min(2,x+1))} on={monthIdx<2}>›</NBtn>
+        <NBtn onClick={()=>setMonthIdx(x=>Math.min(MONTHS_ARR.length-1,x+1))} on={monthIdx<MONTHS_ARR.length-1}>›</NBtn>
       </div>
 
       {/* ALL MONTHS EXPORT */}
@@ -1786,15 +1794,13 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                       cursor:"pointer",
                     }}>{day}</div>
 
-                    {/* Energy */}
+                    {/* Energy — colored pill (matches Today) */}
                     <div onClick={()=>cycleEnergy(month.m,day)} style={{
                       width:COL_EN,flexShrink:0,
                       display:"flex",alignItems:"center",justifyContent:"center",
-                      cursor:"pointer",fontSize:e==="▲▲"?8:e==="●"?12:10,fontWeight:800,
-                      color:e?ecol(e):"#ddd",
-                      letterSpacing:e==="▲▲"?-2:0,
+                      cursor:"pointer",
                     }}>
-                      {e||"·"}
+                      <span style={{display:"flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:4,background:e?ecol(e):"transparent",fontSize:e==="▲▲"?7:8,fontWeight:900,color:e?"#fff":"#ddd",letterSpacing:e==="▲▲"?-1:0,lineHeight:1}}>{e||"·"}</span>
                     </div>
 
                     {/* Mood 1-10 */}
@@ -2378,7 +2384,7 @@ function ExtraPanel({monthIdx, setMonthIdx, allData, toggleExtraHat, toggleLibHa
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <NBtn onClick={()=>setMonthIdx(x=>Math.max(0,x-1))} on={monthIdx>0}>‹</NBtn>
         <span style={{fontSize:16,fontWeight:900,color:"#111"}}>{month.name} <span style={{fontSize:9,color:"#aaa",fontWeight:400,letterSpacing:2}}>EXTRA</span></span>
-        <NBtn onClick={()=>setMonthIdx(x=>Math.min(2,x+1))} on={monthIdx<2}>›</NBtn>
+        <NBtn onClick={()=>setMonthIdx(x=>Math.min(MONTHS_ARR.length-1,x+1))} on={monthIdx<MONTHS_ARR.length-1}>›</NBtn>
       </div>
 
       <div style={{borderRadius:8,border:"1px solid #ddd",overflow:"hidden"}}>
@@ -2668,12 +2674,12 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay
                       <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",lineHeight:1}}>{d}</div>
                       <div style={{fontSize:6,color:"#c9a96e",fontWeight:800,letterSpacing:1,marginTop:1}}>OPEN ›</div>
                     </div>
-                    {/* Mood tap */}
-                    <div onClick={()=>cycleMood(mo.m,d,mv>=10?0:(mv||0)+1)} style={{cursor:"pointer",marginTop:3,fontSize:9,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}} title="tap to change mood">
+                    {/* Mood (display only) */}
+                    <div style={{marginTop:3,fontSize:9,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}}>
                       {mv||"·"}
                     </div>
-                    {/* Energy tap */}
-                    <div onClick={()=>{const idx=ev?ENERGY.findIndex(e=>e.sym===ev):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(mo.m,d,idx===ENERGY.length-1?null:next.sym);}} style={{cursor:"pointer",marginTop:2,fontSize:9,fontWeight:900,color:en?en.color:"#ddd",lineHeight:1}} title="tap to change energy">
+                    {/* Energy (display only) */}
+                    <div style={{marginTop:2,fontSize:9,fontWeight:900,color:en?en.color:"#ddd",lineHeight:1}}>
                       {ev||"·"}
                     </div>
                   </div>
@@ -3484,7 +3490,13 @@ function App() {
   }
 
   // Persisted state: allData, hatCounts, weekAssess
-  const [allData,setAllData]=useState(()=>lsGet("allData", MONTHS_ARR.map(m=>initMonth(m.days))));
+  const [allData,setAllData]=useState(()=>{
+    const d=lsGet("allData", MONTHS_ARR.map(m=>initMonth(m.days)));
+    if(Array.isArray(d)&&d.length<MONTHS_ARR.length){
+      for(let i=d.length;i<MONTHS_ARR.length;i++) d.push(initMonth(MONTHS_ARR[i].days));
+    }
+    return d;
+  });
   const [hatCounts,setHatCounts]=useState(()=>lsGet("hatCounts", (()=>{const o={};ALL_HATS.forEach(h=>{o[h.code]=0;});return o;})()));
   const [weekAssess,setWeekAssess]=useState(()=>lsGet("weekAssess",{}));
   const [winsLogged,setWinsLogged]=useState(()=>lsGet("winsLogged",{}));
