@@ -2511,7 +2511,7 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay
       </button>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
         <div>
-          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>✨ Highlights</div>
+          <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>✨ Highlights</div>
           <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>{entries.length} DAYS LOGGED</div>
         </div>
         <button onClick={()=>{copyText(buildExp());setShowExp(true);setTimeout(()=>setShowExp(false),1800);}} style={{background:showExp?"#16a34a":"#2a2118",color:showExp?"#fff":"#c9a96e",border:"none",borderRadius:20,padding:"7px 14px",fontSize:8.5,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",fontWeight:800,boxShadow:"0 2px 8px rgba(42,33,24,0.18)",whiteSpace:"nowrap"}}>
@@ -2708,11 +2708,11 @@ function fmtMoney(n,dec){
 function AtlasBudget({onBack}) {
   const BK="lifeos_budget26";
   const GOAL=3000;
-  const EARNED_CATS=["Rover","Photography","Gig","Business"];
+  const EARNED_CATS=["Rover","Photography","Gig","Business","Sales"];
   const OTHER_CATS=["Rent","OW/Gov"];
   const INCOME_CATS=[...EARNED_CATS,...OTHER_CATS];
-  const CAT_COLOR={"Rover":"#2f8f5b","Photography":"#7c6aad","Gig":"#e07b54","Business":"#9333ea","Rent":"#5b8def","OW/Gov":"#9ca3af","Gig work":"#e07b54","Other":"#9ca3af"};
-  const CAT_EMOJI={"Rover":"🐾"};
+  const CAT_COLOR={"Rover":"#2f8f5b","Photography":"#7c6aad","Gig":"#e07b54","Business":"#9333ea","Rent":"#5b8def","OW/Gov":"#9ca3af","Sales":"#0d9488","Gig work":"#e07b54","Other":"#9ca3af"};
+  const CAT_EMOJI={"Rover":"🐾","Sales":"📦"};
   const catLabel=(c)=>(CAT_EMOJI[c]?CAT_EMOJI[c]+" ":"")+c;
   const isEarned=(cat)=>EARNED_CATS.includes(cat)||cat==="Gig work";
   const load=()=>{
@@ -2789,7 +2789,7 @@ function AtlasBudget({onBack}) {
       </button>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
         <div>
-          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>Budget Q2</div>
+          <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>Budget Q2</div>
           <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>APR-JUN 2026</div>
         </div>
         <div style={{display:"flex",gap:6}}>
@@ -2929,7 +2929,7 @@ function AtlasBudget({onBack}) {
       )}
       {entries.length===0
         ?<EmptyState icon="💰" line="Track every dollar you earn this quarter. Start with your last Rover or photography payment." onAdd={()=>{setShowAdd(true);setEditId(null);}} addLabel="+ ADD INCOME"/>
-        :MONTHS_ARR.map(mo=>{
+        :[...MONTHS_ARR].reverse().map(mo=>{
           const mes=entries.filter(e=>e.month===mo.m&&(!selCat||e.cat===selCat));
           if(!mes.length) return null;
           return (
@@ -3041,7 +3041,7 @@ function AtlasJobs({onBack}) {
       </button>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
         <div>
-          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>💼 Job Applications</div>
+          <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>💼 Job Applications</div>
           <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>{jobs.length} ENTRIES</div>
         </div>
         <div style={{display:"flex",gap:6}}>
@@ -3260,13 +3260,13 @@ function AtlasWeekExport({allData, winsLogged, onBack}) {
         <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
       </button>
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>📤 Exports</div>
+        <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>📤 Exports</div>
         <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>WEEK · MONTH · ALL — FOR CLAUDE SESSIONS</div>
       </div>
       {/* WEEKS — compact rows with per-week download */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
         <span style={{fontSize:8,fontWeight:800,color:"#888",letterSpacing:2}}>WEEKS</span>
-        <button onClick={exportAll} style={{background:"#fdf8f0",border:"1px solid #c9a96e",borderRadius:14,padding:"3px 10px",fontSize:8,fontWeight:800,letterSpacing:1,color:"#2a2118",cursor:"pointer",fontFamily:"inherit"}}>↗ ALL</button>
+        <button onClick={exportAll} style={{background:"#2a2118",border:"none",borderRadius:14,padding:"4px 12px",fontSize:8,fontWeight:800,letterSpacing:1,color:"#c9a96e",cursor:"pointer",fontFamily:"inherit"}}>↗ ALL</button>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:16}}>
         {Q2_WEEKS.map(wk=>{
@@ -3275,9 +3275,9 @@ function AtlasWeekExport({allData, winsLogged, onBack}) {
           if(!isPast) return null;
           return (
             <div key={wk.n} style={{display:"flex",alignItems:"center",gap:8,background:isSel?"#2a2118":"#fff",border:`1px solid ${isSel?"#c9a96e":"#ececec"}`,borderRadius:8,padding:"5px 6px 5px 12px"}}>
-              <button onClick={()=>{setSelWeek(wk);setSelMonth(null);setOutput(buildWeekText(wk,allData));}} style={{flex:1,textAlign:"left",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"3px 0"}}>
-                <span style={{fontSize:10,fontWeight:900,color:isSel?"#c9a96e":"#1a1a1a"}}>W{wk.n}</span>
-                <span style={{fontSize:8,color:isSel?"#a09080":"#999",marginLeft:8}}>{wk.sm} {wk.start[1]}–{wk.em} {wk.end[1]}</span>
+              <button onClick={()=>{setSelWeek(wk);setSelMonth(null);setOutput(buildWeekText(wk,allData));}} style={{flex:1,textAlign:"left",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"3px 0",display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:12,fontWeight:900,color:isSel?"#c9a96e":"#b8860b",flexShrink:0,width:34}}>W{wk.n}</span>
+                <span style={{fontSize:10,fontWeight:700,color:isSel?"#e8dcc8":"#3a2e24"}}>{wk.sm} {wk.start[1]} – {wk.em} {wk.end[1]}</span>
               </button>
               <button onClick={()=>downloadText("LifeOS_W"+wk.n+".txt",buildWeekText(wk,allData))} title="download this week" style={{flexShrink:0,width:28,height:28,borderRadius:7,border:"1px solid "+(isSel?"#c9a96e":"#e0d8c8"),background:isSel?"#3a3026":"#fdf8f0",color:"#c9a96e",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",padding:0,lineHeight:1,touchAction:"manipulation"}}>↓</button>
             </div>
@@ -3300,7 +3300,7 @@ function AtlasWeekExport({allData, winsLogged, onBack}) {
         <div style={{background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 12px",background:"#f2ede6"}}>
             <span style={{fontSize:7,fontWeight:800,color:"#2a2118",letterSpacing:2}}>{selWeek?`W${selWeek.n} EXPORT`:selMonth?"MONTH STATS":"ALL WEEKS EXPORT"}</span>
-            <button onClick={()=>{const ta=document.getElementById("exOut");if(ta)copyText(ta.value);}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:12,padding:"3px 10px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>COPY</button>
+            <button onClick={()=>{const ta=document.getElementById("exOut");if(ta)copyText(ta.value);}} style={{background:"#2a2118",color:"#c9a96e",border:"none",borderRadius:12,padding:"4px 12px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>⧉ COPY</button>
           </div>
           <textarea id="exOut" readOnly value={output} style={{width:"100%",minHeight:220,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>copyText(e.target.value)}/>
         </div>
@@ -3326,7 +3326,7 @@ function AtlasVision({onBack}) {
       </button>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
         <div>
-          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a",letterSpacing:-0.5}}>🎯 Vision</div>
+          <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>🎯 Vision</div>
           <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>READ IT EVERY MORNING</div>
         </div>
         {!editing&&<button onClick={startEdit} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>✏ EDIT</button>}
