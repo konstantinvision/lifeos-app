@@ -1507,7 +1507,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
 // ── MONTH PANEL ─────────────────────────────────────────────────────────────
 const FLAT_HATS = MONTH_SECTIONS.flatMap(s=>s.hats);
 // C = cell size px (square). No margins between cols — alignment via borders only.
-const C=20, COL_DAY=28, COL_EN=14, COL_MOOD=20, COL_PCT=24, COL_EX=24, COL_LB=24;
+const C=20, COL_DAY=34, COL_EN=14, COL_MOOD=20, COL_PCT=24, COL_EX=24, COL_LB=24;
 const GRID_COLS = `${COL_DAY}px ${COL_EN}px ${COL_MOOD}px ${FLAT_HATS.map(()=>`${C}px`).join(" ")} ${COL_PCT}px`;
 
 function moodColor(v) {
@@ -1566,6 +1566,15 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
   const month=MONTHS_ARR[monthIdx];
   const data=allData[monthIdx];
   const DAYS=Array.from({length:month.days},(_,i)=>i+1);
+  // Extended day list: append spillover days when the month's last week continues into the next month
+  const DAYS_EXT=(()=>{
+    const arr=DAYS.map(d=>({m:month.m,d}));
+    const lastW=getWeekForDay(month.m,month.days);
+    if(lastW&&lastW.end[0]!==month.m){
+      getWeekDaysAll(month.days).forEach(p=>{ if(p.m!==month.m) arr.push(p); });
+    }
+    return arr;
+  })();
   const isCur=month.m===TODAY_M;
   const totalW=COL_DAY+COL_EN+COL_MOOD+FLAT_HATS.length*C+COL_PCT+2;
 
@@ -1619,10 +1628,13 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
 
   return (
     <div style={{position:"relative"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-        <NBtn onClick={()=>setMonthIdx(x=>Math.max(0,x-1))} on={monthIdx>0}>‹</NBtn>
-        <span style={{fontSize:16,fontWeight:900,color:"#111"}}>{month.name} <span style={{fontSize:9,color:"#aaa",fontWeight:400,letterSpacing:2}}>2026</span></span>
-        <NBtn onClick={()=>setMonthIdx(x=>Math.min(MONTHS_ARR.length-1,x+1))} on={monthIdx<MONTHS_ARR.length-1}>›</NBtn>
+      <div style={{background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:18,padding:"12px 14px",marginBottom:10,boxShadow:"0 5px 18px rgba(42,33,24,0.2)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <button onClick={()=>monthIdx>0&&setMonthIdx(x=>Math.max(0,x-1))} style={{background:"rgba(255,255,255,0.08)",border:"none",color:monthIdx>0?"#c9a96e":"#5a5145",borderRadius:16,width:30,height:30,fontSize:16,cursor:monthIdx>0?"pointer":"default",fontFamily:"inherit"}}>‹</button>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>Month</div>
+          <div style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.3,lineHeight:1.15}}>{month.name} <span style={{fontSize:9,color:"#a89e8c",fontWeight:400,letterSpacing:2}}>2026</span></div>
+        </div>
+        <button onClick={()=>monthIdx<MONTHS_ARR.length-1&&setMonthIdx(x=>Math.min(MONTHS_ARR.length-1,x+1))} style={{background:"rgba(255,255,255,0.08)",border:"none",color:monthIdx<MONTHS_ARR.length-1?"#c9a96e":"#5a5145",borderRadius:16,width:30,height:30,fontSize:16,cursor:monthIdx<MONTHS_ARR.length-1?"pointer":"default",fontFamily:"inherit"}}>›</button>
       </div>
 
       {/* ALL MONTHS EXPORT */}
@@ -1658,7 +1670,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
           };
           return (
             <div style={{marginTop:6,background:"#fff",border:"1px solid #e0e0e0",borderRadius:8,overflow:"hidden"}}>
-              <div style={{padding:"4px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>APR · MAY · JUN 2026 — NOTES · HIGHLIGHTS · WINS</div>
+              <div style={{padding:"4px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>{MONTHS_ARR.map(m=>m.short).join(" · ")} 2026 — NOTES · HIGHLIGHTS · WINS</div>
               <textarea readOnly value={buildAllExport()} style={{width:"100%",minHeight:200,border:"none",outline:"none",resize:"vertical",padding:"8px 12px",fontSize:10,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.5}} onClick={e=>copyText(e.target.value)}/>
               <div style={{padding:"4px 12px",fontSize:7,color:"#aaa",borderTop:"1px solid #f0f0f0"}}>Tap textarea to select &amp; copy</div>
             </div>
@@ -1688,7 +1700,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
         )}
       </div>
 
-      <div style={{borderRadius:8,border:"1px solid #e0e0e0",overflow:"hidden"}}>
+      <div style={{borderRadius:14,border:"1px solid #ece6dc",overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         <div data-hscroll="true" ref={scrollRef} style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
           <div style={{minWidth:totalW,position:"relative"}}>
 
@@ -1745,16 +1757,18 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
             </div>
 
             {/* ── DATA ROWS ── */}
-            {DAYS.map(day=>{
-              const p=top3pct(data,day); const e=data.energy[day];
-              const isT=isCur&&day===TODAY_D;
-              const isPast=isCur?day<TODAY_D:month.m<TODAY_M;
-              const wk=getWeekForDay(month.m,day);
-              const rowBg=isT?"#dbeafe":day%2===0?"#f9f9f9":"#fff";
+            {DAYS_EXT.map(({m:dm,d:day})=>{
+              const rdata=allData[MONTHS_ARR.findIndex(x=>x.m===dm)];
+              const p=top3pct(rdata,day); const e=rdata?.energy?.[day];
+              const isSpill=dm!==month.m;
+              const isT=dm===TODAY_M&&day===TODAY_D;
+              const isPast=dm<TODAY_M||(dm===TODAY_M&&day<TODAY_D);
+              const wk=getWeekForDay(dm,day);
+              const rowBg=isT?"#dbeafe":isSpill?"#fbf7ef":day%2===0?"#f9f9f9":"#fff";
 
               // Week START banner — shown BEFORE first day of each week (that starts in this month)
               const wkStartW=(()=>{
-                if(!wk) return null;
+                if(!wk||isSpill) return null;
                 const [sm,sd]=wk.start;
                 return (sm===month.m&&sd===day)?wk:null;
               })();
@@ -1784,30 +1798,31 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                     borderBottom:"1px solid #ebebeb",
                     height:C,
                   }}>
-                    {/* Day number — tap to jump to Today */}
-                    <div onClick={()=>{const wi=weekIdxForDay(month.m,day);if(wi>=0)setWeekIdx(wi);setViewDay(day);setViewM(month.m);setTabIdx(0);}} style={{
+                    {/* Day number + weekday — tap to jump to Today */}
+                    <div onClick={()=>{const wi=weekIdxForDay(dm,day);if(wi>=0)setWeekIdx(wi);setViewDay(day);setViewM(dm);setTabIdx(0);}} style={{
                       width:COL_DAY-3,flexShrink:0,
-                      display:"flex",alignItems:"center",justifyContent:"flex-end",
-                      paddingRight:4,
-                      fontSize:10,fontWeight:isT?900:500,
-                      color:isT?"#1565c0":"#555",
-                      cursor:"pointer",
-                    }}>{day}</div>
-
-                    {/* Energy — colored pill (matches Today) */}
-                    <div onClick={()=>cycleEnergy(month.m,day)} style={{
-                      width:COL_EN,flexShrink:0,
-                      display:"flex",alignItems:"center",justifyContent:"center",
+                      display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"center",
+                      paddingRight:4,lineHeight:1,
                       cursor:"pointer",
                     }}>
-                      <span style={{display:"flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:4,background:e?ecol(e):"transparent",fontSize:e==="▲▲"?7:8,fontWeight:900,color:e?"#fff":"#ddd",letterSpacing:e==="▲▲"?-1:0,lineHeight:1}}>{e||"·"}</span>
+                      <span style={{fontSize:11,fontWeight:isT?900:600,color:isT?"#1565c0":isSpill?"#9a7b3c":"#333"}}>{day}</span>
+                      <span style={{fontSize:5,fontWeight:700,color:isT?"#1565c0":"#aaa",letterSpacing:.3,marginTop:1}}>{weekdayShort(dm,day)}</span>
+                    </div>
+
+                    {/* Energy — filled square (matches Today) */}
+                    <div onClick={()=>cycleEnergy(dm,day)} style={{
+                      width:COL_EN,flexShrink:0,height:C,boxSizing:"border-box",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      cursor:"pointer",background:e?ecol(e):"transparent",
+                    }}>
+                      <span style={{fontSize:e==="▲▲"?7:8,fontWeight:900,color:e?"#fff":"#ddd",letterSpacing:e==="▲▲"?-1:0,lineHeight:1}}>{e||"·"}</span>
                     </div>
 
                     {/* Mood 1-10 */}
                     {(()=>{
-                      const mv=data.mood?.[day];
+                      const mv=rdata?.mood?.[day];
                       return (
-                        <div onClick={()=>cycleMood(month.m,day)} style={{
+                        <div onClick={()=>cycleMood(dm,day)} style={{
                           width:COL_MOOD,flexShrink:0,height:C,
                           display:"flex",alignItems:"center",justifyContent:"center",
                           cursor:"pointer",background:"#ffffff",
@@ -1824,18 +1839,18 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                     {/* HAT cells */}
                     {SECTION_META.map(meta=>{
                       const {h,sec,isFirstInGrp}=meta;
-                      const st=data.grid[h.code]?.[day];
+                      const st=rdata?.grid?.[h.code]?.[day];
                       const mk=stMark(st,sec.color);
                       const isTop3=TOP3.some(t=>t.code===h.code);
                       const isTrk=TRK_ALL.some(t=>t.code===h.code);
-                      const goalMet=isTrk&&trkGoalMet(h.code,day);
+                      const goalMet=isTrk&&!isSpill&&trkGoalMet(h.code,day);
                       let bg=sec.bg;
                       if(isTop3){ bg=st?"#bbf7d0":isPast?"#fecaca":sec.bg; }
                       if(goalMet){ bg="#d4d4d4"; }
                       // cell border: always visible; stronger left border at group boundary
                       const bdrLeft=isFirstInGrp?`2px solid ${sec.bdr}`:`1px solid ${goalMet?"#aaa":sec.bdr+"66"}`;
                       return (
-                        <div key={h.code} onClick={()=>cycleCell(h.code,month.m,day)} style={{
+                        <div key={h.code} onClick={()=>cycleCell(h.code,dm,day)} style={{
                           width:C,height:C,flexShrink:0,
                           display:"flex",alignItems:"center",justifyContent:"center",
                           cursor:"pointer",background:bg,
@@ -1866,7 +1881,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
       </div>
 
       {/* Legend — outside scroll, always visible */}
-      <div style={{marginTop:6,background:"#fff",borderRadius:8,border:"1px solid #e0e0e0",padding:"6px 10px"}}>
+      <div style={{marginTop:8,background:"#fff",borderRadius:14,border:"1px solid #ece6dc",padding:"8px 12px",boxShadow:"0 3px 16px rgba(42,33,24,0.05)"}}>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
           {[["·","empty","#ccc"],["×","done","#1b5e20"],["⊠","boxing","#1565c0"],["◀","back","#888"]].map(([s,l,c])=>(
             <div key={s} style={{textAlign:"center"}}>
@@ -3438,16 +3453,17 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
   if(section==="vision")     return <AtlasVision onBack={()=>setSection(null)}/>;
   return (
     <div>
-      <div style={{marginBottom:20}}>
-        <div style={{fontSize:22,fontWeight:900,color:"#1a1a1a",letterSpacing:-1,lineHeight:1}}>ATLAS</div>
-        <div style={{fontSize:9,color:"#b0a898",letterSpacing:3,fontWeight:600,marginTop:2}}>Q2 2026 · OVERVIEW</div>
+      <div style={{background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:20,padding:"18px 20px",marginBottom:18,boxShadow:"0 6px 22px rgba(42,33,24,0.22)"}}>
+        <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>Q2 2026 · Overview</div>
+        <div style={{fontSize:26,fontWeight:900,color:"#fff",letterSpacing:-0.5,marginTop:4,lineHeight:1}}>ATLAS</div>
+        <div style={{fontSize:8,color:"#a89e8c",marginTop:7,letterSpacing:1}}>Charts · exports · budget · vision</div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         {tiles.map(tile=>(
           <button key={tile.id} onClick={()=>setSection(tile.id)} style={{
-            background:tile.bg,border:"none",borderRadius:16,padding:"18px 14px",
+            background:tile.bg,border:"1px solid rgba(42,33,24,0.06)",borderRadius:18,padding:"18px 14px",
             cursor:"pointer",textAlign:"left",fontFamily:"inherit",
-            boxShadow:`0 4px 16px ${tile.color}22`,
+            boxShadow:`0 4px 18px ${tile.color}1f, 0 1px 4px rgba(42,33,24,0.05)`,
             WebkitTapHighlightColor:"transparent",
           }}>
             <div style={{fontSize:28,marginBottom:8,lineHeight:1}}>{tile.icon}</div>
