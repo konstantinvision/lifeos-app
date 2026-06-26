@@ -241,7 +241,7 @@ const TIMER_CONFIGS = [
 const _NOW = new Date();
 const TODAY_M = _NOW.getMonth()+1;  // real current month
 const TODAY_D = _NOW.getDate();      // real current day
-const TABS = ["today","month","atlas"];
+const TABS = ["today","plan","month","atlas"];
 
 const MANTRAS = [
   { hat:null, text:"Be Konstantin. One move = full presence." },
@@ -713,7 +713,7 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
   );
 }
 
-function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged}) {
+function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged}) {
   const data = allData[getMI(viewM)];
   const w = Q2_WEEKS[weekIdx];
   const wd = weekDays();
@@ -988,24 +988,19 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       {/* 🐝 BEE CANVAS — fullscreen overlay */}
       <canvas ref={beeCanvasRef} style={{display:"none",position:"fixed",top:0,left:0,width:"100%",height:"100%",zIndex:999,pointerEvents:"none"}}/>
 
-      {/* Daily progress — hero */}
-      <div style={{position:"relative",overflow:"hidden",background:dayPct===100?"linear-gradient(135deg,#14532d,#1b5e20)":"linear-gradient(135deg,#332817,#241c12)",borderRadius:20,marginBottom:14,padding:"16px 18px",boxShadow:dayPct===100?"0 8px 28px rgba(20,83,45,0.28)":"0 6px 22px rgba(42,33,24,0.22)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-          <div>
-            <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:dayPct===100?"#bbf7d0":"#c9a96e",textTransform:"uppercase"}}>{M_LABEL[viewM]} {viewDay} · Today</div>
-            <div style={{display:"flex",alignItems:"baseline",gap:8,marginTop:6}}>
-              <span style={{fontSize:38,fontWeight:900,letterSpacing:-1.5,color:"#fff",lineHeight:1}}>{dayPct}<span style={{fontSize:18,color:dayPct===100?"#bbf7d0":"#c9a96e"}}>%</span></span>
-              <span style={{fontSize:9,color:"#a89e8c",fontWeight:700,letterSpacing:1,marginBottom:3}}>of Top 3</span>
+      {/* Daily progress — compact hero */}
+      <div style={{position:"relative",overflow:"hidden",background:dayPct===100?"linear-gradient(135deg,#14532d,#1b5e20)":"linear-gradient(135deg,#332817,#241c12)",borderRadius:14,marginBottom:12,padding:"9px 14px",boxShadow:dayPct===100?"0 5px 18px rgba(20,83,45,0.24)":"0 4px 14px rgba(42,33,24,0.18)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:24,fontWeight:900,letterSpacing:-1,color:"#fff",lineHeight:1,flexShrink:0}}>{dayPct}<span style={{fontSize:12,color:dayPct===100?"#bbf7d0":"#c9a96e"}}>%</span></span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4,gap:6}}>
+              <span style={{fontSize:7,fontWeight:800,letterSpacing:2,color:dayPct===100?"#bbf7d0":"#c9a96e",textTransform:"uppercase",whiteSpace:"nowrap"}}>{M_LABEL[viewM]} {viewDay} · Top 3</span>
+              <span style={{fontSize:7,color:"#a89e8c",fontWeight:700,whiteSpace:"nowrap"}}>W{w.n} · {wkPct}% · {TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TOP3.length} HATs</span>
+            </div>
+            <div style={{background:"rgba(255,255,255,0.10)",borderRadius:20,height:5,overflow:"hidden"}}>
+              <div style={{background:dayPct===100?"linear-gradient(90deg,#4ade80,#bbf7d0)":"linear-gradient(90deg,#c9a96e,#e8c98f)",height:"100%",width:dayPct+"%",borderRadius:20,transition:"width .45s cubic-bezier(.4,0,.2,1)",boxShadow:dayPct>0?"0 0 8px rgba(201,169,110,0.4)":"none"}}/>
             </div>
           </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:7,color:"#8a7f6d",fontWeight:800,letterSpacing:1}}>WEEK W{w.n}</div>
-            <div style={{fontSize:16,fontWeight:900,color:"#e8dcc8",lineHeight:1.1}}>{wkPct}%</div>
-            <div style={{fontSize:7,color:"#8a7f6d",fontWeight:700,marginTop:4}}>{TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TOP3.length} HATs</div>
-          </div>
-        </div>
-        <div style={{marginTop:12,background:"rgba(255,255,255,0.10)",borderRadius:20,height:8,overflow:"hidden"}}>
-          <div style={{background:dayPct===100?"linear-gradient(90deg,#4ade80,#bbf7d0)":"linear-gradient(90deg,#c9a96e,#e8c98f)",height:"100%",width:dayPct+"%",borderRadius:20,transition:"width .45s cubic-bezier(.4,0,.2,1)",boxShadow:dayPct>0?"0 0 12px rgba(201,169,110,0.45)":"none"}}/>
         </div>
       </div>
       {/* Week nav + 5-4-3-2-1 */}
@@ -1317,15 +1312,20 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                 saveTaskChecks(next);
               };
               return (
-                <div style={{background:"#fff7ed",borderBottom:"1px solid #fed7aa",padding:"8px 12px"}}>
-                  <div style={{fontSize:7,fontWeight:900,color:"#b45309",letterSpacing:1.5,marginBottom:6}}>⚡ ESCALATED — START THESE FIRST</div>
+                <div style={{background:"linear-gradient(180deg,#fff7ed,#fffaf2)",borderBottom:"1px solid #fde4c4",padding:"10px 12px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                    <span style={{fontSize:9,lineHeight:1}}>⚡</span>
+                    <span style={{fontSize:7.5,fontWeight:900,color:"#b45309",letterSpacing:1.5}}>ESCALATED — START THESE FIRST</span>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:7}}>
                   {pending.map((f,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:i<pending.length-1?5:0}}>
-                      <span style={{fontSize:11,color:"#7c2d12",fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.text}</span>
-                      <button onClick={()=>addToTop(f.text)} style={{flexShrink:0,background:"#f59e0b",color:"#fff",border:"none",borderRadius:12,padding:"4px 10px",fontSize:8,fontWeight:900,letterSpacing:0.5,cursor:"pointer",fontFamily:"inherit"}}>↑ ADD TO T1</button>
-                      <button onClick={()=>toggleEscalation(f.text)} title="Remove flag" style={{flexShrink:0,background:"none",border:"none",fontSize:12,color:"#c4906a",cursor:"pointer",padding:"2px 4px",fontFamily:"inherit"}}>✕</button>
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:8,background:"#fff",borderRadius:12,border:"1px solid #fcd9a8",borderLeft:"3px solid #f59e0b",padding:"9px 10px",boxShadow:"0 1px 5px rgba(180,83,9,0.07)"}}>
+                      <span style={{fontSize:11.5,color:"#7c2d12",fontWeight:700,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.text}</span>
+                      <button onClick={()=>addToTop(f.text)} style={{flexShrink:0,background:"#f59e0b",color:"#fff",border:"none",borderRadius:20,padding:"5px 11px",fontSize:8,fontWeight:900,letterSpacing:0.5,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 6px rgba(245,158,11,0.3)",touchAction:"manipulation"}}>↑ T1</button>
+                      <button onClick={()=>toggleEscalation(f.text)} title="Remove flag" style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:"#fdf0e2",border:"none",fontSize:11,color:"#c4906a",cursor:"pointer",padding:0,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>✕</button>
                     </div>
                   ))}
+                  </div>
                 </div>
               );
             })()}
@@ -1351,7 +1351,10 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   style={{display:"flex",alignItems:"flex-start",borderBottom:"1px solid #e8e8e8",padding:"7px 6px",gap:6,background:rowBg,borderLeft:isExtra?"3px solid #7c3aed":"none",minHeight:50,opacity:isDraggingThis?0.5:1}}
                 >
                   <div onTouchStart={e=>onTouchStart(idx,e)} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-                    style={{fontSize:14,color:"#ccc",cursor:"grab",flexShrink:0,padding:"4px 2px",touchAction:"none",userSelect:"none",WebkitUserSelect:"none"}}>⠿</div>
+                    style={{display:"flex",flexDirection:"column",alignItems:"center",cursor:"grab",flexShrink:0,padding:"4px 2px",touchAction:"none",userSelect:"none",WebkitUserSelect:"none"}}>
+                    {idx<3&&<span style={{fontSize:7,fontWeight:900,color:"#c9a96e",lineHeight:1,marginBottom:2,letterSpacing:0.3}}>T{idx+1}</span>}
+                    <span style={{fontSize:14,color:"#ccc",lineHeight:1}}>⠿</span>
+                  </div>
                   <button onClick={()=>toggleTaskCheck(viewM,viewDay,slot)}
                     style={{width:26,height:26,borderRadius:6,border:"2px solid "+(checked?"#16a34a":"#ddd"),background:checked?"#16a34a":"#fff",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",padding:0,touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
                     {checked&&<span style={{fontSize:12,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
@@ -1450,6 +1453,17 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           onChange={e=>setHighlight(viewM,viewDay,e.target.value)}
           placeholder="Best moment or win today..."
           style={{width:"100%",minHeight:52,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#92400e",background:"#fffbeb",lineHeight:1.5}}
+        />
+      </div>
+
+      {/* Mood note — why mood shifted (optional) */}
+      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(124,58,237,0.10)"}}>
+        <div style={{padding:"6px 14px",background:"#f5f3ff",borderBottom:"1px solid #ddd6fe",fontSize:8,letterSpacing:2,color:"#6d28d9",fontWeight:800}}>〰️ MOOD NOTE — WHY IT SHIFTED (OPTIONAL)</div>
+        <textarea
+          value={data?.moodNotes?.[viewDay]||""}
+          onChange={e=>setMoodNote(viewM,viewDay,e.target.value)}
+          placeholder="Only if mood moved a lot — what caused it..."
+          style={{width:"100%",minHeight:40,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#5b21b6",background:"#f5f3ff",lineHeight:1.5}}
         />
       </div>
 
@@ -2473,10 +2487,11 @@ function ExtraPanel({monthIdx, setMonthIdx, allData, toggleExtraHat, toggleLibHa
 }
 
 // ── ATLAS SUB-SECTIONS ────────────────────────────────────────────────────────
-function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay, onBack}) {
+function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, setMoodNote, goToDay, onBack}) {
   const [showExp,setShowExp]=useState(false);
   const [editIdx,setEditIdx]=useState(null);
   const [editVal,setEditVal]=useState("");
+  const [editMood,setEditMood]=useState("");
   const entries=[];
   MONTHS_ARR.forEach((mo,mi)=>{
     const mdata=allData[mi];
@@ -2486,23 +2501,25 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay
       const hl=mdata?.highlights?.[d];
       const mv=mdata?.mood?.[d];
       const ev=mdata?.energy?.[d];
-      if(hl?.trim()||mv||ev) entries.push({mo,mi,d,hl:hl?.trim()||"",mv,ev});
+      const mn=mdata?.moodNotes?.[d];
+      if(hl?.trim()||mn?.trim()||mv||ev) entries.push({mo,mi,d,hl:hl?.trim()||"",mn:mn?.trim()||"",mv,ev});
     }
   });
   const buildExp=()=>{
     let out="✨ HIGHLIGHTS & MOOD — Q2 2026\n"+"=".repeat(36)+"\n\n";
-    entries.forEach(({mo,d,hl,mv,ev})=>{
+    entries.forEach(({mo,d,hl,mn,mv,ev})=>{
       out+=`${mo.short} ${d}`;
       if(mv) out+=`  mood:${mv}`;
       if(ev) out+=`  energy:${ev}`;
       out+="\n";
       if(hl) out+=`  "${hl}"\n`;
+      if(mn) out+=`  mood shift: ${mn}\n`;
       out+="\n";
     });
     return out.trim()||"No entries yet.";
   };
-  const startEdit=(i,val)=>{setEditIdx(i);setEditVal(val);};
-  const saveEdit=(entry)=>{setHighlight(entry.mo.m,entry.d,editVal);setEditIdx(null);};
+  const startEdit=(i,entry)=>{setEditIdx(i);setEditVal(entry.hl);setEditMood(entry.mn);};
+  const saveEdit=(entry)=>{setHighlight(entry.mo.m,entry.d,editVal);setMoodNote(entry.mo.m,entry.d,editMood);setEditIdx(null);};
   return (
     <div>
       <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
@@ -2621,13 +2638,13 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay
       {entries.length===0
         ?<EmptyState icon="✨" line="One line a day: your mood, energy, and the moment that mattered. It becomes your emotional arc each quarter."/>
         :<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {entries.map((entry,i)=>{
-            const {mo,d,hl,mv,ev}=entry;
+          {[...entries].reverse().map((entry,i,dispEntries)=>{
+            const {mo,d,hl,mn,mv,ev}=entry;
             const en=ENERGY.find(e=>e.sym===ev);
             const isEditing=editIdx===i;
-            const showDivider=i===0||entries[i-1].mo.m!==mo.m;
+            const showDivider=i===0||dispEntries[i-1].mo.m!==mo.m;
             const wkN=(()=>{const wi=weekIdxForDay(mo.m,d);return wi>=0?Q2_WEEKS[wi].n:null;})();
-            const prevWkN=i>0?(()=>{const wi=weekIdxForDay(entries[i-1].mo.m,entries[i-1].d);return wi>=0?Q2_WEEKS[wi].n:null;})():null;
+            const prevWkN=i>0?(()=>{const wi=weekIdxForDay(dispEntries[i-1].mo.m,dispEntries[i-1].d);return wi>=0?Q2_WEEKS[wi].n:null;})():null;
             const showWeek=!showDivider&&i>0&&wkN!==prevWkN;
             return (
               <React.Fragment key={i}>
@@ -2666,17 +2683,24 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, goToDay
                   <div style={{flex:1,borderLeft:"2px solid #f5ede0",paddingLeft:10}}>
                     {isEditing
                       ?<div>
-                        <textarea value={editVal} onChange={e=>setEditVal(e.target.value)} autoFocus style={{width:"100%",border:"1px solid #c9a96e",borderRadius:8,padding:"6px 8px",fontSize:11,fontFamily:"Georgia,serif",resize:"vertical",minHeight:60,outline:"none",color:"#3a2e24",lineHeight:1.5}}/>
-                        <div style={{display:"flex",gap:6,marginTop:4}}>
+                        <div style={{fontSize:7,fontWeight:800,color:"#b8860b",letterSpacing:1,marginBottom:3}}>⭐ HIGHLIGHT (gratitude)</div>
+                        <textarea value={editVal} onChange={e=>setEditVal(e.target.value)} autoFocus placeholder="Best moment / gratitude..." style={{width:"100%",border:"1px solid #c9a96e",borderRadius:8,padding:"6px 8px",fontSize:11,fontFamily:"Georgia,serif",resize:"vertical",minHeight:54,outline:"none",color:"#3a2e24",lineHeight:1.5}}/>
+                        <div style={{fontSize:7,fontWeight:800,color:"#6d28d9",letterSpacing:1,margin:"6px 0 3px"}}>〰️ MOOD NOTE — why it shifted (optional)</div>
+                        <textarea value={editMood} onChange={e=>setEditMood(e.target.value)} placeholder="Only if mood moved a lot..." style={{width:"100%",border:"1px solid #c4b5fd",borderRadius:8,padding:"6px 8px",fontSize:11,fontFamily:"Georgia,serif",resize:"vertical",minHeight:40,outline:"none",color:"#5b21b6",lineHeight:1.5,background:"#faf8ff"}}/>
+                        <div style={{display:"flex",gap:6,marginTop:6}}>
                           <button onClick={()=>saveEdit(entry)} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:12,padding:"4px 10px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>SAVE</button>
                           <button onClick={()=>setEditIdx(null)} style={{background:"#eee",color:"#666",border:"none",borderRadius:12,padding:"4px 10px",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
                         </div>
                       </div>
-                      :<div onClick={()=>startEdit(i,hl)} style={{cursor:"pointer"}}>
+                      :<div onClick={()=>startEdit(i,entry)} style={{cursor:"pointer"}}>
                         {hl
                           ?<div style={{fontSize:11,color:"#3a2e24",lineHeight:1.5,fontStyle:"italic",fontFamily:"Georgia,serif"}}>"{hl}"</div>
                           :<div style={{fontSize:9,color:"#ccc"}}>tap to add highlight</div>
                         }
+                        {mn&&<div style={{display:"flex",gap:5,marginTop:5,background:"#f5f3ff",border:"1px solid #ede9fe",borderRadius:8,padding:"5px 8px"}}>
+                          <span style={{fontSize:9,lineHeight:1.4,flexShrink:0}}>〰️</span>
+                          <span style={{fontSize:10,color:"#6d28d9",lineHeight:1.4}}>{mn}</span>
+                        </div>}
                         <div style={{fontSize:7,color:"#c9a96e",marginTop:4,letterSpacing:1}}>✏ edit</div>
                       </div>
                     }
@@ -2705,6 +2729,76 @@ function fmtMoney(n,dec){
   const v=parseFloat(n)||0;
   return "$"+v.toLocaleString("en-US",{minimumFractionDigits:dec===0?0:2,maximumFractionDigits:dec===0?0:2});
 }
+
+// Timebox slots: 6:00 AM → 2:00 AM next day, 30-min steps
+const TIMEBOX_SLOTS=(()=>{const a=[];for(let t=6*60;t<=26*60;t+=30){const hr=Math.floor(t/60);const mm=t%60;const h24=hr%24;const ap=h24<12?"AM":"PM";let h12=h24%12;if(h12===0)h12=12;a.push({key:String(hr).padStart(2,"0")+":"+String(mm).padStart(2,"0"),label:h12+":"+String(mm).padStart(2,"0")+" "+ap,hour:mm===0});}return a;})();
+
+function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clearPlanDay}){
+  const dk=viewM+"-"+viewDay;
+  const day=planData[dk]||{};
+  const gotoDay=(delta)=>{
+    const m=MONTHS_ARR.find(x=>x.m===viewM); if(!m) return;
+    let nd=viewDay+delta, nm=viewM;
+    if(nd<1){ const pm=MONTHS_ARR.find(x=>x.m===viewM-1); if(pm){nm=pm.m; nd=pm.days;} else nd=1; }
+    else if(nd>m.days){ const nx=MONTHS_ARR.find(x=>x.m===viewM+1); if(nx){nm=nx.m; nd=1;} else nd=m.days; }
+    setViewM(nm); setViewDay(nd);
+  };
+  const filled=TIMEBOX_SLOTS.filter(s=>(day[s.key]||"").trim()).length;
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:18,padding:"14px 16px",marginBottom:14,boxShadow:"0 5px 18px rgba(42,33,24,0.2)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <button onClick={()=>gotoDay(-1)} style={{background:"rgba(255,255,255,0.08)",border:"none",color:"#c9a96e",borderRadius:14,width:28,height:28,fontSize:15,cursor:"pointer",fontFamily:"inherit"}}>‹</button>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>Day Plan</div>
+            <div style={{fontSize:17,fontWeight:900,color:"#fff",lineHeight:1.2}}>{weekdayShort(viewM,viewDay)} {M_LABEL[viewM]} {viewDay}</div>
+          </div>
+          <button onClick={()=>gotoDay(1)} style={{background:"rgba(255,255,255,0.08)",border:"none",color:"#c9a96e",borderRadius:14,width:28,height:28,fontSize:15,cursor:"pointer",fontFamily:"inherit"}}>›</button>
+        </div>
+        <div style={{display:"flex",justifyContent:"center",gap:10,marginTop:8,alignItems:"center"}}>
+          <button onClick={()=>{setViewM(TODAY_M);setViewDay(TODAY_D);}} style={{background:"none",border:"1px solid rgba(201,169,110,0.4)",color:"#c9a96e",borderRadius:12,padding:"3px 12px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>TODAY</button>
+          <span style={{fontSize:8,color:"#a89e8c",fontWeight:700}}>{filled} slots planned</span>
+        </div>
+      </div>
+
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
+        <div style={{padding:"8px 14px",background:"#fffdf8",borderBottom:"1px solid #f0e9da",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"#c9a96e"}}/>
+          <span style={{fontSize:8,fontWeight:800,letterSpacing:2,color:"#8a6d3b"}}>BRAINSTORM — DUMP EVERYTHING</span>
+        </div>
+        <textarea value={day.brainstorm||""} onChange={e=>setPlanField(viewM,viewDay,"brainstorm",e.target.value)}
+          placeholder="Everything on your mind. Then pull the timebox + Top 3 out of it..."
+          style={{width:"100%",minHeight:110,border:"none",outline:"none",resize:"vertical",padding:"10px 14px",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:"#3a2e24",background:"#fff",lineHeight:1.6}}/>
+      </div>
+
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
+        <div style={{padding:"9px 14px",background:"linear-gradient(135deg,#332817,#241c12)",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"#c9a96e",boxShadow:"0 0 8px rgba(201,169,110,0.6)"}}/>
+          <span style={{fontSize:9,letterSpacing:2,color:"#fff",fontWeight:800}}>TIMEBOX · 6AM → 2AM</span>
+        </div>
+        <div>
+          {TIMEBOX_SLOTS.map((s,i)=>{
+            const val=day[s.key]||"";
+            const fr=val.trim();
+            return (
+              <div key={s.key} style={{display:"flex",alignItems:"stretch",borderTop:i>0?"1px solid #f3f0ea":"none",background:fr?"#fbf7ef":(s.hour?"#fff":"#fcfbf9")}}>
+                <div style={{width:62,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:8,borderRight:"2px solid "+(s.hour?"#e8dcc8":"#f0ece4"),background:s.hour?"#faf6ee":"#fbfaf7"}}>
+                  <span style={{fontSize:s.hour?8.5:7.5,fontWeight:s.hour?900:600,color:s.hour?"#8a6d3b":"#b0a594",lineHeight:1}}>{s.label}</span>
+                </div>
+                <input value={val} onChange={e=>setPlanField(viewM,viewDay,s.key,e.target.value)}
+                  style={{flex:1,border:"none",outline:"none",background:"none",padding:"9px 12px",fontSize:11,fontFamily:"inherit",color:"#3a2e24",minWidth:0}}/>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{padding:"8px 12px",background:"#faf9f7",borderTop:"1px solid #f0ece4",display:"flex",justifyContent:"flex-end"}}>
+          <button onClick={()=>{if(confirm("Clear this day's plan?"))clearPlanDay(viewM,viewDay);}} style={{background:"none",border:"1px solid #e8ddd0",color:"#b0a594",borderRadius:10,padding:"4px 12px",fontSize:8,fontWeight:700,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>CLEAR DAY</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AtlasBudget({onBack}) {
   const BK="lifeos_budget26";
   const GOAL=3000;
@@ -2742,8 +2836,20 @@ function AtlasBudget({onBack}) {
   const [editId,setEditId]=useState(null);
   const [selCat,setSelCat]=useState(null);
   const [amtErr,setAmtErr]=useState(false);
+  const [showRec,setShowRec]=useState(false);
+  const [recForm,setRecForm]=useState({name:"",amount:"",emoji:"💳"});
   const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
   const entries=data.entries||[];
+  const recurring=data.recurring||[];
+  const recurringTotal=recurring.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const addRecurring=()=>{
+    const num=parseFloat(String(recForm.amount).replace(",",".").trim());
+    if(!num||num<=0)return;
+    const item={id:Date.now()+Math.random(),name:(recForm.name||"").trim()||"Payment",amount:num,emoji:recForm.emoji||"💳"};
+    save({...data,recurring:[...recurring,item]});
+    setRecForm({name:"",amount:"",emoji:"💳"});setShowRec(false);
+  };
+  const deleteRecurring=(id)=>save({...data,recurring:recurring.filter(r=>r.id!==id)});
   const totalAll=entries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalEarned=entries.filter(e=>isEarned(e.cat)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalOther=totalAll-totalEarned;
@@ -2755,10 +2861,10 @@ function AtlasBudget({onBack}) {
     setAmtErr(false);
     const entry={id:editId||(Date.now()+Math.random()),month:parseInt(form.month),amount:num,cat:form.cat,client:(form.client||"").trim(),note:form.note,date:form.date,pending:editId?(entries.find(e=>e.id===editId)?.pending||false):false};
     const updated=editId?entries.map(e=>e.id===editId?entry:e):[entry,...entries];
-    save({entries:updated});setShowAdd(false);setForm({month:TODAY_M,amount:"",cat:"Rover",client:"",note:"",date:""});setEditId(null);
+    save({...data,entries:updated});setShowAdd(false);setForm({month:TODAY_M,amount:"",cat:"Rover",client:"",note:"",date:""});setEditId(null);
   };
-  const deleteEntry=(id)=>save({entries:entries.filter(e=>e.id!==id)});
-  const togglePending=(id)=>save({entries:entries.map(e=>e.id===id?{...e,pending:!e.pending}:e)});
+  const deleteEntry=(id)=>save({...data,entries:entries.filter(e=>e.id!==id)});
+  const togglePending=(id)=>save({...data,entries:entries.map(e=>e.id===id?{...e,pending:!e.pending}:e)});
   const startEdit=(e)=>{setForm({month:e.month,amount:String(e.amount),cat:e.cat,client:e.client||"",note:e.note||"",date:e.date||""});setEditId(e.id);setShowAdd(true);};
   // Swap two entries' positions in the flat array (used by up/down within a month).
   const swapById=(idA,idB)=>{
@@ -2767,7 +2873,7 @@ function AtlasBudget({onBack}) {
     const a=arr.findIndex(e=>e.id===idA), b=arr.findIndex(e=>e.id===idB);
     if(a<0||b<0) return;
     const t=arr[a]; arr[a]=arr[b]; arr[b]=t;
-    save({entries:arr});
+    save({...data,entries:arr});
   };
   const buildExp=()=>{
     let out="BUDGET Q2 2026\n"+"=".repeat(36)+"\n\n";
@@ -2779,6 +2885,11 @@ function AtlasBudget({onBack}) {
       out+="\n";
     });
     out+="Q2 TOTAL: $"+totalAll.toFixed(2);
+    if(recurring.length){
+      out+="\n\nRECURRING MONTHLY (fixed costs): $"+recurringTotal.toFixed(2)+"/mo\n";
+      recurring.forEach(r=>{out+="  "+r.name+": $"+parseFloat(r.amount).toFixed(2)+"\n";});
+      out+="EARNED - RECURRING: $"+(totalEarned-recurringTotal).toFixed(2);
+    }
     return out;
   };
   return (
@@ -2820,6 +2931,55 @@ function AtlasBudget({onBack}) {
             <div style={{fontSize:14,fontWeight:900,color:"#9ca3af",marginTop:1}}>{fmtMoney(totalOther,0)}</div>
           </div>
         </div>
+      </div>
+      {/* Recurring monthly expenses — fixed costs, separate from income */}
+      <div style={{background:"#fff",borderRadius:14,border:"1px solid #f3e0d8",marginBottom:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(180,60,40,0.06)"}}>
+        <div style={{padding:"10px 14px",background:"linear-gradient(135deg,#3a241c,#2a1a14)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:11}}>🔁</span>
+            <div>
+              <div style={{fontSize:9,fontWeight:900,letterSpacing:1.5,color:"#f0c9b8"}}>RECURRING MONTHLY</div>
+              <div style={{fontSize:7,color:"#b89a8c",letterSpacing:1,marginTop:1}}>Fixed costs every month</div>
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:16,fontWeight:900,color:"#fff",lineHeight:1}}>{fmtMoney(recurringTotal,0)}</div>
+            <div style={{fontSize:6,color:"#b89a8c",letterSpacing:1,fontWeight:700}}>/ MONTH</div>
+          </div>
+        </div>
+        {recurring.length>0&&(
+          <div style={{display:"flex",flexDirection:"column"}}>
+            {recurring.map((r,i)=>(
+              <div key={r.id} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",borderTop:i>0?"1px solid #f5efe9":"none"}}>
+                <span style={{fontSize:14,flexShrink:0}}>{r.emoji}</span>
+                <span style={{flex:1,fontSize:12,fontWeight:600,color:"#3a2e24",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</span>
+                <span style={{fontSize:12,fontWeight:900,color:"#b45309"}}>{fmtMoney(r.amount,0)}</span>
+                <button onClick={()=>{if(confirm("Remove "+r.name+"?"))deleteRecurring(r.id);}} style={{flexShrink:0,width:22,height:22,borderRadius:"50%",background:"#faf0ec",border:"none",fontSize:10,color:"#c4906a",cursor:"pointer",padding:0,fontFamily:"inherit"}}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {showRec
+          ?<div style={{padding:"12px 14px",borderTop:"1px solid #f5efe9",background:"#fffaf7"}}>
+            <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+              {["🏠","🤖","📱","💡","🚇","🎵","📺","💳"].map(em=>(
+                <button key={em} onClick={()=>setRecForm(f=>({...f,emoji:em}))} style={{width:30,height:30,borderRadius:8,border:recForm.emoji===em?"2px solid #b45309":"1px solid #eaddd5",background:recForm.emoji===em?"#fff3ec":"#fff",fontSize:14,cursor:"pointer",padding:0}}>{em}</button>
+              ))}
+            </div>
+            <input value={recForm.name} onChange={e=>setRecForm(f=>({...f,name:e.target.value}))} placeholder="Name (Rent, Claude, Phone...)" style={{width:"100%",border:"1px solid #eaddd5",borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",outline:"none",marginBottom:8,boxSizing:"border-box"}}/>
+            <div style={{display:"flex",gap:8}}>
+              <input value={recForm.amount} onChange={e=>setRecForm(f=>({...f,amount:e.target.value}))} placeholder="$ / month" inputMode="decimal" style={{flex:1,border:"1px solid #eaddd5",borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",outline:"none",minWidth:0}}/>
+              <button onClick={addRecurring} style={{background:"#b45309",color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:10,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>ADD</button>
+            </div>
+          </div>
+          :<button onClick={()=>setShowRec(true)} style={{width:"100%",padding:"9px 0",background:"#fffaf7",border:"none",borderTop:"1px solid #f5efe9",color:"#b45309",fontSize:9,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>+ ADD RECURRING PAYMENT</button>
+        }
+        {recurringTotal>0&&(
+          <div style={{padding:"8px 14px",background:"#faf6f3",borderTop:"1px solid #f0e6df",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:7,color:"#9a8478",letterSpacing:1,fontWeight:700}}>EARNED − RECURRING (this quarter)</span>
+            <span style={{fontSize:11,fontWeight:900,color:totalEarned-recurringTotal>=0?"#16a34a":"#dc2626"}}>{fmtMoney(totalEarned-recurringTotal,0)}</span>
+          </div>
+        )}
       </div>
       <div style={{display:"flex",gap:6,marginBottom:12}}>
         {MONTHS_ARR.map(mo=>(
@@ -3239,6 +3399,7 @@ function buildDayText(m,d,allData){
   out+=`\nHATS MARKED: ${marks.length?marks.join("  "):"—"}\n`;
   const note=data.notes?.[d]; if(note?.trim()) out+=`\nNOTE:\n  ${note.trim().split("\n").join("\n  ")}\n`;
   const hl=data.highlights?.[d]; if(hl?.trim()) out+=`\n✨ HIGHLIGHT:\n  ${hl.trim()}\n`;
+  const mn=data.moodNotes?.[d]; if(mn?.trim()) out+=`\n〰️ MOOD SHIFT:\n  ${mn.trim()}\n`;
   const wns=data.wins?.[d]; if(wns?.trim()){ out+=`\nWINS:\n`; wns.trim().split("\n").forEach(l=>{if(l.trim())out+=`  ${l.trim()}\n`;}); }
   out+=`\n— end of day export —`;
   return out;
@@ -3397,7 +3558,7 @@ function AtlasVision({onBack}) {
 }
 
 // ── ATLAS PANEL ──────────────────────────────────────────────────────────────
-function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat, toggleLibHat, cycleEnergy, cycleMood, setHighlight, setViewDay, setViewM, setWeekIdx, setTabIdx}) {
+function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat, toggleLibHat, cycleEnergy, cycleMood, setHighlight, setMoodNote, setViewDay, setViewM, setWeekIdx, setTabIdx}) {
   const [section, setSection] = useState(null);
   const tiles = [
     {id:"highlights", icon:"✨", label:"Highlights\n& Mood",  color:"#c9a96e", bg:"#fdf8f0", desc:"All days · mood + highlight"},
@@ -3408,7 +3569,7 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
     {id:"weekexport", icon:"📤", label:"Exports",             color:"#7c3aed", bg:"#f5f3ff", desc:"Week · month · all"},
     {id:"challenge",  icon:"📸", label:"Photo\nChallenge",    color:"#7c6aad", bg:"#f5f3ff", desc:"May 2026 · 31 days"},
   ];
-  if(section==="highlights") return <AtlasHighlights allData={allData} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} goToDay={(m,d)=>{const wi=weekIdxForDay(m,d);if(wi>=0)setWeekIdx(wi);setViewM(m);setViewDay(d);setTabIdx(0);}} onBack={()=>setSection(null)}/>;
+  if(section==="highlights") return <AtlasHighlights allData={allData} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} setMoodNote={setMoodNote} goToDay={(m,d)=>{const wi=weekIdxForDay(m,d);if(wi>=0)setWeekIdx(wi);setViewM(m);setViewDay(d);setTabIdx(0);}} onBack={()=>setSection(null)}/>;
   if(section==="budget")     return <AtlasBudget onBack={()=>setSection(null)}/>;
   if(section==="challenge")  return <AtlasChallenge onBack={()=>setSection(null)}/>;
   if(section==="extra")      return <AtlasExtra monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} onBack={()=>setSection(null)}/>;
@@ -3494,6 +3655,12 @@ function App() {
   useEffect(()=>lsSet("winsLogged",winsLogged),[winsLogged]);
   const toggleWinsLogged=(m,day)=>setWinsLogged(p=>{const k=m+"-"+day;return{...p,[k]:!p[k]};});
 
+  // Day Plan (brainstorm + timeboxing) — scratch planning, persisted per day
+  const [planData,setPlanData]=useState(()=>lsGet("plan",{}));
+  useEffect(()=>lsSet("plan",planData),[planData]);
+  const setPlanField=(m,day,key,val)=>setPlanData(p=>{const dk=m+"-"+day;return{...p,[dk]:{...(p[dk]||{}),[key]:val}};});
+  const clearPlanDay=(m,day)=>setPlanData(p=>{const dk=m+"-"+day;const n={...p};delete n[dk];return n;});
+
   const setAssess=(field,val)=>setWeekAssess(p=>({...p,[field]:val}));
   // Priorities are stored per week number: weekAssess["w4"] = {priorities:[...]}
   const setPriority=(wn,i,val)=>setWeekAssess(p=>{
@@ -3503,6 +3670,7 @@ function App() {
     return {...p,[key]:{...(p[key]||{}),priorities:next}};
   });
   const setHighlight=(m,day,v)=>mutData(m,d=>({...d,highlights:{...(d.highlights||{}),[day]:v}}));
+  const setMoodNote=(m,day,v)=>mutData(m,d=>({...d,moodNotes:{...(d.moodNotes||{}),[day]:v}}));
 
   const beep=useCallback(()=>{
     try{
@@ -3535,7 +3703,7 @@ function App() {
   const onTE=e=>{
     if(!isDrag){tsX.current=null;return;}
     const dx=e.changedTouches[0].clientX-tsX.current;
-    if(Math.abs(dx)>55){if(dx<0&&tabIdx<2)setTabIdx(x=>x+1);if(dx>0&&tabIdx>0)setTabIdx(x=>x-1);}
+    if(Math.abs(dx)>55){if(dx<0&&tabIdx<TABS.length-1)setTabIdx(x=>x+1);if(dx>0&&tabIdx>0)setTabIdx(x=>x-1);}
     setIsDrag(false);setDragX(0);tsX.current=null;
   };
   const slideX=i=>(i-tabIdx)*100+(isDrag?(dragX/wRef.current)*100:0);
@@ -3798,10 +3966,11 @@ function App() {
       <div style={{position:"relative",overflow:"hidden"}} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
         {TABS.map((t,i)=>(
           <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"16px 14px 48px",boxSizing:"border-box",minHeight:"80vh"}}>
-            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged}/> }
+            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setMoodNote={setMoodNote} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged}/> }
             {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
+            {t==="plan"&&<PlanPanel viewM={viewM} viewDay={viewDay} setViewDay={setViewDay} setViewM={setViewM} planData={planData} setPlanField={setPlanField} clearPlanDay={clearPlanDay}/>}
             {t==="challenge"&&<ChallengePanel/>}
-            {t==="atlas"&&<AtlasPanel allData={allData} winsLogged={winsLogged} monthIdx={monthIdx} setMonthIdx={setMonthIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} setTabIdx={setTabIdx}/>}
+            {t==="atlas"&&<AtlasPanel allData={allData} winsLogged={winsLogged} monthIdx={monthIdx} setMonthIdx={setMonthIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} setMoodNote={setMoodNote} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} setTabIdx={setTabIdx}/>}
           </div>
         ))}
       </div>
