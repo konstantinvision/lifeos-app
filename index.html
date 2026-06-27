@@ -1457,13 +1457,13 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       </div>
 
       {/* Mood note — why mood shifted (optional) */}
-      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(124,58,237,0.10)"}}>
-        <div style={{padding:"6px 14px",background:"#f5f3ff",borderBottom:"1px solid #ddd6fe",fontSize:8,letterSpacing:2,color:"#6d28d9",fontWeight:800}}>〰️ MOOD NOTE — WHY IT SHIFTED (OPTIONAL)</div>
+      <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(71,85,105,0.10)"}}>
+        <div style={{padding:"6px 14px",background:"#f1f5f9",borderBottom:"1px solid #cbd5e1",fontSize:8,letterSpacing:2,color:"#475569",fontWeight:800}}>〰️ MOOD NOTE — WHY IT SHIFTED (OPTIONAL)</div>
         <textarea
           value={data?.moodNotes?.[viewDay]||""}
           onChange={e=>setMoodNote(viewM,viewDay,e.target.value)}
           placeholder="Only if mood moved a lot — what caused it..."
-          style={{width:"100%",minHeight:40,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#5b21b6",background:"#f5f3ff",lineHeight:1.5}}
+          style={{width:"100%",minHeight:40,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#334155",background:"#f8fafc",lineHeight:1.5}}
         />
       </div>
 
@@ -2685,8 +2685,8 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, setMood
                       ?<div>
                         <div style={{fontSize:7,fontWeight:800,color:"#b8860b",letterSpacing:1,marginBottom:3}}>⭐ HIGHLIGHT (gratitude)</div>
                         <textarea value={editVal} onChange={e=>setEditVal(e.target.value)} autoFocus placeholder="Best moment / gratitude..." style={{width:"100%",border:"1px solid #c9a96e",borderRadius:8,padding:"6px 8px",fontSize:11,fontFamily:"Georgia,serif",resize:"vertical",minHeight:54,outline:"none",color:"#3a2e24",lineHeight:1.5}}/>
-                        <div style={{fontSize:7,fontWeight:800,color:"#6d28d9",letterSpacing:1,margin:"6px 0 3px"}}>〰️ MOOD NOTE — why it shifted (optional)</div>
-                        <textarea value={editMood} onChange={e=>setEditMood(e.target.value)} placeholder="Only if mood moved a lot..." style={{width:"100%",border:"1px solid #c4b5fd",borderRadius:8,padding:"6px 8px",fontSize:11,fontFamily:"Georgia,serif",resize:"vertical",minHeight:40,outline:"none",color:"#5b21b6",lineHeight:1.5,background:"#faf8ff"}}/>
+                        <div style={{fontSize:7,fontWeight:800,color:"#475569",letterSpacing:1,margin:"6px 0 3px"}}>〰️ MOOD NOTE — why it shifted (optional)</div>
+                        <textarea value={editMood} onChange={e=>setEditMood(e.target.value)} placeholder="Only if mood moved a lot..." style={{width:"100%",border:"1px solid #cbd5e1",borderRadius:8,padding:"6px 8px",fontSize:11,fontFamily:"Georgia,serif",resize:"vertical",minHeight:40,outline:"none",color:"#334155",lineHeight:1.5,background:"#f8fafc"}}/>
                         <div style={{display:"flex",gap:6,marginTop:6}}>
                           <button onClick={()=>saveEdit(entry)} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:12,padding:"4px 10px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>SAVE</button>
                           <button onClick={()=>setEditIdx(null)} style={{background:"#eee",color:"#666",border:"none",borderRadius:12,padding:"4px 10px",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
@@ -2697,9 +2697,9 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, setMood
                           ?<div style={{fontSize:11,color:"#3a2e24",lineHeight:1.5,fontStyle:"italic",fontFamily:"Georgia,serif"}}>"{hl}"</div>
                           :<div style={{fontSize:9,color:"#ccc"}}>tap to add highlight</div>
                         }
-                        {mn&&<div style={{display:"flex",gap:5,marginTop:5,background:"#f5f3ff",border:"1px solid #ede9fe",borderRadius:8,padding:"5px 8px"}}>
+                        {mn&&<div style={{display:"flex",gap:5,marginTop:5,background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:8,padding:"5px 8px"}}>
                           <span style={{fontSize:9,lineHeight:1.4,flexShrink:0}}>〰️</span>
-                          <span style={{fontSize:10,color:"#6d28d9",lineHeight:1.4}}>{mn}</span>
+                          <span style={{fontSize:10,color:"#475569",lineHeight:1.4}}>{mn}</span>
                         </div>}
                         <div style={{fontSize:7,color:"#c9a96e",marginTop:4,letterSpacing:1}}>✏ edit</div>
                       </div>
@@ -2733,6 +2733,27 @@ function fmtMoney(n,dec){
 // Timebox slots: 6:00 AM → 2:00 AM next day, 30-min steps
 const TIMEBOX_SLOTS=(()=>{const a=[];for(let t=6*60;t<=26*60;t+=30){const hr=Math.floor(t/60);const mm=t%60;const h24=hr%24;const ap=h24<12?"AM":"PM";let h12=h24%12;if(h12===0)h12=12;a.push({key:String(hr).padStart(2,"0")+":"+String(mm).padStart(2,"0"),label:h12+":"+String(mm).padStart(2,"0")+" "+ap,hour:mm===0});}return a;})();
 
+// Auto-growing textarea — expands to fit content, never scrolls internally
+function AutoTextarea({value,onChange,placeholder,style,onKeyDown}){
+  const ref=React.useRef(null);
+  const resize=()=>{const el=ref.current;if(el){el.style.height="auto";el.style.height=(el.scrollHeight)+"px";}};
+  React.useLayoutEffect(()=>{resize();},[value]);
+  return <textarea ref={ref} value={value} onChange={onChange} onInput={resize} onKeyDown={onKeyDown} placeholder={placeholder} rows={1} style={{...style,overflow:"hidden",resize:"none"}}/>;
+}
+
+function buildPlanText(m,d,planData){
+  const dk=m+"-"+d; const day=planData[dk]||{};
+  const M={4:"APR",5:"MAY",6:"JUN",7:"JUL"};
+  let out="DAY PLAN — "+weekdayShort(m,d)+" "+(M[m]||m)+" "+d+", 2026\n"+"=".repeat(36)+"\n\n";
+  const items=day.brainstormItems||(day.brainstorm?[{text:day.brainstorm,done:false}]:[]);
+  const filledItems=items.filter(it=>(it.text||"").trim());
+  if(filledItems.length){ out+="BRAINSTORM:\n"; filledItems.forEach(it=>{out+="  ["+(it.done?"x":" ")+"] "+it.text.trim()+"\n";}); out+="\n"; }
+  const slots=TIMEBOX_SLOTS.filter(s=>(day[s.key]||"").trim());
+  if(slots.length){ out+="TIMEBOX:\n"; slots.forEach(s=>{out+="  "+s.label+"  "+day[s.key].trim()+"\n";}); }
+  if(!filledItems.length&&!slots.length) out+="(empty)";
+  return out.trim();
+}
+
 function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clearPlanDay}){
   const dk=viewM+"-"+viewDay;
   const day=planData[dk]||{};
@@ -2744,6 +2765,13 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
     setViewM(nm); setViewDay(nd);
   };
   const filled=TIMEBOX_SLOTS.filter(s=>(day[s.key]||"").trim()).length;
+  const items=day.brainstormItems||(day.brainstorm&&day.brainstorm.trim()?[{id:1,text:day.brainstorm,done:false}]:[]);
+  const setItems=(next)=>setPlanField(viewM,viewDay,"brainstormItems",next);
+  const addItem=()=>setItems([...items,{id:Date.now()+Math.random(),text:"",done:false}]);
+  const updItem=(id,patch)=>setItems(items.map(it=>it.id===id?{...it,...patch}:it));
+  const delItem=(id)=>setItems(items.filter(it=>it.id!==id));
+  const doneCount=items.filter(it=>it.done).length;
+  const [copied,setCopied]=useState(false);
   return (
     <div>
       <div style={{background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:18,padding:"14px 16px",marginBottom:14,boxShadow:"0 5px 18px rgba(42,33,24,0.2)"}}>
@@ -2755,20 +2783,29 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
           </div>
           <button onClick={()=>gotoDay(1)} style={{background:"rgba(255,255,255,0.08)",border:"none",color:"#c9a96e",borderRadius:14,width:28,height:28,fontSize:15,cursor:"pointer",fontFamily:"inherit"}}>›</button>
         </div>
-        <div style={{display:"flex",justifyContent:"center",gap:10,marginTop:8,alignItems:"center"}}>
+        <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:8,alignItems:"center",flexWrap:"wrap"}}>
           <button onClick={()=>{setViewM(TODAY_M);setViewDay(TODAY_D);}} style={{background:"none",border:"1px solid rgba(201,169,110,0.4)",color:"#c9a96e",borderRadius:12,padding:"3px 12px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>TODAY</button>
-          <span style={{fontSize:8,color:"#a89e8c",fontWeight:700}}>{filled} slots planned</span>
+          <button onClick={()=>{copyText(buildPlanText(viewM,viewDay,planData));setCopied(true);setTimeout(()=>setCopied(false),1800);}} style={{background:copied?"#16a34a":"rgba(201,169,110,0.15)",border:"1px solid rgba(201,169,110,0.4)",color:copied?"#fff":"#c9a96e",borderRadius:12,padding:"3px 12px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{copied?"✓ COPIED":"⧉ COPY PLAN"}</button>
+          <span style={{fontSize:8,color:"#a89e8c",fontWeight:700}}>{doneCount}/{items.length} ideas · {filled} slots</span>
         </div>
       </div>
 
       <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         <div style={{padding:"8px 14px",background:"#fffdf8",borderBottom:"1px solid #f0e9da",display:"flex",alignItems:"center",gap:8}}>
           <span style={{width:6,height:6,borderRadius:"50%",background:"#c9a96e"}}/>
-          <span style={{fontSize:8,fontWeight:800,letterSpacing:2,color:"#8a6d3b"}}>BRAINSTORM — DUMP EVERYTHING</span>
+          <span style={{fontSize:8,fontWeight:800,letterSpacing:2,color:"#8a6d3b"}}>BRAINSTORM — ONE IDEA PER LINE</span>
         </div>
-        <textarea value={day.brainstorm||""} onChange={e=>setPlanField(viewM,viewDay,"brainstorm",e.target.value)}
-          placeholder="Everything on your mind. Then pull the timebox + Top 3 out of it..."
-          style={{width:"100%",minHeight:110,border:"none",outline:"none",resize:"vertical",padding:"10px 14px",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:"#3a2e24",background:"#fff",lineHeight:1.6}}/>
+        {items.length===0&&(
+          <div style={{padding:"16px 14px",fontSize:11,color:"#b0a594",lineHeight:1.5}}>Dump everything on your mind, one idea per line. Check them off, then pull the timebox + Top 3 out of them.</div>
+        )}
+        {items.map((it,idx)=>(
+          <div key={it.id} style={{display:"flex",alignItems:"flex-start",gap:9,padding:"9px 14px",borderTop:idx>0||true?"1px solid #f3efe7":"none"}}>
+            <button onClick={()=>updItem(it.id,{done:!it.done})} style={{flexShrink:0,marginTop:1,width:18,height:18,borderRadius:"50%",border:"2px solid "+(it.done?"#16a34a":"#d8cdb8"),background:it.done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{it.done?"✓":""}</button>
+            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#b0a594":"#3a2e24",lineHeight:1.55,textDecoration:it.done?"line-through":"none",padding:0,minWidth:0}}/>
+            <button onClick={()=>delItem(it.id)} style={{flexShrink:0,marginTop:0,width:20,height:20,borderRadius:"50%",background:"none",border:"none",color:"#cfc6b6",fontSize:11,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
+          </div>
+        ))}
+        <button onClick={addItem} style={{width:"100%",padding:"10px 0",background:"#fffdf8",border:"none",borderTop:"1px solid #f3efe7",color:"#8a6d3b",fontSize:9,fontWeight:800,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>+ NEW IDEA</button>
       </div>
 
       <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
@@ -2837,19 +2874,27 @@ function AtlasBudget({onBack}) {
   const [selCat,setSelCat]=useState(null);
   const [amtErr,setAmtErr]=useState(false);
   const [showRec,setShowRec]=useState(false);
-  const [recForm,setRecForm]=useState({name:"",amount:"",emoji:"💳"});
+  const [recEditId,setRecEditId]=useState(null);
+  const [recForm,setRecForm]=useState({name:"",amount:"",emoji:"",months:[TODAY_M]});
   const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
   const entries=data.entries||[];
   const recurring=data.recurring||[];
-  const recurringTotal=recurring.reduce((s,r)=>s+parseFloat(r.amount||0),0);
-  const addRecurring=()=>{
+  const REC_PRESETS=[{name:"Rent",emoji:"🏠"},{name:"AI / Software",emoji:"🤖"},{name:"Phone",emoji:"📱"},{name:"Internet",emoji:"🌐"},{name:"Transport",emoji:"🚇"},{name:"Subscription",emoji:"📺"}];
+  const recMonths=(r)=>(r.months&&r.months.length)?r.months:MONTHS_ARR.map(x=>x.m);
+  const recMonthTotal=(m)=>recurring.filter(r=>recMonths(r).includes(m)).reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const resetRecForm=()=>{setRecForm({name:"",amount:"",emoji:"",months:[TODAY_M]});setRecEditId(null);setShowRec(false);};
+  const saveRecurring=()=>{
     const num=parseFloat(String(recForm.amount).replace(",",".").trim());
     if(!num||num<=0)return;
-    const item={id:Date.now()+Math.random(),name:(recForm.name||"").trim()||"Payment",amount:num,emoji:recForm.emoji||"💳"};
-    save({...data,recurring:[...recurring,item]});
-    setRecForm({name:"",amount:"",emoji:"💳"});setShowRec(false);
+    const months=(recForm.months&&recForm.months.length)?recForm.months.slice().sort((a,b)=>a-b):[TODAY_M];
+    const item={id:recEditId||(Date.now()+Math.random()),name:(recForm.name||"").trim()||"Payment",emoji:(recForm.emoji||"").trim(),amount:num,months};
+    const next=recEditId?recurring.map(r=>r.id===recEditId?item:r):[...recurring,item];
+    save({...data,recurring:next});
+    resetRecForm();
   };
-  const deleteRecurring=(id)=>save({...data,recurring:recurring.filter(r=>r.id!==id)});
+  const startEditRec=(r)=>{setRecForm({name:r.name||"",amount:String(r.amount),emoji:r.emoji||"",months:((r.months&&r.months.length)?r.months.slice():MONTHS_ARR.map(x=>x.m))});setRecEditId(r.id);setShowRec(true);};
+  const toggleRecMonth=(m)=>setRecForm(f=>{const has=(f.months||[]).includes(m);return{...f,months:has?f.months.filter(x=>x!==m):[...(f.months||[]),m]};});
+  const deleteRecurring=(id)=>{save({...data,recurring:recurring.filter(r=>r.id!==id)});if(recEditId===id)resetRecForm();};
   const totalAll=entries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalEarned=entries.filter(e=>isEarned(e.cat)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalOther=totalAll-totalEarned;
@@ -2886,9 +2931,8 @@ function AtlasBudget({onBack}) {
     });
     out+="Q2 TOTAL: $"+totalAll.toFixed(2);
     if(recurring.length){
-      out+="\n\nRECURRING MONTHLY (fixed costs): $"+recurringTotal.toFixed(2)+"/mo\n";
-      recurring.forEach(r=>{out+="  "+r.name+": $"+parseFloat(r.amount).toFixed(2)+"\n";});
-      out+="EARNED - RECURRING: $"+(totalEarned-recurringTotal).toFixed(2);
+      out+="\n\nRECURRING FIXED COSTS:\n";
+      recurring.forEach(r=>{const ms=recMonths(r).map(m=>({4:"Apr",5:"May",6:"Jun",7:"Jul"}[m]||m)).join(",");out+="  "+(r.emoji?r.emoji+" ":"")+r.name+": $"+parseFloat(r.amount).toFixed(2)+(ms?" ["+ms+"]":"")+"\n";});
     }
     return out;
   };
@@ -2938,48 +2982,59 @@ function AtlasBudget({onBack}) {
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{fontSize:11}}>🔁</span>
             <div>
-              <div style={{fontSize:9,fontWeight:900,letterSpacing:1.5,color:"#f0c9b8"}}>RECURRING MONTHLY</div>
-              <div style={{fontSize:7,color:"#b89a8c",letterSpacing:1,marginTop:1}}>Fixed costs every month</div>
+              <div style={{fontSize:9,fontWeight:900,letterSpacing:1.5,color:"#f0c9b8"}}>RECURRING</div>
+              <div style={{fontSize:7,color:"#b89a8c",letterSpacing:1,marginTop:1}}>Fixed costs · pick which months</div>
             </div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontSize:16,fontWeight:900,color:"#fff",lineHeight:1}}>{fmtMoney(recurringTotal,0)}</div>
-            <div style={{fontSize:6,color:"#b89a8c",letterSpacing:1,fontWeight:700}}>/ MONTH</div>
+            <div style={{fontSize:16,fontWeight:900,color:"#fff",lineHeight:1}}>{fmtMoney(recMonthTotal(TODAY_M),0)}</div>
+            <div style={{fontSize:6,color:"#b89a8c",letterSpacing:1,fontWeight:700}}>{M_LABEL[TODAY_M]} TOTAL</div>
           </div>
         </div>
         {recurring.length>0&&(
           <div style={{display:"flex",flexDirection:"column"}}>
             {recurring.map((r,i)=>(
               <div key={r.id} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",borderTop:i>0?"1px solid #f5efe9":"none"}}>
-                <span style={{fontSize:14,flexShrink:0}}>{r.emoji}</span>
-                <span style={{flex:1,fontSize:12,fontWeight:600,color:"#3a2e24",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</span>
-                <span style={{fontSize:12,fontWeight:900,color:"#b45309"}}>{fmtMoney(r.amount,0)}</span>
-                <button onClick={()=>{if(confirm("Remove "+r.name+"?"))deleteRecurring(r.id);}} style={{flexShrink:0,width:22,height:22,borderRadius:"50%",background:"#faf0ec",border:"none",fontSize:10,color:"#c4906a",cursor:"pointer",padding:0,fontFamily:"inherit"}}>✕</button>
+                {r.emoji?<span style={{fontSize:14,flexShrink:0,width:18,textAlign:"center"}}>{r.emoji}</span>:<span style={{flexShrink:0,width:18}}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"#3a2e24",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
+                  <div style={{display:"flex",gap:3,marginTop:2,flexWrap:"wrap"}}>
+                    {recMonths(r).map(m=>(<span key={m} style={{fontSize:6,fontWeight:800,letterSpacing:.5,color:"#b45309",background:"#fbeee4",borderRadius:4,padding:"1px 4px"}}>{M_LABEL[m]}</span>))}
+                  </div>
+                </div>
+                <span style={{fontSize:12,fontWeight:900,color:"#b45309",flexShrink:0}}>{fmtMoney(r.amount,0)}</span>
+                <button onClick={()=>startEditRec(r)} style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:"#fbeee4",border:"none",fontSize:11,color:"#b45309",cursor:"pointer",padding:0,fontFamily:"inherit"}}>✎</button>
+                <button onClick={()=>{if(confirm("Remove "+r.name+"?"))deleteRecurring(r.id);}} style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:"#faf0ec",border:"none",fontSize:11,color:"#c4906a",cursor:"pointer",padding:0,fontFamily:"inherit"}}>✕</button>
               </div>
             ))}
           </div>
         )}
         {showRec
           ?<div style={{padding:"12px 14px",borderTop:"1px solid #f5efe9",background:"#fffaf7"}}>
-            <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
-              {["🏠","🤖","📱","💡","🚇","🎵","📺","💳"].map(em=>(
-                <button key={em} onClick={()=>setRecForm(f=>({...f,emoji:em}))} style={{width:30,height:30,borderRadius:8,border:recForm.emoji===em?"2px solid #b45309":"1px solid #eaddd5",background:recForm.emoji===em?"#fff3ec":"#fff",fontSize:14,cursor:"pointer",padding:0}}>{em}</button>
+            <div style={{fontSize:7,fontWeight:800,color:"#9a8478",letterSpacing:1,marginBottom:5}}>QUICK PICK</div>
+            <div style={{display:"flex",gap:5,marginBottom:10,flexWrap:"wrap"}}>
+              {REC_PRESETS.map(p=>(
+                <button key={p.name} onClick={()=>setRecForm(f=>({...f,name:p.name,emoji:p.emoji}))} style={{display:"flex",alignItems:"center",gap:4,background:"#fff",border:"1px solid #eaddd5",borderRadius:14,padding:"4px 9px",fontSize:9,fontWeight:700,color:"#7a6253",cursor:"pointer",fontFamily:"inherit"}}>{p.emoji} {p.name}</button>
               ))}
             </div>
-            <input value={recForm.name} onChange={e=>setRecForm(f=>({...f,name:e.target.value}))} placeholder="Name (Rent, Claude, Phone...)" style={{width:"100%",border:"1px solid #eaddd5",borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",outline:"none",marginBottom:8,boxSizing:"border-box"}}/>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <input value={recForm.emoji} onChange={e=>setRecForm(f=>({...f,emoji:e.target.value}))} placeholder="🙂" maxLength={2} style={{width:46,textAlign:"center",border:"1px solid #eaddd5",borderRadius:8,padding:"8px 0",fontSize:16,fontFamily:"inherit",outline:"none",flexShrink:0}}/>
+              <input value={recForm.name} onChange={e=>setRecForm(f=>({...f,name:e.target.value}))} placeholder="Name (Rent, Claude, Phone...)" style={{flex:1,border:"1px solid #eaddd5",borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",outline:"none",minWidth:0}}/>
+            </div>
+            <input value={recForm.amount} onChange={e=>setRecForm(f=>({...f,amount:e.target.value}))} placeholder="$ amount" inputMode="decimal" style={{width:"100%",border:"1px solid #eaddd5",borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",outline:"none",marginBottom:10,boxSizing:"border-box"}}/>
+            <div style={{fontSize:7,fontWeight:800,color:"#9a8478",letterSpacing:1,marginBottom:5}}>APPLIES TO</div>
+            <div style={{display:"flex",gap:6,marginBottom:12}}>
+              {MONTHS_ARR.map(mo=>{const on=(recForm.months||[]).includes(mo.m);return (
+                <button key={mo.m} onClick={()=>toggleRecMonth(mo.m)} style={{flex:1,padding:"7px 0",borderRadius:8,border:on?"none":"1px solid #eaddd5",background:on?"#b45309":"#fff",color:on?"#fff":"#9a8478",fontSize:9,fontWeight:800,letterSpacing:.5,cursor:"pointer",fontFamily:"inherit"}}>{mo.short}</button>
+              );})}
+            </div>
             <div style={{display:"flex",gap:8}}>
-              <input value={recForm.amount} onChange={e=>setRecForm(f=>({...f,amount:e.target.value}))} placeholder="$ / month" inputMode="decimal" style={{flex:1,border:"1px solid #eaddd5",borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",outline:"none",minWidth:0}}/>
-              <button onClick={addRecurring} style={{background:"#b45309",color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:10,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>ADD</button>
+              <button onClick={saveRecurring} style={{flex:1,background:"#b45309",color:"#fff",border:"none",borderRadius:8,padding:"9px 0",fontSize:10,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{recEditId?"SAVE":"ADD"}</button>
+              <button onClick={resetRecForm} style={{background:"#f2ede6",color:"#8a7f74",border:"none",borderRadius:8,padding:"9px 16px",fontSize:10,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
             </div>
           </div>
-          :<button onClick={()=>setShowRec(true)} style={{width:"100%",padding:"9px 0",background:"#fffaf7",border:"none",borderTop:"1px solid #f5efe9",color:"#b45309",fontSize:9,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>+ ADD RECURRING PAYMENT</button>
+          :<button onClick={()=>{setRecEditId(null);setRecForm({name:"",amount:"",emoji:"",months:[TODAY_M]});setShowRec(true);}} style={{width:"100%",padding:"9px 0",background:"#fffaf7",border:"none",borderTop:"1px solid #f5efe9",color:"#b45309",fontSize:9,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>+ ADD RECURRING PAYMENT</button>
         }
-        {recurringTotal>0&&(
-          <div style={{padding:"8px 14px",background:"#faf6f3",borderTop:"1px solid #f0e6df",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:7,color:"#9a8478",letterSpacing:1,fontWeight:700}}>EARNED − RECURRING (this quarter)</span>
-            <span style={{fontSize:11,fontWeight:900,color:totalEarned-recurringTotal>=0?"#16a34a":"#dc2626"}}>{fmtMoney(totalEarned-recurringTotal,0)}</span>
-          </div>
-        )}
       </div>
       <div style={{display:"flex",gap:6,marginBottom:12}}>
         {MONTHS_ARR.map(mo=>(
