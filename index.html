@@ -988,18 +988,19 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       {/* 🐝 BEE CANVAS — fullscreen overlay */}
       <canvas ref={beeCanvasRef} style={{display:"none",position:"fixed",top:0,left:0,width:"100%",height:"100%",zIndex:999,pointerEvents:"none"}}/>
 
-      {/* Daily progress — compact hero */}
-      <div style={{position:"relative",overflow:"hidden",background:dayPct===100?"linear-gradient(135deg,#14532d,#1b5e20)":"linear-gradient(135deg,#332817,#241c12)",borderRadius:14,marginBottom:12,padding:"9px 14px",boxShadow:dayPct===100?"0 5px 18px rgba(20,83,45,0.24)":"0 4px 14px rgba(42,33,24,0.18)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:24,fontWeight:900,letterSpacing:-1,color:"#fff",lineHeight:1,flexShrink:0}}>{dayPct}<span style={{fontSize:12,color:dayPct===100?"#bbf7d0":"#c9a96e"}}>%</span></span>
+      {/* Daily progress — hero (dark like Plan/Month/Atlas, green accents when done) */}
+      <div style={{position:"relative",overflow:"hidden",background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:16,marginBottom:12,padding:"13px 16px",boxShadow:dayPct===100?"0 5px 18px rgba(20,83,45,0.22)":"0 5px 16px rgba(42,33,24,0.2)",border:dayPct===100?"1px solid rgba(74,222,128,0.45)":"1px solid rgba(201,169,110,0.14)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:13}}>
+          <span style={{fontSize:30,fontWeight:900,letterSpacing:-1,color:dayPct===100?"#4ade80":"#fff",lineHeight:1,flexShrink:0}}>{dayPct}<span style={{fontSize:14,color:dayPct===100?"#bbf7d0":"#c9a96e"}}>%</span></span>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4,gap:6}}>
-              <span style={{fontSize:7,fontWeight:800,letterSpacing:2,color:dayPct===100?"#bbf7d0":"#c9a96e",textTransform:"uppercase",whiteSpace:"nowrap"}}>{M_LABEL[viewM]} {viewDay} · Top 3</span>
-              <span style={{fontSize:7,color:"#a89e8c",fontWeight:700,whiteSpace:"nowrap"}}>W{w.n} · {wkPct}% · {TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TOP3.length} HATs</span>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6,gap:6}}>
+              <span style={{fontSize:13,fontWeight:900,letterSpacing:0.4,color:"#fff",whiteSpace:"nowrap"}}>{weekdayShort(viewM,viewDay)} {M_LABEL[viewM]} {viewDay}</span>
+              <span style={{fontSize:7.5,color:dayPct===100?"#86efac":"#c9a96e",fontWeight:800,letterSpacing:1.5,whiteSpace:"nowrap"}}>{dayPct===100?"✓ ALL DONE":"TOP 3"}</span>
             </div>
-            <div style={{background:"rgba(255,255,255,0.10)",borderRadius:20,height:5,overflow:"hidden"}}>
+            <div style={{background:"rgba(255,255,255,0.10)",borderRadius:20,height:6,overflow:"hidden",marginBottom:5}}>
               <div style={{background:dayPct===100?"linear-gradient(90deg,#4ade80,#bbf7d0)":"linear-gradient(90deg,#c9a96e,#e8c98f)",height:"100%",width:dayPct+"%",borderRadius:20,transition:"width .45s cubic-bezier(.4,0,.2,1)",boxShadow:dayPct>0?"0 0 8px rgba(201,169,110,0.4)":"none"}}/>
             </div>
+            <div style={{fontSize:7,color:"#a89e8c",fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>W{w.n} · {wkPct}% week · {TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TOP3.length} HATs</div>
           </div>
         </div>
       </div>
@@ -1310,6 +1311,13 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   if(st.car) next[kR]=true; else delete next[kR];
                 });
                 saveTaskChecks(next);
+                // Anything pushed past the last slot is NEVER deleted — it goes back to the escalated backlog
+                const overflow=arr.slice(slots.length).filter(st=>escKey(st.text));
+                if(overflow.length){
+                  const ne={...escalations};
+                  overflow.forEach(st=>{const k=escKey(st.text);if(!ne[k])ne[k]={text:(st.text||"").replace(/\u200b/g,"").trim(),since:TODAY_M+"-"+TODAY_D};});
+                  saveEscalations(ne);
+                }
               };
               return (
                 <div style={{background:"linear-gradient(180deg,#fff7ed,#fffaf2)",borderBottom:"1px solid #fde4c4",padding:"10px 12px"}}>
@@ -1322,7 +1330,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                     <div key={i} style={{display:"flex",alignItems:"center",gap:8,background:"#fff",borderRadius:12,border:"1px solid #fcd9a8",borderLeft:"3px solid #f59e0b",padding:"9px 10px",boxShadow:"0 1px 5px rgba(180,83,9,0.07)"}}>
                       <span style={{fontSize:11.5,color:"#7c2d12",fontWeight:700,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.text}</span>
                       <button onClick={()=>addToTop(f.text)} style={{flexShrink:0,background:"#f59e0b",color:"#fff",border:"none",borderRadius:20,padding:"5px 11px",fontSize:8,fontWeight:900,letterSpacing:0.5,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 6px rgba(245,158,11,0.3)",touchAction:"manipulation"}}>↑ T1</button>
-                      <button onClick={()=>toggleEscalation(f.text)} title="Remove flag" style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:"#fdf0e2",border:"none",fontSize:11,color:"#c4906a",cursor:"pointer",padding:0,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>✕</button>
+                      <button onClick={()=>{if(confirm("Remove \""+f.text+"\" from escalated?"))toggleEscalation(f.text);}} title="Remove flag" style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:"#fdf0e2",border:"none",fontSize:11,color:"#c4906a",cursor:"pointer",padding:0,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>✕</button>
                     </div>
                   ))}
                   </div>
@@ -2818,12 +2826,12 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
             const val=day[s.key]||"";
             const fr=val.trim();
             return (
-              <div key={s.key} style={{display:"flex",alignItems:"stretch",borderTop:i>0?"1px solid #f3f0ea":"none",background:fr?"#fbf7ef":(s.hour?"#fff":"#fcfbf9")}}>
-                <div style={{width:62,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:8,borderRight:"2px solid "+(s.hour?"#e8dcc8":"#f0ece4"),background:s.hour?"#faf6ee":"#fbfaf7"}}>
-                  <span style={{fontSize:s.hour?8.5:7.5,fontWeight:s.hour?900:600,color:s.hour?"#8a6d3b":"#b0a594",lineHeight:1}}>{s.label}</span>
+              <div key={s.key} style={{display:"flex",alignItems:"flex-start",borderTop:i>0?"1px solid #f3f0ea":"none",background:fr?"#fbf7ef":(s.hour?"#fff":"#fcfbf9")}}>
+                <div style={{width:60,flexShrink:0,display:"flex",alignItems:"flex-start",justifyContent:"flex-end",paddingRight:9,paddingTop:10,borderRight:"1px solid "+(s.hour?"#e3d8c6":"#f0ece4")}}>
+                  <span style={{fontSize:s.hour?10:8,fontWeight:s.hour?800:500,color:s.hour?"#2a2118":"#b3aa9a",lineHeight:1,letterSpacing:0.2,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{s.label}</span>
                 </div>
-                <input value={val} onChange={e=>setPlanField(viewM,viewDay,s.key,e.target.value)}
-                  style={{flex:1,border:"none",outline:"none",background:"none",padding:"9px 12px",fontSize:11,fontFamily:"inherit",color:"#3a2e24",minWidth:0}}/>
+                <AutoTextarea value={val} onChange={e=>setPlanField(viewM,viewDay,s.key,e.target.value)}
+                  style={{flex:1,border:"none",outline:"none",background:"none",padding:"8px 12px",fontSize:11,fontFamily:"inherit",color:"#3a2e24",minWidth:0,lineHeight:1.5}}/>
               </div>
             );
           })}
@@ -2874,6 +2882,7 @@ function AtlasBudget({onBack}) {
   const [selCat,setSelCat]=useState(null);
   const [amtErr,setAmtErr]=useState(false);
   const [showRec,setShowRec]=useState(false);
+  const [recOpen,setRecOpen]=useState(false);
   const [recEditId,setRecEditId]=useState(null);
   const [recForm,setRecForm]=useState({name:"",amount:"",emoji:"",months:[TODAY_M]});
   const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
@@ -2976,21 +2985,25 @@ function AtlasBudget({onBack}) {
           </div>
         </div>
       </div>
-      {/* Recurring monthly expenses — fixed costs, separate from income */}
+      {/* Recurring monthly expenses — fixed costs (money out), collapsible */}
       <div style={{background:"#fff",borderRadius:14,border:"1px solid #f3e0d8",marginBottom:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(180,60,40,0.06)"}}>
-        <div style={{padding:"10px 14px",background:"linear-gradient(135deg,#3a241c,#2a1a14)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div onClick={()=>setRecOpen(o=>!o)} style={{padding:"10px 14px",background:"linear-gradient(135deg,#3a241c,#2a1a14)",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:11}}>🔁</span>
+            <span style={{fontSize:11}}>🔻</span>
             <div>
-              <div style={{fontSize:9,fontWeight:900,letterSpacing:1.5,color:"#f0c9b8"}}>RECURRING</div>
-              <div style={{fontSize:7,color:"#b89a8c",letterSpacing:1,marginTop:1}}>Fixed costs · pick which months</div>
+              <div style={{fontSize:9,fontWeight:900,letterSpacing:1.5,color:"#f0c9b8"}}>RECURRING · MONEY OUT</div>
+              <div style={{fontSize:7,color:"#b89a8c",letterSpacing:1,marginTop:1}}>Fixed costs · tap to {recOpen?"hide":"manage"}</div>
             </div>
           </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:16,fontWeight:900,color:"#fff",lineHeight:1}}>{fmtMoney(recMonthTotal(TODAY_M),0)}</div>
-            <div style={{fontSize:6,color:"#b89a8c",letterSpacing:1,fontWeight:700}}>{M_LABEL[TODAY_M]} TOTAL</div>
+          <div style={{display:"flex",alignItems:"center",gap:11}}>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:16,fontWeight:900,color:"#fca5a5",lineHeight:1}}>{recMonthTotal(TODAY_M)>0?"−":""}{fmtMoney(recMonthTotal(TODAY_M),0)}</div>
+              <div style={{fontSize:6,color:"#b89a8c",letterSpacing:1,fontWeight:700}}>{M_LABEL[TODAY_M]}</div>
+            </div>
+            <span style={{fontSize:13,color:"#c9a96e",transform:recOpen?"rotate(90deg)":"none",transition:"transform .2s",display:"inline-block"}}>▸</span>
           </div>
         </div>
+        {recOpen&&(<React.Fragment>
         {recurring.length>0&&(
           <div style={{display:"flex",flexDirection:"column"}}>
             {recurring.map((r,i)=>(
@@ -3035,7 +3048,9 @@ function AtlasBudget({onBack}) {
           </div>
           :<button onClick={()=>{setRecEditId(null);setRecForm({name:"",amount:"",emoji:"",months:[TODAY_M]});setShowRec(true);}} style={{width:"100%",padding:"9px 0",background:"#fffaf7",border:"none",borderTop:"1px solid #f5efe9",color:"#b45309",fontSize:9,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>+ ADD RECURRING PAYMENT</button>
         }
+        </React.Fragment>)}
       </div>
+      <div style={{fontSize:8,fontWeight:800,letterSpacing:2,color:"#4a9d6f",margin:"0 2px 7px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:11}}>＋</span>WHAT I EARNED · MONEY IN</div>
       <div style={{display:"flex",gap:6,marginBottom:12}}>
         {MONTHS_ARR.map(mo=>(
           <div key={mo.m} style={{flex:1,background:"#fff",borderRadius:10,padding:"8px 10px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
@@ -3132,9 +3147,8 @@ function AtlasBudget({onBack}) {
           </div>
           <div style={{marginBottom:12}}>
             <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>NOTE (optional)</div>
-            <textarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="e.g. Paul house sitting, Ace visits..."
-              rows={3}
-              style={{width:"100%",boxSizing:"border-box",border:"1px solid #e0e0e0",borderRadius:8,padding:"8px 10px",fontSize:13,fontFamily:"inherit",outline:"none",background:"#fafafa",resize:"vertical",minHeight:64,lineHeight:1.5}}/>
+            <AutoTextarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="e.g. Paul house sitting, Ace visits..."
+              style={{width:"100%",boxSizing:"border-box",border:"1px solid #e0e0e0",borderRadius:8,padding:"8px 10px",fontSize:13,fontFamily:"inherit",outline:"none",background:"#fafafa",minHeight:48,lineHeight:1.5}}/>
           </div>
           <button onClick={addEntry} onMouseDown={e=>e.preventDefault()} style={{width:"100%",background:"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:11,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>{editId?"SAVE CHANGES":"ADD INCOME"}</button>
           {editId&&(
@@ -4018,7 +4032,7 @@ function App() {
         </div>
       </div>
 
-      <div style={{position:"relative",overflow:"hidden"}} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
+      <div style={{position:"relative",overflow:"hidden",touchAction:"pan-y",overscrollBehaviorX:"none"}} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
         {TABS.map((t,i)=>(
           <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"16px 14px 48px",boxSizing:"border-box",minHeight:"80vh"}}>
             {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setMoodNote={setMoodNote} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged}/> }
