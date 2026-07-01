@@ -713,6 +713,23 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
   );
 }
 
+// Press-and-hold cell — must hold ~380ms to toggle, so accidental taps do nothing
+function HoldCell({onHold,holdMs=380,style,title,children}){
+  const t=React.useRef(null);const sx=React.useRef(0);const sy=React.useRef(0);
+  const clear=()=>{if(t.current){clearTimeout(t.current);t.current=null;}};
+  const start=(x,y)=>{clear();sx.current=x;sy.current=y;t.current=setTimeout(()=>{t.current=null;try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}onHold();},holdMs);};
+  return (
+    <div style={{...style,userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} title={title}
+      onTouchStart={e=>{const c=e.touches[0];start(c.clientX,c.clientY);}}
+      onTouchMove={e=>{const c=e.touches[0];if(Math.abs(c.clientX-sx.current)>8||Math.abs(c.clientY-sy.current)>8)clear();}}
+      onTouchEnd={clear} onTouchCancel={clear}
+      onMouseDown={e=>start(e.clientX,e.clientY)} onMouseUp={clear} onMouseLeave={clear}
+      onContextMenu={e=>e.preventDefault()}>
+      {children}
+    </div>
+  );
+}
+
 function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged}) {
   const data = allData[getMI(viewM)];
   const w = Q2_WEEKS[weekIdx];
@@ -1099,7 +1116,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             const isSel=rday.m===viewM&&rday.d===viewDay;
             const isToday=rday.m===TODAY_M&&rday.d===TODAY_D;
             return (
-              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:1,borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",background:isSel?"#fbf6ec":isToday?"#fdfaf3":"transparent",marginTop:isSel?2:0}}>
+              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:1,borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",borderBottom:isSel?"2px solid #c9a96e":"none",background:isSel?"#fbf6ec":isToday?"#fdfaf3":"transparent",marginTop:isSel?2:0,marginBottom:isSel?2:0}}>
                 <div style={{width:36,flexShrink:0,height:20,background:isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
                   <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":isToday?"#c9a96e":"#666",lineHeight:1}}>{rday.d}</span>
                   <span style={{fontSize:5,fontWeight:700,color:isToday?"#c9a96e":"#aaa",lineHeight:1,letterSpacing:.3}}>{weekdayShort(rday.m,rday.d)}</span>
@@ -1134,9 +1151,9 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):"#fff";
                   if(goalMet){ bg="#d4d4d4"; }
                   return (
-                    <div key={h.code} onClick={()=>cycleCell(h.code,rday.m,rday.d)} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
+                    <HoldCell key={h.code} onHold={()=>cycleCell(h.code,rday.m,rday.d)} title="Hold to mark" style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
                       <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":goalMet?"#666":mk.c}}>{mk.ch}</span>
-                    </div>
+                    </HoldCell>
                   );
                 })}
                 {(()=>{const pp=top3pct(rData,rday.d);return (
@@ -1153,6 +1170,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           <span style={{fontSize:7,color:"#bf5000",fontWeight:700}}>ESS {ESSENTIALS.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{ESSENTIALS.length}</span>
           <span style={{fontSize:7,color:"#1b5e20",fontWeight:700}}>TOP3 {dayPct}%</span>
           <span style={{fontSize:7,color:"#555"}}>{TRK_ALL.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TRK_ALL.length} trk</span>
+          <span style={{marginLeft:"auto",fontSize:6.5,color:"#b0a898",fontWeight:700,letterSpacing:.5}}>👆 HOLD TO MARK</span>
         </div>
       </div>
 
@@ -1655,6 +1673,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>Month</div>
           <div style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.3,lineHeight:1.15}}>{month.name} <span style={{fontSize:9,color:"#a89e8c",fontWeight:400,letterSpacing:2}}>2026</span></div>
+          <div style={{fontSize:6.5,color:"#8a7f6d",fontWeight:700,letterSpacing:1,marginTop:2}}>👆 HOLD CELL TO MARK</div>
         </div>
         <button onClick={()=>monthIdx<MONTHS_ARR.length-1&&setMonthIdx(x=>Math.min(MONTHS_ARR.length-1,x+1))} style={{background:"rgba(255,255,255,0.08)",border:"none",color:monthIdx<MONTHS_ARR.length-1?"#c9a96e":"#5a5145",borderRadius:16,width:30,height:30,fontSize:16,cursor:monthIdx<MONTHS_ARR.length-1?"pointer":"default",fontFamily:"inherit"}}>›</button>
       </div>
@@ -1872,7 +1891,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                       // cell border: always visible; stronger left border at group boundary
                       const bdrLeft=isFirstInGrp?`2px solid ${sec.bdr}`:`1px solid ${goalMet?"#aaa":sec.bdr+"66"}`;
                       return (
-                        <div key={h.code} onClick={()=>cycleCell(h.code,dm,day)} style={{
+                        <HoldCell key={h.code} onHold={()=>cycleCell(h.code,dm,day)} title="Hold to mark" style={{
                           width:C,height:C,flexShrink:0,
                           display:"flex",alignItems:"center",justifyContent:"center",
                           cursor:"pointer",background:bg,
@@ -1885,7 +1904,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                             fontSize:mk.fs,fontWeight:mk.fw,lineHeight:1,
                             color:isTop3&&st?"#15803d":isTop3&&isPast&&!st?"#dc2626":goalMet?"#666":mk.c,
                           }}>{mk.ch}</span>
-                        </div>
+                        </HoldCell>
                       );
                     })}
 
@@ -2778,6 +2797,8 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
   const addItem=()=>setItems([...items,{id:Date.now()+Math.random(),text:"",done:false}]);
   const updItem=(id,patch)=>setItems(items.map(it=>it.id===id?{...it,...patch}:it));
   const delItem=(id)=>setItems(items.filter(it=>it.id!==id));
+  const moveItem=(id,dir)=>{const i=items.findIndex(it=>it.id===id);if(i<0)return;const j=i+dir;if(j<0||j>=items.length)return;const a=items.slice();const tmp=a[i];a[i]=a[j];a[j]=tmp;setItems(a);};
+  const pinItem=(id)=>{const it=items.find(x=>x.id===id);if(!it)return;if(it.pin){setItems(items.map(x=>x.id===id?{...x,pin:false}:x));}else{setItems([{...it,pin:true},...items.filter(x=>x.id!==id)]);}};
   const doneCount=items.filter(it=>it.done).length;
   const [copied,setCopied]=useState(false);
   return (
@@ -2807,10 +2828,19 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
           <div style={{padding:"16px 14px",fontSize:11,color:"#b0a594",lineHeight:1.5}}>Dump everything on your mind, one idea per line. Check them off, then pull the timebox + Top 3 out of them.</div>
         )}
         {items.map((it,idx)=>(
-          <div key={it.id} style={{display:"flex",alignItems:"flex-start",gap:9,padding:"9px 14px",borderTop:idx>0||true?"1px solid #f3efe7":"none"}}>
+          <div key={it.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"9px 12px 9px 14px",borderTop:"1px solid #f3efe7",borderLeft:it.pin?"3px solid #c9a96e":"3px solid transparent",background:it.pin?"#fffdf6":"transparent"}}>
             <button onClick={()=>updItem(it.id,{done:!it.done})} style={{flexShrink:0,marginTop:1,width:18,height:18,borderRadius:"50%",border:"2px solid "+(it.done?"#16a34a":"#d8cdb8"),background:it.done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{it.done?"✓":""}</button>
             <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#b0a594":"#3a2e24",lineHeight:1.55,textDecoration:it.done?"line-through":"none",padding:0,minWidth:0}}/>
-            <button onClick={()=>delItem(it.id)} style={{flexShrink:0,marginTop:0,width:20,height:20,borderRadius:"50%",background:"none",border:"none",color:"#cfc6b6",fontSize:11,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
+            <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0}}>
+              <div style={{display:"flex",gap:3}}>
+                <button onClick={()=>pinItem(it.id)} title="Pin to top" style={{width:20,height:20,borderRadius:6,border:"none",background:it.pin?"#c9a96e":"#f3efe7",cursor:"pointer",padding:0,fontSize:9,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}><span style={{opacity:it.pin?1:0.4}}>🔝</span></button>
+                <button onClick={()=>delItem(it.id)} title="Delete" style={{width:20,height:20,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:11,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
+              </div>
+              <div style={{display:"flex",gap:3}}>
+                <button onClick={()=>moveItem(it.id,-1)} disabled={idx===0} title="Move up" style={{width:20,height:18,borderRadius:5,border:"1px solid #ece6dc",background:idx===0?"#f6f4f0":"#fff",color:idx===0?"#d8d2c8":"#8a7f6d",cursor:idx===0?"default":"pointer",fontSize:9,fontWeight:900,padding:0,lineHeight:1,touchAction:"manipulation"}}>▲</button>
+                <button onClick={()=>moveItem(it.id,1)} disabled={idx===items.length-1} title="Move down" style={{width:20,height:18,borderRadius:5,border:"1px solid #ece6dc",background:idx===items.length-1?"#f6f4f0":"#fff",color:idx===items.length-1?"#d8d2c8":"#8a7f6d",cursor:idx===items.length-1?"default":"pointer",fontSize:9,fontWeight:900,padding:0,lineHeight:1,touchAction:"manipulation"}}>▼</button>
+              </div>
+            </div>
           </div>
         ))}
         <button onClick={addItem} style={{width:"100%",padding:"10px 0",background:"#fffdf8",border:"none",borderTop:"1px solid #f3efe7",color:"#8a6d3b",fontSize:9,fontWeight:800,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>+ NEW IDEA</button>
