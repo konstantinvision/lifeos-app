@@ -713,17 +713,19 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
   );
 }
 
-// Press-and-hold cell — must hold ~380ms to toggle, so accidental taps do nothing
-function HoldCell({onHold,holdMs=380,style,title,children}){
-  const t=React.useRef(null);const sx=React.useRef(0);const sy=React.useRef(0);
-  const clear=()=>{if(t.current){clearTimeout(t.current);t.current=null;}};
-  const start=(x,y)=>{clear();sx.current=x;sy.current=y;t.current=setTimeout(()=>{t.current=null;try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}onHold();},holdMs);};
+// Deliberate-tap cell — fires on release, but only if the finger didn't slide (scrolls/grazes won't toggle).
+// Feels like a normal tap, just a touch more intentional so accidental marks don't happen.
+function HoldCell({onHold,minMs=150,style,title,children}){
+  const st=React.useRef(0);const sx=React.useRef(0);const sy=React.useRef(0);const moved=React.useRef(false);
+  const begin=(x,y)=>{st.current=Date.now();sx.current=x;sy.current=y;moved.current=false;};
+  const fire=()=>{if(!moved.current&&(Date.now()-st.current)>=minMs){onHold();}};
   return (
     <div style={{...style,userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} title={title}
-      onTouchStart={e=>{const c=e.touches[0];start(c.clientX,c.clientY);}}
-      onTouchMove={e=>{const c=e.touches[0];if(Math.abs(c.clientX-sx.current)>8||Math.abs(c.clientY-sy.current)>8)clear();}}
-      onTouchEnd={clear} onTouchCancel={clear}
-      onMouseDown={e=>start(e.clientX,e.clientY)} onMouseUp={clear} onMouseLeave={clear}
+      onTouchStart={e=>{const c=e.touches[0];begin(c.clientX,c.clientY);}}
+      onTouchMove={e=>{const c=e.touches[0];if(Math.abs(c.clientX-sx.current)>10||Math.abs(c.clientY-sy.current)>10)moved.current=true;}}
+      onTouchEnd={fire} onTouchCancel={()=>{moved.current=true;}}
+      onMouseDown={e=>begin(e.clientX,e.clientY)}
+      onMouseUp={e=>{if(Math.abs(e.clientX-sx.current)>10||Math.abs(e.clientY-sy.current)>10)moved.current=true;fire();}}
       onContextMenu={e=>e.preventDefault()}>
       {children}
     </div>
@@ -1170,7 +1172,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           <span style={{fontSize:7,color:"#bf5000",fontWeight:700}}>ESS {ESSENTIALS.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{ESSENTIALS.length}</span>
           <span style={{fontSize:7,color:"#1b5e20",fontWeight:700}}>TOP3 {dayPct}%</span>
           <span style={{fontSize:7,color:"#555"}}>{TRK_ALL.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TRK_ALL.length} trk</span>
-          <span style={{marginLeft:"auto",fontSize:6.5,color:"#b0a898",fontWeight:700,letterSpacing:.5}}>👆 HOLD TO MARK</span>
+          <span style={{marginLeft:"auto",fontSize:6.5,color:"#b0a898",fontWeight:700,letterSpacing:.5}}>👆 TAP TO MARK</span>
         </div>
       </div>
 
@@ -1673,7 +1675,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>Month</div>
           <div style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.3,lineHeight:1.15}}>{month.name} <span style={{fontSize:9,color:"#a89e8c",fontWeight:400,letterSpacing:2}}>2026</span></div>
-          <div style={{fontSize:6.5,color:"#8a7f6d",fontWeight:700,letterSpacing:1,marginTop:2}}>👆 HOLD CELL TO MARK</div>
+          <div style={{fontSize:6.5,color:"#8a7f6d",fontWeight:700,letterSpacing:1,marginTop:2}}>👆 TAP TO MARK</div>
         </div>
         <button onClick={()=>monthIdx<MONTHS_ARR.length-1&&setMonthIdx(x=>Math.min(MONTHS_ARR.length-1,x+1))} style={{background:"rgba(255,255,255,0.08)",border:"none",color:monthIdx<MONTHS_ARR.length-1?"#c9a96e":"#5a5145",borderRadius:16,width:30,height:30,fontSize:16,cursor:monthIdx<MONTHS_ARR.length-1?"pointer":"default",fontFamily:"inherit"}}>›</button>
       </div>
@@ -2801,6 +2803,13 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
   const pinItem=(id)=>{const it=items.find(x=>x.id===id);if(!it)return;if(it.pin){setItems(items.map(x=>x.id===id?{...x,pin:false}:x));}else{setItems([{...it,pin:true},...items.filter(x=>x.id!==id)]);}};
   const doneCount=items.filter(it=>it.done).length;
   const [copied,setCopied]=useState(false);
+  // Drag-to-reorder (same interaction as Top 3 tasks in Today)
+  const bDragIdx=useRef(null), bOverIdx=useRef(null), bRowRefs=useRef([]);
+  const [bDragging,setBDragging]=useState(null);
+  const reorderItems=(from,to)=>{if(from===to||from==null||to==null)return;const a=items.slice();const[m]=a.splice(from,1);a.splice(to,0,m);setItems(a);};
+  const bStart=(i)=>{bDragIdx.current=i;bOverIdx.current=i;setBDragging(i);};
+  const bMove=(e)=>{if(bDragIdx.current===null)return;e.preventDefault();const y=e.touches[0].clientY;let closest=bDragIdx.current,md=Infinity;bRowRefs.current.forEach((ref,ri)=>{if(!ref)return;const r=ref.getBoundingClientRect();const d=Math.abs(y-(r.top+r.height/2));if(d<md){md=d;closest=ri;}});bOverIdx.current=closest;};
+  const bEnd=()=>{if(bDragIdx.current!==null&&bOverIdx.current!==null)reorderItems(bDragIdx.current,bOverIdx.current);bDragIdx.current=null;bOverIdx.current=null;setBDragging(null);};
   return (
     <div>
       <div style={{background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:18,padding:"14px 16px",marginBottom:14,boxShadow:"0 5px 18px rgba(42,33,24,0.2)"}}>
@@ -2827,22 +2836,21 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
         {items.length===0&&(
           <div style={{padding:"16px 14px",fontSize:11,color:"#b0a594",lineHeight:1.5}}>Dump everything on your mind, one idea per line. Check them off, then pull the timebox + Top 3 out of them.</div>
         )}
-        {items.map((it,idx)=>(
-          <div key={it.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"9px 12px 9px 14px",borderTop:"1px solid #f3efe7",borderLeft:it.pin?"3px solid #c9a96e":"3px solid transparent",background:it.pin?"#fffdf6":"transparent"}}>
+        {items.map((it,idx)=>{
+          const dragging=bDragging===idx;
+          return (
+          <div key={it.id} ref={el=>bRowRefs.current[idx]=el}
+            draggable onDragStart={()=>bStart(idx)} onDragEnter={()=>{bOverIdx.current=idx;}} onDragOver={e=>e.preventDefault()} onDragEnd={bEnd}
+            style={{display:"flex",alignItems:"flex-start",gap:7,padding:"9px 12px 9px 8px",borderTop:"1px solid #f3efe7",borderLeft:it.pin?"3px solid #c9a96e":"3px solid transparent",background:dragging?"#f0f4ff":it.pin?"#fffdf6":"transparent",opacity:dragging?0.6:1}}>
+            <div onTouchStart={()=>bStart(idx)} onTouchMove={bMove} onTouchEnd={bEnd}
+              style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",width:22,alignSelf:"stretch",cursor:"grab",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",color:"#cfc6b6",fontSize:15,lineHeight:1}} title="Drag to reorder">⠿</div>
             <button onClick={()=>updItem(it.id,{done:!it.done})} style={{flexShrink:0,marginTop:1,width:18,height:18,borderRadius:"50%",border:"2px solid "+(it.done?"#16a34a":"#d8cdb8"),background:it.done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{it.done?"✓":""}</button>
             <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#b0a594":"#3a2e24",lineHeight:1.55,textDecoration:it.done?"line-through":"none",padding:0,minWidth:0}}/>
-            <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0}}>
-              <div style={{display:"flex",gap:3}}>
-                <button onClick={()=>pinItem(it.id)} title="Pin to top" style={{width:20,height:20,borderRadius:6,border:"none",background:it.pin?"#c9a96e":"#f3efe7",cursor:"pointer",padding:0,fontSize:9,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}><span style={{opacity:it.pin?1:0.4}}>🔝</span></button>
-                <button onClick={()=>delItem(it.id)} title="Delete" style={{width:20,height:20,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:11,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
-              </div>
-              <div style={{display:"flex",gap:3}}>
-                <button onClick={()=>moveItem(it.id,-1)} disabled={idx===0} title="Move up" style={{width:20,height:18,borderRadius:5,border:"1px solid #ece6dc",background:idx===0?"#f6f4f0":"#fff",color:idx===0?"#d8d2c8":"#8a7f6d",cursor:idx===0?"default":"pointer",fontSize:9,fontWeight:900,padding:0,lineHeight:1,touchAction:"manipulation"}}>▲</button>
-                <button onClick={()=>moveItem(it.id,1)} disabled={idx===items.length-1} title="Move down" style={{width:20,height:18,borderRadius:5,border:"1px solid #ece6dc",background:idx===items.length-1?"#f6f4f0":"#fff",color:idx===items.length-1?"#d8d2c8":"#8a7f6d",cursor:idx===items.length-1?"default":"pointer",fontSize:9,fontWeight:900,padding:0,lineHeight:1,touchAction:"manipulation"}}>▼</button>
-              </div>
-            </div>
+            <button onClick={()=>pinItem(it.id)} title="Pin to top" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:it.pin?"#c9a96e":"#f3efe7",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}><span style={{opacity:it.pin?1:0.4}}>🔝</span></button>
+            <button onClick={()=>delItem(it.id)} title="Delete" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:12,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
           </div>
-        ))}
+          );
+        })}
         <button onClick={addItem} style={{width:"100%",padding:"10px 0",background:"#fffdf8",border:"none",borderTop:"1px solid #f3efe7",color:"#8a6d3b",fontSize:9,fontWeight:800,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>+ NEW IDEA</button>
       </div>
 
