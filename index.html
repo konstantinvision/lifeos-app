@@ -715,7 +715,7 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
 
 // Deliberate-tap cell — fires on release, but only if the finger didn't slide (scrolls/grazes won't toggle).
 // Feels like a normal tap, just a touch more intentional so accidental marks don't happen.
-function HoldCell({onHold,minMs=150,style,title,children}){
+function HoldCell({onHold,minMs=60,style,title,children}){
   const st=React.useRef(0);const sx=React.useRef(0);const sy=React.useRef(0);const moved=React.useRef(false);
   const begin=(x,y)=>{st.current=Date.now();sx.current=x;sy.current=y;moved.current=false;};
   const fire=()=>{if(!moved.current&&(Date.now()-st.current)>=minMs){onHold();}};
@@ -2803,6 +2803,16 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
   const pinItem=(id)=>{const it=items.find(x=>x.id===id);if(!it)return;if(it.pin){setItems(items.map(x=>x.id===id?{...x,pin:false}:x));}else{setItems([{...it,pin:true},...items.filter(x=>x.id!==id)]);}};
   const doneCount=items.filter(it=>it.done).length;
   const [copied,setCopied]=useState(false);
+  const isTodayView=viewM===TODAY_M&&viewDay===TODAY_D;
+  const moveToToday=(id)=>{
+    if(isTodayView)return;
+    const it=items.find(x=>x.id===id); if(!it)return;
+    const tdk=TODAY_M+"-"+TODAY_D;
+    const tday=planData[tdk]||{};
+    const tItems=tday.brainstormItems||(tday.brainstorm&&tday.brainstorm.trim()?[{id:1,text:tday.brainstorm,done:false}]:[]);
+    setPlanField(TODAY_M,TODAY_D,"brainstormItems",[...tItems,{id:Date.now()+Math.random(),text:it.text,done:it.done||false,pin:false}]);
+    setPlanField(viewM,viewDay,"brainstormItems",items.filter(x=>x.id!==id));
+  };
   // Drag-to-reorder (same interaction as Top 3 tasks in Today)
   const bDragIdx=useRef(null), bOverIdx=useRef(null), bRowRefs=useRef([]);
   const [bDragging,setBDragging]=useState(null);
@@ -2846,6 +2856,7 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
               style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",width:22,alignSelf:"stretch",cursor:"grab",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",color:"#cfc6b6",fontSize:15,lineHeight:1}} title="Drag to reorder">⠿</div>
             <button onClick={()=>updItem(it.id,{done:!it.done})} style={{flexShrink:0,marginTop:1,width:18,height:18,borderRadius:"50%",border:"2px solid "+(it.done?"#16a34a":"#d8cdb8"),background:it.done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{it.done?"✓":""}</button>
             <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#b0a594":"#3a2e24",lineHeight:1.55,textDecoration:it.done?"line-through":"none",padding:0,minWidth:0}}/>
+            {!isTodayView&&<button onClick={()=>moveToToday(it.id)} title={"Move to today ("+M_LABEL[TODAY_M]+" "+TODAY_D+")"} style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:"#2563eb",color:"#fff",cursor:"pointer",padding:0,fontSize:13,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>→</button>}
             <button onClick={()=>pinItem(it.id)} title="Pin to top" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:it.pin?"#c9a96e":"#f3efe7",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}><span style={{opacity:it.pin?1:0.4}}>🔝</span></button>
             <button onClick={()=>delItem(it.id)} title="Delete" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:12,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
           </div>
@@ -4146,7 +4157,7 @@ function App() {
         </div>
       )}
 
-      <div style={{textAlign:"center",padding:"0 0 16px",fontSize:8,color:"#ccc",letterSpacing:3}}>BE KONSTANTIN · ONE MOVE = FULL PRESENCE</div>
+      <div style={{textAlign:"center",padding:"0 0 16px",fontSize:8.5,color:"#9a7b3c",fontWeight:800,letterSpacing:3}}>BE KONSTANTIN · ONE MOVE = FULL PRESENCE</div>
     </div>
   );
 }
