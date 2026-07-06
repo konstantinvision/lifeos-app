@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Life OS v10.0 — Atlas Exports rebuilt: tap-to-copy, full quarter grid export, compact chips -->
+<!-- Life OS v10.1 — 26Q3: weeks Jul 6–Oct 4, months to OCT, quarter labels, Highlight CHECKED, Weekly Wins quarters + FINAL -->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -111,7 +111,10 @@ const MONTHS_ARR = [
   { name:"April", short:"APR", days:30, m:4 },
   { name:"May",   short:"MAY", days:31, m:5 },
   { name:"June",  short:"JUN", days:30, m:6 },
-  { name:"July",  short:"JUL", days:31, m:7 },
+  { name:"July",      short:"JUL", days:31, m:7 },
+  { name:"August",    short:"AUG", days:31, m:8 },
+  { name:"September", short:"SEP", days:30, m:9 },
+  { name:"October",   short:"OCT", days:31, m:10 },
 ];
 const Q2_WEEKS = [
   { n:1,  start:[4,6],  end:[4,12],  sm:"APR", em:"APR" },
@@ -128,6 +131,26 @@ const Q2_WEEKS = [
   { n:12, start:[6,22], end:[6,28],  sm:"JUN", em:"JUN" },
   { n:13, start:[6,29], end:[7,5],   sm:"JUN", em:"JUL" },
 ];
+// 26Q3: Jul 6 – Oct 4. Internal n 14–26 keeps all "w"+n storage keys unique across quarters.
+// Display uses q (quarter) + wn (week-in-quarter) via wkLabel().
+const Q3_WEEKS_LIST = [
+  { n:14, wn:1,  q:3, start:[7,6],   end:[7,12],  sm:"JUL", em:"JUL" },
+  { n:15, wn:2,  q:3, start:[7,13],  end:[7,19],  sm:"JUL", em:"JUL" },
+  { n:16, wn:3,  q:3, start:[7,20],  end:[7,26],  sm:"JUL", em:"JUL" },
+  { n:17, wn:4,  q:3, start:[7,27],  end:[8,2],   sm:"JUL", em:"AUG" },
+  { n:18, wn:5,  q:3, start:[8,3],   end:[8,9],   sm:"AUG", em:"AUG" },
+  { n:19, wn:6,  q:3, start:[8,10],  end:[8,16],  sm:"AUG", em:"AUG" },
+  { n:20, wn:7,  q:3, start:[8,17],  end:[8,23],  sm:"AUG", em:"AUG" },
+  { n:21, wn:8,  q:3, start:[8,24],  end:[8,30],  sm:"AUG", em:"AUG" },
+  { n:22, wn:9,  q:3, start:[8,31],  end:[9,6],   sm:"AUG", em:"SEP" },
+  { n:23, wn:10, q:3, start:[9,7],   end:[9,13],  sm:"SEP", em:"SEP" },
+  { n:24, wn:11, q:3, start:[9,14],  end:[9,20],  sm:"SEP", em:"SEP" },
+  { n:25, wn:12, q:3, start:[9,21],  end:[9,27],  sm:"SEP", em:"SEP" },
+  { n:26, wn:13, q:3, start:[9,28],  end:[10,4],  sm:"SEP", em:"OCT" },
+];
+Q2_WEEKS.forEach(w=>{w.q=2;w.wn=w.n;});
+Q2_WEEKS.push(...Q3_WEEKS_LIST);
+function wkLabel(w){ return w?("Q"+(w.q||2)+" W"+(w.wn||w.n)):""; }
 
 // Resolve which Q2_WEEKS index contains a given month/day. Returns -1 if none.
 function weekIdxForDay(m,d){  const key=m*100+d;
@@ -613,7 +636,7 @@ const VISION_SECTIONS = [
     items: MANTRAS,
   },
 ];
-const M_LABEL = { 4:"APR", 5:"MAY", 6:"JUN", 7:"JUL" };
+const M_LABEL = { 4:"APR", 5:"MAY", 6:"JUN", 7:"JUL", 8:"AUG", 9:"SEP", 10:"OCT" };
 const DW = 22, EW = 14, CW = 19;
 
 const STATES = [null, "x", "box", "back"];
@@ -732,7 +755,7 @@ function HoldCell({onHold,minMs=40,style,title,children}){
   );
 }
 
-function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged}) {
+function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged,hlChecked,toggleHlChecked}) {
   const data = allData[getMI(viewM)];
   const w = Q2_WEEKS[weekIdx];
   const wd = weekDays();
@@ -1019,7 +1042,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             <div style={{background:"rgba(255,255,255,0.10)",borderRadius:20,height:6,overflow:"hidden",marginBottom:5}}>
               <div style={{background:dayPct===100?"linear-gradient(90deg,#4ade80,#bbf7d0)":"linear-gradient(90deg,#c9a96e,#e8c98f)",height:"100%",width:dayPct+"%",borderRadius:20,transition:"width .45s cubic-bezier(.4,0,.2,1)",boxShadow:dayPct>0?"0 0 8px rgba(201,169,110,0.4)":"none"}}/>
             </div>
-            <div style={{fontSize:7,color:"#a89e8c",fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>W{w.n} · {wkPct}% week · {TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TOP3.length} HATs</div>
+            <div style={{fontSize:7,color:"#a89e8c",fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>{wkLabel(w)} · {wkPct}% week · {TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TOP3.length} HATs</div>
           </div>
         </div>
       </div>
@@ -1027,9 +1050,9 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,gap:4}}>
         <NBtn onClick={()=>setWeekIdx(x=>Math.max(0,x-1))} on={weekIdx>0}>‹</NBtn>
         <div style={{textAlign:"center",flex:1}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#555",letterSpacing:0.5}}>W{w.n} · {w.sm} {w.start[1]}–{w.em} {w.end[1]}</div>
+          <div style={{fontSize:10,fontWeight:700,color:"#555",letterSpacing:0.5}}>{wkLabel(w)} · {w.sm} {w.start[1]}–{w.em} {w.end[1]}</div>
         </div>
-        <NBtn onClick={()=>setWeekIdx(x=>Math.min(12,x+1))} on={weekIdx<12}>›</NBtn>
+        <NBtn onClick={()=>setWeekIdx(x=>Math.min(Q2_WEEKS.length-1,x+1))} on={weekIdx<Q2_WEEKS.length-1}>›</NBtn>
       </div>
       {/* 5-4-3-2-1 + speed mantra */}
       <div style={{textAlign:"center",marginBottom:8}}>
@@ -1436,7 +1459,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         <div style={{padding:"5px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:8,fontWeight:800,color:"#333",letterSpacing:2}}>WEEK PRIORITIES</span>
-          <span style={{fontSize:8,color:"#aaa"}}>W{w.n}</span>
+          <span style={{fontSize:8,color:"#aaa"}}>{wkLabel(w)}</span>
         </div>
         <div style={{padding:"6px 10px"}}>
           {(weekAssess?.["w"+w.n]?.priorities||["","","","",""]).map((p,i)=>{
@@ -1486,7 +1509,15 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
 
       {/* Highlight of the day */}
       <div style={{background:"#fff",borderRadius:12,border:"none",marginBottom:10,overflow:"hidden",boxShadow:"0 2px 10px rgba(245,158,11,0.13)"}}>
-        <div style={{padding:"6px 14px",background:"#fffbeb",borderBottom:"1px solid #fde68a",fontSize:8,letterSpacing:2,color:"#92400e",fontWeight:800}}>⭐ HIGHLIGHT OF THE DAY</div>
+        <div style={{padding:"6px 14px",background:"#fffbeb",borderBottom:"1px solid #fde68a",fontSize:8,letterSpacing:2,color:"#92400e",fontWeight:800,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>⭐ HIGHLIGHT OF THE DAY</span>
+          <button onClick={()=>toggleHlChecked(viewM,viewDay)} style={{display:"flex",alignItems:"center",gap:4,background:"none",border:"none",cursor:"pointer",padding:"2px 4px",borderRadius:4}}>
+            <div style={{width:14,height:14,borderRadius:3,border:`2px solid ${hlChecked?.[viewM+"-"+viewDay]?"#d97706":"#fcd34d"}`,background:hlChecked?.[viewM+"-"+viewDay]?"#d97706":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {hlChecked?.[viewM+"-"+viewDay]&&<span style={{fontSize:9,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
+            </div>
+            <span style={{fontSize:7,color:hlChecked?.[viewM+"-"+viewDay]?"#d97706":"#fcd34d",fontWeight:700,letterSpacing:1}}>CHECKED</span>
+          </button>
+        </div>
         <textarea
           value={curHighlight}
           onChange={e=>setHighlight(viewM,viewDay,e.target.value)}
@@ -2535,7 +2566,7 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, setMood
     }
   });
   const buildExp=()=>{
-    let out="✨ HIGHLIGHTS & MOOD — Q2 2026\n"+"=".repeat(36)+"\n\n";
+    let out="✨ HIGHLIGHTS & MOOD — 2026\n"+"=".repeat(36)+"\n\n";
     entries.forEach(({mo,d,hl,mn,mv,ev})=>{
       out+=`${mo.short} ${d}`;
       if(mv) out+=`  mood:${mv}`;
@@ -2672,21 +2703,21 @@ function AtlasHighlights({allData, cycleEnergy, cycleMood, setHighlight, setMood
             const en=ENERGY.find(e=>e.sym===ev);
             const isEditing=editIdx===i;
             const showDivider=i===0||dispEntries[i-1].mo.m!==mo.m;
-            const wkN=(()=>{const wi=weekIdxForDay(mo.m,d);return wi>=0?Q2_WEEKS[wi].n:null;})();
-            const prevWkN=i>0?(()=>{const wi=weekIdxForDay(dispEntries[i-1].mo.m,dispEntries[i-1].d);return wi>=0?Q2_WEEKS[wi].n:null;})():null;
+            const wkN=(()=>{const wi=weekIdxForDay(mo.m,d);return wi>=0?wkLabel(Q2_WEEKS[wi]):null;})();
+            const prevWkN=i>0?(()=>{const wi=weekIdxForDay(dispEntries[i-1].mo.m,dispEntries[i-1].d);return wi>=0?wkLabel(Q2_WEEKS[wi]):null;})():null;
             const showWeek=!showDivider&&i>0&&wkN!==prevWkN;
             return (
               <React.Fragment key={i}>
               {showDivider&&(
                 <div style={{display:"flex",alignItems:"center",gap:8,margin:i===0?"0 0 4px":"12px 0 4px"}}>
                   <span style={{fontSize:10,fontWeight:900,color:"#c9a96e",letterSpacing:2}}>{mo.name.toUpperCase()}</span>
-                  {wkN&&<span style={{fontSize:7,fontWeight:800,color:"#cbb896",letterSpacing:1}}>W{wkN}</span>}
+                  {wkN&&<span style={{fontSize:7,fontWeight:800,color:"#cbb896",letterSpacing:1}}>{wkN}</span>}
                   <span style={{flex:1,height:1,background:"linear-gradient(90deg,#e8dcc8,transparent)"}}/>
                 </div>
               )}
               {showWeek&&(
                 <div style={{display:"flex",alignItems:"center",gap:6,margin:"8px 0 3px"}}>
-                  <span style={{fontSize:7,fontWeight:800,color:"#cbb896",letterSpacing:1.5}}>W{wkN}</span>
+                  <span style={{fontSize:7,fontWeight:800,color:"#cbb896",letterSpacing:1.5}}>{wkN}</span>
                   <span style={{flex:1,height:1,background:"repeating-linear-gradient(90deg,#ece4d6 0 5px,transparent 5px 10px)"}}/>
                 </div>
               )}
@@ -2772,7 +2803,7 @@ function AutoTextarea({value,onChange,placeholder,style,onKeyDown}){
 
 function buildPlanText(m,d,planData){
   const dk=m+"-"+d; const day=planData[dk]||{};
-  const M={4:"APR",5:"MAY",6:"JUN",7:"JUL"};
+  const M={4:"APR",5:"MAY",6:"JUN",7:"JUL",8:"AUG",9:"SEP",10:"OCT"};
   let out="DAY PLAN — "+weekdayShort(m,d)+" "+(M[m]||m)+" "+d+", 2026\n"+"=".repeat(36)+"\n\n";
   const items=day.brainstormItems||(day.brainstorm?[{text:day.brainstorm,done:false}]:[]);
   const filledItems=items.filter(it=>(it.text||"").trim());
@@ -3408,16 +3439,16 @@ function _exWeekDays(wk){
   return days;
 }
 function buildWeekText(wk, allData){
-  const M_NAME={4:"APR",5:"MAY",6:"JUN"};
+  const M_NAME={4:"APR",5:"MAY",6:"JUN",7:"JUL",8:"AUG",9:"SEP",10:"OCT"};
   const wdays=_exWeekDays(wk);
   const tc=_exReadLS("lifeos_v8_taskChecks")||{};
   const pc=_exReadLS("lifeos_v8_priChecks")||{};
   const wa=_exReadLS("weekAssess")||{};
-  let out=`LIFE OS — WEEK ${wk.n} EXPORT (${wk.sm} ${wk.start[1]}–${wk.em} ${wk.end[1]})\n`;
+  let out=`LIFE OS — 26Q${wk.q||2} WEEK ${wk.wn||wk.n} EXPORT (${wk.sm} ${wk.start[1]}–${wk.em} ${wk.end[1]})\n`;
   out+=`Generated: ${M_NAME[TODAY_M]||TODAY_M} ${TODAY_D}\n\n`;
   const finalWins=readWeeklyWins()["w"+wk.n];
   if(finalWins&&finalWins.trim()){
-    out+=`⭐ WEEK ${wk.n} WINS (FINAL, after review):\n`;
+    out+=`⭐ Q${wk.q||2} WEEK ${wk.wn||wk.n} WINS (FINAL, after review):\n`;
     finalWins.trim().split("\n").forEach(l=>{if(l.trim())out+=`  ${l.trim()}\n`;});
     out+=`\n`;
   }
@@ -3435,7 +3466,7 @@ function buildWeekText(wk, allData){
     const note=data?.notes?.[d];
     if(note?.trim()) out+=`    NOTE: ${note.trim()}\n`;
     const hl=data?.highlights?.[d];
-    if(hl?.trim()) out+=`    ✨ HIGHLIGHT: ${hl.trim()}\n`;
+    if(hl?.trim()){const _hc=(_exReadLS("lifeos_v8_hlChecked")||{})[m+"-"+d];out+=`    ✨ HIGHLIGHT${_hc?" ✓":""}: ${hl.trim()}\n`;}
     const wns=data?.wins?.[d];
     if(wns?.trim()){
       out+=`    WINS (raw):\n`;
@@ -3460,12 +3491,12 @@ function buildWeekText(wk, allData){
   const wkPriChecks=pc["w"+wk.n]||[];
   const pris=(wa?.["w"+wk.n]?.priorities||[]);
   if(pris.some(p=>(p||"").trim())){
-    out+=`\nWEEK PRIORITIES (W${wk.n}):\n`;
+    out+=`\nWEEK PRIORITIES (Q${wk.q||2} W${wk.wn||wk.n}):\n`;
     pris.forEach((p,i)=>{
       if((p||"").trim()) out+=`  ${i+1}. [${wkPriChecks.includes(i)?"✓":"·"}] ${p}\n`;
     });
   }
-  out+=`\n— end of Week ${wk.n} export —`;
+  out+=`\n— end of Q${wk.q||2} Week ${wk.wn||wk.n} export —`;
   return out;
 }
 function buildMonthStats(mo, allData){
@@ -3501,7 +3532,7 @@ function buildMonthStats(mo, allData){
 function buildDayText(m,d,allData){
   const mi=_exGMI(m);
   const data=allData[mi];
-  const M={4:"APR",5:"MAY",6:"JUN",7:"JUL"};
+  const M={4:"APR",5:"MAY",6:"JUN",7:"JUL",8:"AUG",9:"SEP",10:"OCT"};
   let out=`LIFE OS — DAY EXPORT · ${weekdayShort(m,d)} ${M[m]||m} ${d}, 2026\n`;
   out+="=".repeat(40)+"\n";
   if(!data){ out+="\nNo data for this day.\n"; return out; }
@@ -3521,7 +3552,7 @@ function buildDayText(m,d,allData){
   const marks=ALL_HATS.filter(h=>data.grid?.[h.code]?.[d]).map(h=>h.code+(data.grid[h.code][d]==="box"?"⊠":"✓"));
   out+=`\nHATS MARKED: ${marks.length?marks.join("  "):"—"}\n`;
   const note=data.notes?.[d]; if(note?.trim()) out+=`\nNOTE:\n  ${note.trim().split("\n").join("\n  ")}\n`;
-  const hl=data.highlights?.[d]; if(hl?.trim()) out+=`\n✨ HIGHLIGHT:\n  ${hl.trim()}\n`;
+  const hl=data.highlights?.[d]; if(hl?.trim()){const _hc=(_exReadLS("lifeos_v8_hlChecked")||{})[m+"-"+d];out+=`\n✨ HIGHLIGHT${_hc?" ✓":""}:\n  ${hl.trim()}\n`;}
   const mn=data.moodNotes?.[d]; if(mn?.trim()) out+=`\n〰️ MOOD SHIFT:\n  ${mn.trim()}\n`;
   const wns=data.wins?.[d]; if(wns?.trim()){ out+=`\nWINS:\n`; wns.trim().split("\n").forEach(l=>{if(l.trim())out+=`  ${l.trim()}\n`;}); }
   out+=`\n— end of day export —`;
@@ -3533,28 +3564,44 @@ function AtlasWeeklyWins({onBack}) {
   const [wins,setWins]=useState(readWeeklyWins);
   const [selW,setSelW]=useState(null);
   const [draft,setDraft]=useState("");
+  const [draftFinal,setDraftFinal]=useState(false);
   const [copied,setCopied]=useState(false);
   const [savedFlash,setSavedFlash]=useState(false);
   const copyTimer=useRef(null);
   const saveTimer=useRef(null);
   useEffect(()=>()=>{if(copyTimer.current)clearTimeout(copyTimer.current);if(saveTimer.current)clearTimeout(saveTimer.current);},[]);
-  const pastWeeks=Q2_WEEKS.filter(wk=>(wk.start[0]<TODAY_M)||(wk.start[0]===TODAY_M&&wk.start[1]<=TODAY_D));
-  const openWeek=(wk)=>{setSelW(wk);setDraft(wins["w"+wk.n]||"");};
+  const isPastOrNow=wk=>(wk.start[0]<TODAY_M)||(wk.start[0]===TODAY_M&&wk.start[1]<=TODAY_D);
+  const quarters=[
+    {q:3,label:"26Q3",weeks:Q2_WEEKS.filter(w=>w.q===3&&isPastOrNow(w))},
+    {q:2,label:"26Q2",weeks:Q2_WEEKS.filter(w=>w.q===2&&isPastOrNow(w))},
+  ];
+  const flash=()=>{setCopied(true);if(copyTimer.current)clearTimeout(copyTimer.current);copyTimer.current=setTimeout(()=>setCopied(false),1800);};
+  const openWeek=(wk)=>{setSelW(wk);setDraft(wins["w"+wk.n]||"");setDraftFinal(!!wins["f"+wk.n]);};
   const saveDraft=()=>{
     const next={...wins};
-    if(draft.trim()) next["w"+selW.n]=draft; else delete next["w"+selW.n];
+    if(draft.trim()) next["w"+selW.n]=draft; else {delete next["w"+selW.n];delete next["f"+selW.n];}
+    if(draft.trim()&&draftFinal) next["f"+selW.n]=true; else delete next["f"+selW.n];
     setWins(next);
     try{localStorage.setItem(WEEKWINS_KEY,JSON.stringify(next));}catch(e){}
     setSavedFlash(true);
     if(saveTimer.current)clearTimeout(saveTimer.current);
     saveTimer.current=setTimeout(()=>setSavedFlash(false),1500);
   };
-  const copyWeek=()=>{
-    const ok=copyText(draft);
-    setCopied(ok);
-    if(copyTimer.current)clearTimeout(copyTimer.current);
-    copyTimer.current=setTimeout(()=>setCopied(false),1800);
+  const copyQuarter=(qu)=>{
+    let out=`${qu.label} WEEKLY WINS (final lists after review)\n${"=".repeat(40)}\n`;
+    let any=false;
+    qu.weeks.forEach(wk=>{
+      const txt=wins["w"+wk.n];
+      if(!txt||!txt.trim()) return;
+      any=true;
+      out+=`\n— ${qu.label} W${wk.wn} · ${wk.sm} ${wk.start[1]} – ${wk.em} ${wk.end[1]}${wins["f"+wk.n]?" · FINAL ✓":" · draft"} —\n`;
+      txt.trim().split("\n").forEach(l=>{if(l.trim())out+=`${l.trim()}\n`;});
+    });
+    if(!any) out+="\n(no weekly wins saved for this quarter yet)\n";
+    out+=`\n— end of ${qu.label} weekly wins —`;
+    if(copyText(out)) flash();
   };
+  const copyWeek=()=>{if(copyText(draft))flash();};
   const chip={padding:"9px 0",borderRadius:9,cursor:"pointer",fontFamily:"inherit",fontSize:10.5,fontWeight:900,border:"1px solid #e0d8c8",background:"#fff",color:"#8a6d1f",touchAction:"manipulation",position:"relative"};
   const chipSel={...chip,background:"#2a2118",color:"#c9a96e",border:"1px solid #c9a96e"};
   return (
@@ -3563,36 +3610,55 @@ function AtlasWeeklyWins({onBack}) {
         <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
         <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
       </button>
-      <div style={{marginBottom:14}}>
-        <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>🏆 Weekly Wins</div>
-        <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>FINAL LISTS AFTER WEEKLY REVIEW · DAILY WINS STAY RAW</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:14}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>🏆 Weekly Wins</div>
+          <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>FINAL LISTS AFTER WEEKLY REVIEW · DAILY WINS STAY RAW</div>
+        </div>
+        {copied&&<div style={{background:"#16a34a",color:"#fff",borderRadius:14,padding:"5px 12px",fontSize:8,fontWeight:800,letterSpacing:1}}>✓ COPIED</div>}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5,marginBottom:14}}>
-        {pastWeeks.map(wk=>{
-          const has=!!(wins["w"+wk.n]&&wins["w"+wk.n].trim());
-          const isSel=selW?.n===wk.n;
-          return (
-            <button key={wk.n} onClick={()=>openWeek(wk)} style={isSel?chipSel:chip}>
-              W{wk.n}
-              {has&&<span style={{position:"absolute",top:3,right:5,width:6,height:6,borderRadius:"50%",background:isSel?"#c9a96e":"#b8860b"}}/>}
-            </button>
-          );
-        })}
-      </div>
+      {quarters.map(qu=>qu.weeks.length>0&&(
+        <div key={qu.q} style={{marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <span style={{fontSize:9,fontWeight:900,color:"#2a2118",letterSpacing:2}}>{qu.label}</span>
+            <button onClick={()=>copyQuarter(qu)} style={{background:"#2a2118",border:"none",borderRadius:14,padding:"4px 12px",fontSize:7.5,fontWeight:800,letterSpacing:1,color:"#c9a96e",cursor:"pointer",fontFamily:"inherit"}}>⧉ COPY ALL {qu.label}</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5}}>
+            {qu.weeks.map(wk=>{
+              const has=!!(wins["w"+wk.n]&&wins["w"+wk.n].trim());
+              const fin=!!wins["f"+wk.n];
+              const isSel=selW?.n===wk.n;
+              return (
+                <button key={wk.n} onClick={()=>openWeek(wk)} style={isSel?chipSel:chip}>
+                  W{wk.wn}
+                  {has&&!fin&&<span style={{position:"absolute",top:3,right:5,width:6,height:6,borderRadius:"50%",background:isSel?"#c9a96e":"#b8860b"}}/>}
+                  {fin&&<span style={{position:"absolute",top:1,right:3,fontSize:8,fontWeight:900,color:isSel?"#c9a96e":"#16a34a"}}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
       {selW&&(
         <div style={{background:"#fff",borderRadius:12,padding:12,boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:9,fontWeight:900,color:"#2a2118",letterSpacing:1}}>W{selW.n} · {selW.sm} {selW.start[1]} – {selW.em} {selW.end[1]}</span>
+            <span style={{fontSize:9,fontWeight:900,color:"#2a2118",letterSpacing:1}}>26Q{selW.q} W{selW.wn} · {selW.sm} {selW.start[1]} – {selW.em} {selW.end[1]}</span>
             <button onClick={copyWeek} style={{background:copied?"#16a34a":"#2a2118",color:copied?"#fff":"#c9a96e",border:"none",borderRadius:12,padding:"4px 12px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{copied?"✓ COPIED":"⧉ COPY"}</button>
           </div>
           <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder={"⭐ 2026.MM.DD | HAT: what happened, result, why it matters.\nPaste the final list from your weekly review here."}
             style={{width:"100%",boxSizing:"border-box",minHeight:220,border:"1px solid #e6d3a8",borderRadius:10,padding:"10px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",outline:"none",resize:"vertical",lineHeight:1.6,color:"#3a2e24",background:"#fffdf9"}}/>
-          <button onClick={saveDraft} onMouseDown={e=>e.preventDefault()} style={{width:"100%",marginTop:8,background:savedFlash?"#16a34a":"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>{savedFlash?"✓ SAVED":"SAVE W"+selW.n+" WINS"}</button>
+          <button onClick={()=>setDraftFinal(f=>!f)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",padding:"8px 4px 2px",fontFamily:"inherit"}}>
+            <div style={{width:15,height:15,borderRadius:4,border:`2px solid ${draftFinal?"#16a34a":"#c8c0b0"}`,background:draftFinal?"#16a34a":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {draftFinal&&<span style={{fontSize:10,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
+            </div>
+            <span style={{fontSize:9,color:draftFinal?"#16a34a":"#9a9284",fontWeight:800,letterSpacing:1}}>WEEK LIST IS FINAL</span>
+          </button>
+          <button onClick={saveDraft} onMouseDown={e=>e.preventDefault()} style={{width:"100%",marginTop:8,background:savedFlash?"#16a34a":"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>{savedFlash?"✓ SAVED":"SAVE 26Q"+selW.q+" W"+selW.wn+" WINS"}</button>
         </div>
       )}
       {!selW&&(
         <div style={{textAlign:"center",padding:"28px 20px",color:"#b0a898",fontSize:11,lineHeight:1.6}}>
-          Tap a week above.<br/>Gold dot = final wins saved.
+          Tap a week above.<br/>Gold dot = saved · green ✓ = final.
         </div>
       )}
     </div>
@@ -3600,8 +3666,8 @@ function AtlasWeeklyWins({onBack}) {
 }
 function buildFullGridText(allData){
   const tc=_exReadLS("lifeos_v8_taskChecks")||{};
-  const MNAME={4:"APRIL",5:"MAY",6:"JUNE",7:"JULY"};
-  const MSHORT={4:"APR",5:"MAY",6:"JUN",7:"JUL"};
+  const MNAME={4:"APRIL",5:"MAY",6:"JUNE",7:"JULY",8:"AUGUST",9:"SEPTEMBER",10:"OCTOBER"};
+  const MSHORT={4:"APR",5:"MAY",6:"JUN",7:"JUL",8:"AUG",9:"SEP",10:"OCT"};
   let out=`LIFE OS — FULL QUARTER GRID · APR 1 – ${MSHORT[TODAY_M]||TODAY_M} ${TODAY_D}, 2026\n`;
   out+=`Legend: ✓ done · ⊠ boxing (counts 2) · ◀ back · % = Top3 day · T3 = tasks checked · E energy · M mood\n`;
   MONTHS_ARR.forEach((mo,mi)=>{
@@ -3622,7 +3688,7 @@ function buildFullGridText(allData){
       }).filter(Boolean).join(" ");
       out+=`  ${String(d).padStart(2," ")} ${weekdayShort(mo.m,d)} | ${String(pct).padStart(3," ")}% T3:${t3n}/3 E:${en} M:${mood} | ${marks||"—"}\n`;
       const hl=data.highlights?.[d];
-      if(hl&&hl.trim()) out+=`       ✨ ${hl.trim()}\n`;
+      if(hl&&hl.trim()){const _hc=(_exReadLS("lifeos_v8_hlChecked")||{})[mo.m+"-"+d];out+=`       ✨${_hc?"✓":""} ${hl.trim()}\n`;}
     }
     const tot=ALL_HATS.map(h=>{
       let n=0;
@@ -3793,11 +3859,11 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
   const [section, setSection] = useState(null);
   const tiles = [
     {id:"highlights", icon:"✨", label:"Highlights\n& Mood",  color:"#c9a96e", bg:"#fdf8f0", desc:"All days · mood + highlight"},
+    {id:"weekwins",   icon:"🏆", label:"Weekly\nWins",        color:"#b8860b", bg:"#fffbeb", desc:"Final lists · 26Q2 / 26Q3"},
     {id:"vision",     icon:"🎯", label:"Vision",              color:"#b8860b", bg:"#fdf8f0", desc:"Read it every morning"},
-    {id:"budget",     icon:"💰", label:"Budget\nQ2 2026",     color:"#4a9d6f", bg:"#f0fdf4", desc:"Income by month"},
+    {id:"budget",     icon:"💰", label:"Budget\n2026",        color:"#4a9d6f", bg:"#f0fdf4", desc:"Income by month"},
     {id:"jobs",       icon:"💼", label:"Job\nApplications",   color:"#0369a1", bg:"#f0f9ff", desc:"Track your applications"},
     {id:"extra",      icon:"🧢", label:"Extra\nHATs",         color:"#e07b54", bg:"#fff8f5", desc:"Monthly HAT grid"},
-    {id:"weekwins",   icon:"🏆", label:"Weekly\nWins",        color:"#b8860b", bg:"#fffbeb", desc:"Final lists after review"},
     {id:"weekexport", icon:"📤", label:"Exports",             color:"#7c3aed", bg:"#f5f3ff", desc:"Week · month · all"},
     {id:"challenge",  icon:"📸", label:"Photo\nChallenge",    color:"#7c6aad", bg:"#f5f3ff", desc:"May 2026 · 31 days"},
   ];
@@ -3812,7 +3878,7 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
   return (
     <div>
       <div style={{background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:20,padding:"18px 20px",marginBottom:18,boxShadow:"0 6px 22px rgba(42,33,24,0.22)"}}>
-        <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>Q2 2026 · Overview</div>
+        <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>2026 · Overview</div>
         <div style={{fontSize:26,fontWeight:900,color:"#fff",letterSpacing:-0.5,marginTop:4,lineHeight:1}}>ATLAS</div>
         <div style={{fontSize:8,color:"#a89e8c",marginTop:7,letterSpacing:1}}>Charts · exports · budget · vision</div>
       </div>
@@ -3896,6 +3962,9 @@ function App() {
   useEffect(()=>lsSet("weekAssess",weekAssess),[weekAssess]);
   useEffect(()=>lsSet("winsLogged",winsLogged),[winsLogged]);
   const toggleWinsLogged=(m,day)=>setWinsLogged(p=>{const k=m+"-"+day;return{...p,[k]:!p[k]};});
+  const [hlChecked,setHlChecked]=useState(()=>lsGet("hlChecked",{}));
+  useEffect(()=>lsSet("hlChecked",hlChecked),[hlChecked]);
+  const toggleHlChecked=(m,day)=>setHlChecked(p=>{const k=m+"-"+day;return{...p,[k]:!p[k]};});
 
   // Day Plan (brainstorm + timeboxing) — scratch planning, persisted per day
   const [planData,setPlanData]=useState(()=>lsGet("plan",{}));
@@ -4081,8 +4150,8 @@ function App() {
   const buildExport=()=>{
     const wk=Q2_WEEKS[weekIdx];
     const wdays=weekDays();
-    const M_NAME={4:"APR",5:"MAY",6:"JUN"};
-    let out=`LIFE OS — WEEK ${wk.n} EXPORT (${wk.sm} ${wk.start[1]}–${wk.em} ${wk.end[1]})\n`;
+    const M_NAME={4:"APR",5:"MAY",6:"JUN",7:"JUL",8:"AUG",9:"SEP",10:"OCT"};
+    let out=`LIFE OS — 26Q${wk.q||2} WEEK ${wk.wn||wk.n} EXPORT (${wk.sm} ${wk.start[1]}–${wk.em} ${wk.end[1]})\n`;
     out+=`Generated: ${M_NAME[TODAY_M]||TODAY_M} ${TODAY_D}\n\n`;
 
     // TOP 3 per day + tasks
@@ -4108,7 +4177,7 @@ function App() {
       const note=data?.notes?.[d];
       if(note?.trim()) out+=`    NOTE: ${note.trim()}\n`;
       const hl=data?.highlights?.[d];
-      if(hl?.trim()) out+=`    ⭐ HIGHLIGHT: ${hl.trim()}\n`;
+      if(hl?.trim()){const _hc=(_exReadLS("lifeos_v8_hlChecked")||{})[m+"-"+d];out+=`    ⭐ HIGHLIGHT${_hc?" ✓":""}: ${hl.trim()}\n`;}
       const wns=data?.wins?.[d];
       if(wns?.trim()){
         out+=`    WINS:\n`;
@@ -4141,14 +4210,14 @@ function App() {
     const pris=(weekAssess?.["w"+wk.n]?.priorities||[]);
     const hasPris=pris.some(p=>p.trim());
     if(hasPris){
-      out+=`\nWEEK PRIORITIES (W${wk.n}):\n`;
+      out+=`\nWEEK PRIORITIES (Q${wk.q||2} W${wk.wn||wk.n}):\n`;
       pris.forEach((p,i)=>{
         const chk=wkPriChecks.includes(i)?"✓":"·";
         if(p.trim()) out+=`  ${i+1}. [${chk}] ${p}\n`;
       });
     }
 
-    out+=`\n— end of Week ${wk.n} export —`;
+    out+=`\n— end of Q${wk.q||2} Week ${wk.wn||wk.n} export —`;
 
     // Photo Challenge data for this week (if any)
     try {
@@ -4196,7 +4265,7 @@ function App() {
       <div style={{background:"#fff",borderBottom:"1px solid #e8e0d5",padding:"12px 16px 0",position:"sticky",top:0,zIndex:30,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q2 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v9.9</span></div>
-          <div style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · W{Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1])?.n||"?"}</div>
+          <div style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · {wkLabel(Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1]))||"W?"}</div>
         </div>
         {/* Rotating mantra — tap for next */}
         <div onClick={nextMantra} style={{
@@ -4234,7 +4303,7 @@ function App() {
       <div style={{position:"relative",overflow:"hidden",touchAction:"pan-y",overscrollBehaviorX:"none"}} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
         {TABS.map((t,i)=>(
           <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"16px 14px 48px",boxSizing:"border-box",minHeight:"80vh"}}>
-            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setMoodNote={setMoodNote} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged}/> }
+            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setMoodNote={setMoodNote} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged} hlChecked={hlChecked} toggleHlChecked={toggleHlChecked}/> }
             {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="plan"&&<PlanPanel viewM={viewM} viewDay={viewDay} setViewDay={setViewDay} setViewM={setViewM} planData={planData} setPlanField={setPlanField} clearPlanDay={clearPlanDay}/>}
             {t==="challenge"&&<ChallengePanel/>}
@@ -4248,7 +4317,7 @@ function App() {
           background:"#111",color:"#fff",border:"none",borderRadius:20,
           padding:"7px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",
           fontFamily:"'SF Mono','Courier New',monospace",fontWeight:700,whiteSpace:"nowrap",
-        }}>↗ EXPORT W{Q2_WEEKS[weekIdx]?.n}</button>
+        }}>↗ EXPORT {wkLabel(Q2_WEEKS[weekIdx])}</button>
         <button onClick={saveJSON} style={{
           background:(backupDaysAgo==null||backupDaysAgo>7)?"#b91c1c":"#1b5e20",color:"#fff",border:"none",borderRadius:20,
           padding:"7px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",
