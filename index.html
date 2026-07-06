@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Life OS v9.9 -->
+<!-- Life OS v10.0 — Atlas Exports rebuilt: tap-to-copy, full quarter grid export, compact chips -->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -3415,6 +3415,12 @@ function buildWeekText(wk, allData){
   const wa=_exReadLS("weekAssess")||{};
   let out=`LIFE OS — WEEK ${wk.n} EXPORT (${wk.sm} ${wk.start[1]}–${wk.em} ${wk.end[1]})\n`;
   out+=`Generated: ${M_NAME[TODAY_M]||TODAY_M} ${TODAY_D}\n\n`;
+  const finalWins=readWeeklyWins()["w"+wk.n];
+  if(finalWins&&finalWins.trim()){
+    out+=`⭐ WEEK ${wk.n} WINS (FINAL, after review):\n`;
+    finalWins.trim().split("\n").forEach(l=>{if(l.trim())out+=`  ${l.trim()}\n`;});
+    out+=`\n`;
+  }
   out+=`TOP 3 (PW·PB·PA) — DAILY:\n`;
   let t3FullDays=0;
   wdays.forEach(({m,d})=>{
@@ -3432,7 +3438,7 @@ function buildWeekText(wk, allData){
     if(hl?.trim()) out+=`    ✨ HIGHLIGHT: ${hl.trim()}\n`;
     const wns=data?.wins?.[d];
     if(wns?.trim()){
-      out+=`    WINS:\n`;
+      out+=`    WINS (raw):\n`;
       wns.trim().split("\n").forEach(line=>{if(line.trim()) out+=`      ${line.trim()}\n`;});
     }
     const t=data.tasks?.[d]||{};
@@ -3521,16 +3527,36 @@ function buildDayText(m,d,allData){
   out+=`\n— end of day export —`;
   return out;
 }
-function AtlasWeekExport({allData, winsLogged, onBack}) {
-  const [selWeek,setSelWeek]=useState(null);
-  const [selMonth,setSelMonth]=useState(null);
-  const [output,setOutput]=useState("");
+const WEEKWINS_KEY="lifeos_weeklyWins26";
+function readWeeklyWins(){try{const v=localStorage.getItem(WEEKWINS_KEY);return v?JSON.parse(v):{};}catch(e){return {};}}
+function AtlasWeeklyWins({onBack}) {
+  const [wins,setWins]=useState(readWeeklyWins);
+  const [selW,setSelW]=useState(null);
+  const [draft,setDraft]=useState("");
+  const [copied,setCopied]=useState(false);
+  const [savedFlash,setSavedFlash]=useState(false);
+  const copyTimer=useRef(null);
+  const saveTimer=useRef(null);
+  useEffect(()=>()=>{if(copyTimer.current)clearTimeout(copyTimer.current);if(saveTimer.current)clearTimeout(saveTimer.current);},[]);
   const pastWeeks=Q2_WEEKS.filter(wk=>(wk.start[0]<TODAY_M)||(wk.start[0]===TODAY_M&&wk.start[1]<=TODAY_D));
-  const exportAll=()=>{
-    const parts=pastWeeks.map(wk=>buildWeekText(wk,allData));
-    setSelWeek(null);setSelMonth(null);
-    setOutput(parts.join("\n\n"+"=".repeat(44)+"\n\n"));
+  const openWeek=(wk)=>{setSelW(wk);setDraft(wins["w"+wk.n]||"");};
+  const saveDraft=()=>{
+    const next={...wins};
+    if(draft.trim()) next["w"+selW.n]=draft; else delete next["w"+selW.n];
+    setWins(next);
+    try{localStorage.setItem(WEEKWINS_KEY,JSON.stringify(next));}catch(e){}
+    setSavedFlash(true);
+    if(saveTimer.current)clearTimeout(saveTimer.current);
+    saveTimer.current=setTimeout(()=>setSavedFlash(false),1500);
   };
+  const copyWeek=()=>{
+    const ok=copyText(draft);
+    setCopied(ok);
+    if(copyTimer.current)clearTimeout(copyTimer.current);
+    copyTimer.current=setTimeout(()=>setCopied(false),1800);
+  };
+  const chip={padding:"9px 0",borderRadius:9,cursor:"pointer",fontFamily:"inherit",fontSize:10.5,fontWeight:900,border:"1px solid #e0d8c8",background:"#fff",color:"#8a6d1f",touchAction:"manipulation",position:"relative"};
+  const chipSel={...chip,background:"#2a2118",color:"#c9a96e",border:"1px solid #c9a96e"};
   return (
     <div>
       <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
@@ -3538,49 +3564,137 @@ function AtlasWeekExport({allData, winsLogged, onBack}) {
         <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
       </button>
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>📤 Exports</div>
-        <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>WEEK · MONTH · ALL — FOR CLAUDE SESSIONS</div>
+        <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>🏆 Weekly Wins</div>
+        <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>FINAL LISTS AFTER WEEKLY REVIEW · DAILY WINS STAY RAW</div>
       </div>
-      {/* WEEKS — compact rows with per-week download */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <span style={{fontSize:8,fontWeight:800,color:"#888",letterSpacing:2}}>WEEKS</span>
-        <button onClick={exportAll} style={{background:"#2a2118",border:"none",borderRadius:14,padding:"4px 12px",fontSize:8,fontWeight:800,letterSpacing:1,color:"#c9a96e",cursor:"pointer",fontFamily:"inherit"}}>↗ ALL</button>
-      </div>
-      <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:16}}>
-        {Q2_WEEKS.map(wk=>{
-          const isSel=selWeek?.n===wk.n;
-          const isPast=(wk.start[0]<TODAY_M)||(wk.start[0]===TODAY_M&&wk.start[1]<=TODAY_D);
-          if(!isPast) return null;
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5,marginBottom:14}}>
+        {pastWeeks.map(wk=>{
+          const has=!!(wins["w"+wk.n]&&wins["w"+wk.n].trim());
+          const isSel=selW?.n===wk.n;
           return (
-            <div key={wk.n} style={{display:"flex",alignItems:"center",gap:8,background:isSel?"#2a2118":"#fff",border:`1px solid ${isSel?"#c9a96e":"#ececec"}`,borderRadius:8,padding:"5px 6px 5px 12px"}}>
-              <button onClick={()=>{setSelWeek(wk);setSelMonth(null);setOutput(buildWeekText(wk,allData));}} style={{flex:1,textAlign:"left",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"3px 0",display:"flex",alignItems:"center",gap:10}}>
-                <span style={{fontSize:12,fontWeight:900,color:isSel?"#c9a96e":"#b8860b",flexShrink:0,width:34}}>W{wk.n}</span>
-                <span style={{fontSize:10,fontWeight:700,color:isSel?"#e8dcc8":"#3a2e24"}}>{wk.sm} {wk.start[1]} – {wk.em} {wk.end[1]}</span>
-              </button>
-              <button onClick={()=>downloadText("LifeOS_W"+wk.n+".txt",buildWeekText(wk,allData))} title="download this week" style={{flexShrink:0,width:28,height:28,borderRadius:7,border:"1px solid "+(isSel?"#c9a96e":"#e0d8c8"),background:isSel?"#3a3026":"#fdf8f0",color:"#c9a96e",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",padding:0,lineHeight:1,touchAction:"manipulation"}}>↓</button>
-            </div>
+            <button key={wk.n} onClick={()=>openWeek(wk)} style={isSel?chipSel:chip}>
+              W{wk.n}
+              {has&&<span style={{position:"absolute",top:3,right:5,width:6,height:6,borderRadius:"50%",background:isSel?"#c9a96e":"#b8860b"}}/>}
+            </button>
           );
         })}
       </div>
-      {/* MONTH STATS — compact */}
-      <div style={{fontSize:8,fontWeight:800,color:"#888",letterSpacing:2,marginBottom:8}}>MONTH STATS</div>
+      {selW&&(
+        <div style={{background:"#fff",borderRadius:12,padding:12,boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <span style={{fontSize:9,fontWeight:900,color:"#2a2118",letterSpacing:1}}>W{selW.n} · {selW.sm} {selW.start[1]} – {selW.em} {selW.end[1]}</span>
+            <button onClick={copyWeek} style={{background:copied?"#16a34a":"#2a2118",color:copied?"#fff":"#c9a96e",border:"none",borderRadius:12,padding:"4px 12px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{copied?"✓ COPIED":"⧉ COPY"}</button>
+          </div>
+          <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder={"⭐ 2026.MM.DD | HAT: what happened, result, why it matters.\nPaste the final list from your weekly review here."}
+            style={{width:"100%",boxSizing:"border-box",minHeight:220,border:"1px solid #e6d3a8",borderRadius:10,padding:"10px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",outline:"none",resize:"vertical",lineHeight:1.6,color:"#3a2e24",background:"#fffdf9"}}/>
+          <button onClick={saveDraft} onMouseDown={e=>e.preventDefault()} style={{width:"100%",marginTop:8,background:savedFlash?"#16a34a":"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1}}>{savedFlash?"✓ SAVED":"SAVE W"+selW.n+" WINS"}</button>
+        </div>
+      )}
+      {!selW&&(
+        <div style={{textAlign:"center",padding:"28px 20px",color:"#b0a898",fontSize:11,lineHeight:1.6}}>
+          Tap a week above.<br/>Gold dot = final wins saved.
+        </div>
+      )}
+    </div>
+  );
+}
+function buildFullGridText(allData){
+  const tc=_exReadLS("lifeos_v8_taskChecks")||{};
+  const MNAME={4:"APRIL",5:"MAY",6:"JUNE",7:"JULY"};
+  const MSHORT={4:"APR",5:"MAY",6:"JUN",7:"JUL"};
+  let out=`LIFE OS — FULL QUARTER GRID · APR 1 – ${MSHORT[TODAY_M]||TODAY_M} ${TODAY_D}, 2026\n`;
+  out+=`Legend: ✓ done · ⊠ boxing (counts 2) · ◀ back · % = Top3 day · T3 = tasks checked · E energy · M mood\n`;
+  MONTHS_ARR.forEach((mo,mi)=>{
+    const elapsed=(mo.m<TODAY_M)?mo.days:(mo.m===TODAY_M?TODAY_D:0);
+    if(!elapsed) return;
+    const data=allData[mi];
+    if(!data) return;
+    out+=`\n${MNAME[mo.m]||mo.name} 2026\n`;
+    for(let d=1;d<=elapsed;d++){
+      const pct=top3pct(data,d);
+      const en=data.energy?.[d]||"·";
+      const mood=data.mood?.[d]||"·";
+      const t3n=["t1","t2","t3"].filter(s=>!!tc[mo.m+"-"+d+"-"+s+"-c"]).length;
+      const marks=ALL_HATS.map(h=>{
+        const st=data.grid?.[h.code]?.[d];
+        if(!st) return null;
+        return h.code+(st==="box"?"⊠":st==="back"?"◀":"✓");
+      }).filter(Boolean).join(" ");
+      out+=`  ${String(d).padStart(2," ")} ${weekdayShort(mo.m,d)} | ${String(pct).padStart(3," ")}% T3:${t3n}/3 E:${en} M:${mood} | ${marks||"—"}\n`;
+      const hl=data.highlights?.[d];
+      if(hl&&hl.trim()) out+=`       ✨ ${hl.trim()}\n`;
+    }
+    const tot=ALL_HATS.map(h=>{
+      let n=0;
+      for(let d=1;d<=elapsed;d++){const st=data.grid?.[h.code]?.[d];if(st==="box")n+=2;else if(st)n++;}
+      return n?`${h.code}:${n}`:null;
+    }).filter(Boolean).join("  ");
+    out+=`  — ${mo.short} TOTALS (${elapsed}d): ${tot||"—"}\n`;
+  });
+  out+=`\n— end of full quarter grid —`;
+  return out;
+}
+function AtlasWeekExport({allData, winsLogged, onBack}) {
+  const [sel,setSel]=useState(null);
+  const [output,setOutput]=useState("");
+  const [copied,setCopied]=useState(false);
+  const copyTimer=useRef(null);
+  const pastWeeks=Q2_WEEKS.filter(wk=>(wk.start[0]<TODAY_M)||(wk.start[0]===TODAY_M&&wk.start[1]<=TODAY_D));
+  const showAndCopy=(id,label,text)=>{
+    setSel(id);
+    setOutput(text);
+    const ok=copyText(text);
+    setCopied(ok);
+    if(copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current=setTimeout(()=>setCopied(false),1800);
+  };
+  useEffect(()=>()=>{if(copyTimer.current)clearTimeout(copyTimer.current);},[]);
+  const chip={padding:"9px 0",borderRadius:9,cursor:"pointer",fontFamily:"inherit",fontSize:10.5,fontWeight:900,border:"1px solid #e0d8c8",background:"#fff",color:"#8a6d1f",touchAction:"manipulation"};
+  const chipSel={...chip,background:"#2a2118",color:"#c9a96e",border:"1px solid #c9a96e"};
+  const bigBtn={flex:1,padding:"11px 4px",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontSize:8.5,fontWeight:800,letterSpacing:0.5,border:"none",touchAction:"manipulation"};
+  return (
+    <div>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
+      </button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:14}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>📤 Exports</div>
+          <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>TAP = COPY · FOR CLAUDE SESSIONS</div>
+        </div>
+        {copied&&<div style={{background:"#16a34a",color:"#fff",borderRadius:14,padding:"5px 12px",fontSize:8,fontWeight:800,letterSpacing:1}}>✓ COPIED</div>}
+      </div>
+      {/* WEEK CHIPS — tap copies instantly */}
+      <div style={{fontSize:8,fontWeight:800,color:"#888",letterSpacing:2,marginBottom:6}}>WEEKS</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5,marginBottom:10}}>
+        {pastWeeks.map(wk=>(
+          <button key={wk.n} onClick={()=>showAndCopy("w"+wk.n,"W"+wk.n,buildWeekText(wk,allData))} style={sel==="w"+wk.n?chipSel:chip}>W{wk.n}</button>
+        ))}
+      </div>
+      {/* FULL EXPORTS */}
       <div style={{display:"flex",gap:6,marginBottom:14}}>
+        <button onClick={()=>showAndCopy("all","ALL WEEKS",pastWeeks.map(wk=>buildWeekText(wk,allData)).join("\n\n"+"=".repeat(44)+"\n\n"))} style={{...bigBtn,background:sel==="all"?"#2a2118":"#3a3026",color:"#c9a96e"}}>⧉ ALL WEEKS FULL TEXT</button>
+        <button onClick={()=>showAndCopy("grid","FULL GRID",buildFullGridText(allData))} style={{...bigBtn,background:sel==="grid"?"#2a2118":"#7a5c2e",color:"#fff"}}>⧉ FULL GRID · APR 1 – TODAY</button>
+      </div>
+      {/* MONTH STATS */}
+      <div style={{fontSize:8,fontWeight:800,color:"#888",letterSpacing:2,marginBottom:6}}>MONTH STATS</div>
+      <div style={{display:"flex",gap:5,marginBottom:14}}>
         {MONTHS_ARR.map(mo=>{
-          const isSel=selMonth===mo.m;
           const hasData=(mo.m<TODAY_M)||(mo.m===TODAY_M);
           if(!hasData) return null;
           return (
-            <button key={mo.m} onClick={()=>{setSelMonth(mo.m);setSelWeek(null);setOutput(buildMonthStats(mo,allData));}} style={{flex:1,padding:"10px 0",borderRadius:9,border:`1px solid ${isSel?"#c9a96e":"#e0e0e0"}`,cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:900,background:isSel?"#2a2118":"#fff",color:isSel?"#c9a96e":"#1a1a1a"}}>{mo.short}</button>
+            <button key={mo.m} onClick={()=>showAndCopy("m"+mo.m,mo.short,buildMonthStats(mo,allData))} style={sel==="m"+mo.m?{...chipSel,flex:1}:{...chip,flex:1}}>{mo.short}</button>
           );
         })}
       </div>
       {output&&(
         <div style={{background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.07)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 12px",background:"#f2ede6"}}>
-            <span style={{fontSize:7,fontWeight:800,color:"#2a2118",letterSpacing:2}}>{selWeek?`W${selWeek.n} EXPORT`:selMonth?"MONTH STATS":"ALL WEEKS EXPORT"}</span>
-            <button onClick={()=>{const ta=document.getElementById("exOut");if(ta)copyText(ta.value);}} style={{background:"#2a2118",color:"#c9a96e",border:"none",borderRadius:12,padding:"4px 12px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>⧉ COPY</button>
+            <span style={{fontSize:7,fontWeight:800,color:"#2a2118",letterSpacing:2}}>{copied?"✓ IN CLIPBOARD":"PREVIEW"}</span>
+            <button onClick={()=>{const ok=copyText(output);setCopied(ok);if(copyTimer.current)clearTimeout(copyTimer.current);copyTimer.current=setTimeout(()=>setCopied(false),1800);}} style={{background:copied?"#16a34a":"#2a2118",color:copied?"#fff":"#c9a96e",border:"none",borderRadius:12,padding:"4px 12px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{copied?"✓ COPIED":"⧉ COPY AGAIN"}</button>
           </div>
-          <textarea id="exOut" readOnly value={output} style={{width:"100%",minHeight:220,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}} onClick={e=>copyText(e.target.value)}/>
+          <textarea readOnly value={output} style={{width:"100%",minHeight:200,maxHeight:280,border:"none",outline:"none",resize:"none",padding:"10px 12px",fontSize:9,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.6}}/>
         </div>
       )}
     </div>
@@ -3683,6 +3797,7 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
     {id:"budget",     icon:"💰", label:"Budget\nQ2 2026",     color:"#4a9d6f", bg:"#f0fdf4", desc:"Income by month"},
     {id:"jobs",       icon:"💼", label:"Job\nApplications",   color:"#0369a1", bg:"#f0f9ff", desc:"Track your applications"},
     {id:"extra",      icon:"🧢", label:"Extra\nHATs",         color:"#e07b54", bg:"#fff8f5", desc:"Monthly HAT grid"},
+    {id:"weekwins",   icon:"🏆", label:"Weekly\nWins",        color:"#b8860b", bg:"#fffbeb", desc:"Final lists after review"},
     {id:"weekexport", icon:"📤", label:"Exports",             color:"#7c3aed", bg:"#f5f3ff", desc:"Week · month · all"},
     {id:"challenge",  icon:"📸", label:"Photo\nChallenge",    color:"#7c6aad", bg:"#f5f3ff", desc:"May 2026 · 31 days"},
   ];
@@ -3691,6 +3806,7 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
   if(section==="challenge")  return <AtlasChallenge onBack={()=>setSection(null)}/>;
   if(section==="extra")      return <AtlasExtra monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} onBack={()=>setSection(null)}/>;
   if(section==="jobs")       return <AtlasJobs onBack={()=>setSection(null)}/>;
+  if(section==="weekwins")   return <AtlasWeeklyWins onBack={()=>setSection(null)}/>;
   if(section==="weekexport") return <AtlasWeekExport allData={allData} winsLogged={winsLogged} onBack={()=>setSection(null)}/>;
   if(section==="vision")     return <AtlasVision onBack={()=>setSection(null)}/>;
   return (
@@ -3898,25 +4014,51 @@ function App() {
   };
 
   // JSON backup/restore
+  // FULL backup: every localStorage key starting with "lifeos" (present and future keys included automatically)
+  const [lastBackup,setLastBackup]=useState(()=>{try{return localStorage.getItem("lifeos_lastBackupAt")||"";}catch(e){return "";}});
   const saveJSON=()=>{
-    const payload={allData,weekAssess,hatCounts,savedAt:new Date().toISOString()};
+    const keys={};
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.indexOf("lifeos")===0) keys[k]=localStorage.getItem(k);
+      }
+    }catch(e){}
+    const payload={format:"lifeos-full-v2",savedAt:new Date().toISOString(),keyCount:Object.keys(keys).length,keys};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     const d=new Date();const ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
     a.href=url;a.download="lifeos-backup-"+ds+".json";
     document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    const now=new Date().toISOString();
+    try{localStorage.setItem("lifeos_lastBackupAt",now);}catch(e){}
+    setLastBackup(now);
   };
+  const backupDaysAgo=(()=>{
+    if(!lastBackup) return null;
+    const ms=Date.now()-new Date(lastBackup).getTime();
+    return Math.floor(ms/86400000);
+  })();
   const loadJSON=(e)=>{
     const file=e.target.files?.[0];if(!file)return;
     const reader=new FileReader();
     reader.onload=(ev)=>{
       try{
         const d=JSON.parse(ev.target.result);
+        if(d.format==="lifeos-full-v2"&&d.keys){
+          const ks=Object.keys(d.keys);
+          if(!ks.length){alert("Backup file has no data.");return;}
+          if(!window.confirm("Restore FULL backup ("+ks.length+" keys, saved "+(d.savedAt||"unknown date")+")? This overwrites current data in those keys.")) return;
+          ks.forEach(k=>{try{localStorage.setItem(k,d.keys[k]);}catch(err){}});
+          alert("Full data restored from "+file.name+". Reloading now.");
+          window.location.reload();
+          return;
+        }
         if(d.allData){setAllData(d.allData);lsSet("allData",d.allData);}
         if(d.weekAssess){setWeekAssess(d.weekAssess);lsSet("weekAssess",d.weekAssess);}
         if(d.hatCounts){setHatCounts(d.hatCounts);lsSet("hatCounts",d.hatCounts);}
-        alert("Data restored from "+file.name);
+        alert("Legacy backup restored (grid, assessments, HAT counts only) from "+file.name);
       }catch(err){alert("Error reading file: "+err.message);}
     };
     reader.readAsText(file);
@@ -4108,10 +4250,10 @@ function App() {
           fontFamily:"'SF Mono','Courier New',monospace",fontWeight:700,whiteSpace:"nowrap",
         }}>↗ EXPORT W{Q2_WEEKS[weekIdx]?.n}</button>
         <button onClick={saveJSON} style={{
-          background:"#1b5e20",color:"#fff",border:"none",borderRadius:20,
+          background:(backupDaysAgo==null||backupDaysAgo>7)?"#b91c1c":"#1b5e20",color:"#fff",border:"none",borderRadius:20,
           padding:"7px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",
           fontFamily:"'SF Mono','Courier New',monospace",fontWeight:700,whiteSpace:"nowrap",
-        }}>⬇ SAVE</button>
+        }}>⬇ SAVE{backupDaysAgo==null?" · NEVER":backupDaysAgo===0?" · TODAY":" · "+backupDaysAgo+"D AGO"}</button>
         <label style={{
           background:"#1565c0",color:"#fff",border:"none",borderRadius:20,
           padding:"7px 12px",fontSize:8,letterSpacing:1.5,cursor:"pointer",
