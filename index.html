@@ -1853,20 +1853,20 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                     </div>
 
                     {/* Energy — filled square (matches Today) */}
-                    <div onClick={()=>cycleEnergy(dm,day)} style={{
+                    <HoldCell onHold={()=>cycleEnergy(dm,day)} title="Tap to set" style={{
                       width:COL_EN,flexShrink:0,height:C,boxSizing:"border-box",
                       display:"flex",alignItems:"center",justifyContent:"center",
                       cursor:"pointer",background:e?ecol(e):"#fafafa",
                       borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0",
                     }}>
                       <span style={{fontSize:e==="▲▲"?7:8,fontWeight:900,color:e?"#fff":"#ddd",letterSpacing:e==="▲▲"?-1:0,lineHeight:1}}>{e||"·"}</span>
-                    </div>
+                    </HoldCell>
 
                     {/* Mood 1-10 */}
                     {(()=>{
                       const mv=rdata?.mood?.[day];
                       return (
-                        <div onClick={()=>cycleMood(dm,day)} style={{
+                        <HoldCell onHold={()=>cycleMood(dm,day)} title="Tap to set" style={{
                           width:COL_MOOD,flexShrink:0,height:C,boxSizing:"border-box",
                           display:"flex",alignItems:"center",justifyContent:"center",
                           cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",
@@ -1875,7 +1875,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                           <span style={{fontSize:8,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}}>
                             {mv||"·"}
                           </span>
-                        </div>
+                        </HoldCell>
                       );
                     })()}
 
