@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Life OS v10.3 · Q3 % by Top3 tasks (amber), Month week labels fixed, Budget split Q2/Q3 with earned figures, Plan faint strikethrough, em-dashes purged from exports -->
+<!-- Life OS v10.4 · recurring quarter-scoped + edit + copy-prev, HoldCell 120ms deliberate tap, Plan Reminders-style (dimmed no strikethrough + Enter=new idea) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -754,21 +754,24 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
   );
 }
 
-// Tap cell — fires immediately on release. Only a real slide (scrolling) cancels it.
-// A quick tap always registers; touchend is authoritative, click is a fallback for
-// any environment that drops the touch sequence. The two never double-fire because
-// touchend calls preventDefault, which suppresses the synthetic click.
+// Deliberate-tap cell. A mark needs a brief, intentional press: the finger must stay
+// down at least MIN_MS and not slide more than SLIDE_MAX px. A quick scroll-graze
+// (very short contact, or any drift) is ignored, so accidental marks don't happen
+// even though the cells sit close together. Feels like a normal tap, just intentional.
 function HoldCell({onHold,style,title,children}){
-  const sx=React.useRef(0);const sy=React.useRef(0);const moved=React.useRef(false);const handled=React.useRef(false);
-  const begin=(x,y)=>{sx.current=x;sy.current=y;moved.current=false;};
-  const slid=(x,y)=>(Math.abs(x-sx.current)>14||Math.abs(y-sy.current)>14);
+  const MIN_MS=120, SLIDE_MAX=10;
+  const st=React.useRef(0);const sx=React.useRef(0);const sy=React.useRef(0);const moved=React.useRef(false);const handled=React.useRef(false);
+  const begin=(x,y)=>{st.current=Date.now();sx.current=x;sy.current=y;moved.current=false;};
+  const slid=(x,y)=>(Math.abs(x-sx.current)>SLIDE_MAX||Math.abs(y-sy.current)>SLIDE_MAX);
+  const fire=()=>{ if(!moved.current && (Date.now()-st.current)>=MIN_MS){ handled.current=true; onHold(); setTimeout(()=>{handled.current=false;},400); } };
   return (
-    <div style={{...style,userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",touchAction:"manipulation"}} title={title}
+    <div style={{...style,userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",touchAction:"pan-y"}} title={title}
       onTouchStart={e=>{const c=e.touches[0];begin(c.clientX,c.clientY);}}
       onTouchMove={e=>{const c=e.touches[0];if(slid(c.clientX,c.clientY))moved.current=true;}}
-      onTouchEnd={e=>{if(!moved.current){e.preventDefault();handled.current=true;onHold();setTimeout(()=>{handled.current=false;},400);}}}
+      onTouchEnd={e=>{if(!moved.current&&(Date.now()-st.current)>=MIN_MS){e.preventDefault();fire();}}}
       onTouchCancel={()=>{moved.current=true;}}
-      onClick={()=>{if(!handled.current)onHold();}}
+      onMouseDown={e=>begin(e.clientX,e.clientY)}
+      onMouseUp={e=>{if(slid(e.clientX,e.clientY))moved.current=true;if(!handled.current)fire();}}
       onContextMenu={e=>e.preventDefault()}>
       {children}
     </div>
@@ -2814,11 +2817,11 @@ function fmtMoney(n,dec){
 const TIMEBOX_SLOTS=(()=>{const a=[];for(let t=6*60;t<=26*60;t+=30){const hr=Math.floor(t/60);const mm=t%60;const h24=hr%24;const ap=h24<12?"AM":"PM";let h12=h24%12;if(h12===0)h12=12;a.push({key:String(hr).padStart(2,"0")+":"+String(mm).padStart(2,"0"),label:h12+":"+String(mm).padStart(2,"0")+" "+ap,hour:mm===0});}return a;})();
 
 // Auto-growing textarea — expands to fit content, never scrolls internally
-function AutoTextarea({value,onChange,placeholder,style,onKeyDown}){
+function AutoTextarea({value,onChange,placeholder,style,onKeyDown,dataBid}){
   const ref=React.useRef(null);
   const resize=()=>{const el=ref.current;if(el){el.style.height="auto";el.style.height=(el.scrollHeight)+"px";}};
   React.useLayoutEffect(()=>{resize();},[value]);
-  return <textarea ref={ref} value={value} onChange={onChange} onInput={resize} onKeyDown={onKeyDown} placeholder={placeholder} rows={1} style={{...style,overflow:"hidden",resize:"none"}}/>;
+  return <textarea ref={ref} data-bid={dataBid} value={value} onChange={onChange} onInput={resize} onKeyDown={onKeyDown} placeholder={placeholder} rows={1} style={{...style,overflow:"hidden",resize:"none"}}/>;
 }
 
 function buildPlanText(m,d,planData){
@@ -2849,6 +2852,36 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
   const setItems=(next)=>setPlanField(viewM,viewDay,"brainstormItems",next);
   const addItem=()=>setItems([...items,{id:Date.now()+Math.random(),text:"",done:false}]);
   const updItem=(id,patch)=>setItems(items.map(it=>it.id===id?{...it,...patch}:it));
+  // Reminders-style keyboard: Enter makes a NEW idea below (not a newline inside one).
+  // Enter on an empty idea exits the field. Backspace at the very start of an empty idea
+  // deletes it and moves focus to the previous idea's end.
+  const bFocusId=useRef(null);
+  const bHandleKey=(e,it,idx)=>{
+    if(e.key==="Enter"&&!e.shiftKey){
+      e.preventDefault();
+      if(!(it.text||"").trim()){ e.target.blur(); return; }
+      const nid=Date.now()+Math.random();
+      const arr=[...items];
+      arr.splice(idx+1,0,{id:nid,text:"",done:false});
+      bFocusId.current=nid;
+      setItems(arr);
+    } else if(e.key==="Backspace" && !(it.text||"").length){
+      e.preventDefault();
+      if(items.length<=1) return;
+      const prev=items[idx-1];
+      setItems(items.filter(x=>x.id!==it.id));
+      if(prev) bFocusId.current="end:"+prev.id;
+    }
+  };
+  useEffect(()=>{
+    if(!bFocusId.current) return;
+    const raw=String(bFocusId.current);
+    const toEnd=raw.indexOf("end:")===0;
+    const fid=toEnd?raw.slice(4):raw;
+    const el=document.querySelector('[data-bid="'+fid+'"]');
+    if(el){ el.focus(); if(toEnd){const L=el.value.length; try{el.setSelectionRange(L,L);}catch(_){}} }
+    bFocusId.current=null;
+  });
   const delItem=(id)=>setItems(items.filter(it=>it.id!==id));
   const pinItem=(id)=>{const it=items.find(x=>x.id===id);if(!it)return;if(it.pin){setItems(items.map(x=>x.id===id?{...x,pin:false}:x));}else{setItems([{...it,pin:true},...items.filter(x=>x.id!==id)]);}};
   const doneCount=items.filter(it=>it.done).length;
@@ -2905,7 +2938,7 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
             <div onTouchStart={()=>bStart(idx)} onTouchMove={bMove} onTouchEnd={bEnd}
               style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",width:22,alignSelf:"stretch",cursor:"grab",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",color:"#cfc6b6",fontSize:15,lineHeight:1}} title="Drag to reorder">⠿</div>
             <button onClick={()=>updItem(it.id,{done:!it.done})} style={{flexShrink:0,marginTop:1,width:18,height:18,borderRadius:"50%",border:"2px solid "+(it.done?"#16a34a":"#d8cdb8"),background:it.done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{it.done?"✓":""}</button>
-            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#8a8272":"#3a2e24",lineHeight:1.55,textDecoration:it.done?"line-through":"none",textDecorationColor:it.done?"#cbbfa6":"transparent",textDecorationThickness:"1px",padding:0,minWidth:0}}/>
+            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} onKeyDown={e=>bHandleKey(e,it,idx)} dataBid={String(it.id)} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#b3ab9c":"#3a2e24",lineHeight:1.55,textDecoration:"none",padding:0,minWidth:0,transition:"color .15s"}}/>
             {!isTodayView&&<button onClick={()=>moveToToday(it.id)} title={"Move to today ("+M_LABEL[TODAY_M]+" "+TODAY_D+")"} style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:"#2563eb",color:"#fff",cursor:"pointer",padding:0,fontSize:13,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>→</button>}
             <button onClick={()=>pinItem(it.id)} title="Pin to top" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:it.pin?"#c9a96e":"#f3efe7",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}><span style={{opacity:it.pin?1:0.4}}>🔝</span></button>
             <button onClick={()=>{if(!(it.text||"").trim()||confirm("Delete this idea?"))delItem(it.id);}} title="Delete" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:12,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
@@ -2991,26 +3024,51 @@ function AtlasBudget({onBack}) {
   const [showRec,setShowRec]=useState(false);
   const [recOpen,setRecOpen]=useState(false);
   const [recEditId,setRecEditId]=useState(null);
-  const [recForm,setRecForm]=useState({name:"",amount:"",emoji:"",months:[TODAY_M]});
+  const [recForm,setRecForm]=useState({name:"",amount:"",emoji:"",months:[]});
   const save=(next)=>{setDataRaw(next);try{localStorage.setItem(BK,JSON.stringify(next));}catch(e){}};
   const entries=data.entries||[];
-  const recurring=data.recurring||[];
+  // Recurring is quarter-scoped. Legacy items (no .q) get a quarter inferred from their months.
+  const recurringRaw=data.recurring||[];
+  const inferQ=(r)=>{
+    if(r.q) return r.q;
+    const ms=(r.months&&r.months.length)?r.months:[];
+    if(ms.some(m=>m>=7)) return 3;
+    return 2;
+  };
+  const recurring=recurringRaw.map(r=>({...r,q:inferQ(r)}));
   const REC_PRESETS=[{name:"Rent",emoji:"🏠"},{name:"AI / Software",emoji:"🤖"},{name:"Phone",emoji:"📱"},{name:"Internet",emoji:"🌐"},{name:"Transport",emoji:"🚇"},{name:"Subscription",emoji:"📺"}];
-  const recMonths=(r)=>(r.months&&r.months.length)?r.months:MONTHS_ARR.map(x=>x.m);
+  // Months of the currently viewed quarter, for both the form buttons and filtering.
+  const qMonths=QC.months;
+  const recMonths=(r)=>(r.months&&r.months.length)?r.months:qMonths;
   const recMonthTotal=(m)=>recurring.filter(r=>recMonths(r).includes(m)).reduce((s,r)=>s+parseFloat(r.amount||0),0);
-  const resetRecForm=()=>{setRecForm({name:"",amount:"",emoji:"",months:[TODAY_M]});setRecEditId(null);setShowRec(false);};
+  // Only show recurring items belonging to the viewed quarter.
+  const qRecurring=recurring.filter(r=>r.q===qView);
+  const prevQ=qView-1;
+  const prevQRecurring=recurring.filter(r=>r.q===prevQ);
+  const resetRecForm=()=>{setRecForm({name:"",amount:"",emoji:"",months:[]});setRecEditId(null);setShowRec(false);};
   const saveRecurring=()=>{
     const num=parseFloat(String(recForm.amount).replace(",",".").trim());
     if(!num||num<=0)return;
-    const months=(recForm.months&&recForm.months.length)?recForm.months.slice().sort((a,b)=>a-b):[TODAY_M];
-    const item={id:recEditId||(Date.now()+Math.random()),name:(recForm.name||"").trim()||"Payment",emoji:(recForm.emoji||"").trim(),amount:num,months};
-    const next=recEditId?recurring.map(r=>r.id===recEditId?item:r):[...recurring,item];
+    // Default to all months of the viewed quarter if none picked.
+    const picked=(recForm.months&&recForm.months.length)?recForm.months.slice().sort((a,b)=>a-b):qMonths.slice();
+    const item={id:recEditId||(Date.now()+Math.random()),name:(recForm.name||"").trim()||"Payment",emoji:(recForm.emoji||"").trim(),amount:num,months:picked,q:qView};
+    const next=recEditId?recurringRaw.map(r=>r.id===recEditId?item:r):[...recurringRaw,item];
     save({...data,recurring:next});
     resetRecForm();
   };
-  const startEditRec=(r)=>{setRecForm({name:r.name||"",amount:String(r.amount),emoji:r.emoji||"",months:((r.months&&r.months.length)?r.months.slice():MONTHS_ARR.map(x=>x.m))});setRecEditId(r.id);setShowRec(true);};
+  const startEditRec=(r)=>{setRecForm({name:r.name||"",amount:String(r.amount),emoji:r.emoji||"",months:((r.months&&r.months.length)?r.months.slice():qMonths.slice())});setRecEditId(r.id);setShowRec(true);};
   const toggleRecMonth=(m)=>setRecForm(f=>{const has=(f.months||[]).includes(m);return{...f,months:has?f.months.filter(x=>x!==m):[...(f.months||[]),m]};});
-  const deleteRecurring=(id)=>{save({...data,recurring:recurring.filter(r=>r.id!==id)});if(recEditId===id)resetRecForm();};
+  const deleteRecurring=(id)=>{save({...data,recurring:recurringRaw.filter(r=>r.id!==id)});if(recEditId===id)resetRecForm();};
+  // Copy previous quarter's recurring set into the current quarter, mapping months by position.
+  const copyPrevRecurring=()=>{
+    if(!prevQRecurring.length) return;
+    const prevMonths=QUARTERS.find(x=>x.q===prevQ)?.months||[];
+    const cloned=prevQRecurring.map(r=>{
+      const mappedMonths=(r.months||[]).map(m=>{const idx=prevMonths.indexOf(m);return idx>=0&&idx<qMonths.length?qMonths[idx]:null;}).filter(x=>x!=null);
+      return {id:Date.now()+Math.random(),name:r.name,emoji:r.emoji,amount:r.amount,months:mappedMonths.length?mappedMonths:qMonths.slice(),q:qView};
+    });
+    save({...data,recurring:[...recurringRaw,...cloned]});
+  };
   const qEntries=entries.filter(e=>inQuarter(e.month));
   const totalAll=qEntries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalEarned=qEntries.filter(e=>isEarned(e.cat)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
@@ -3049,9 +3107,9 @@ function AtlasBudget({onBack}) {
     });
     out+=QC.label+" EARNED: $"+totalEarned.toFixed(2)+" / $"+GOAL+" goal\n";
     out+=QC.label+" TOTAL CASH IN: $"+totalAll.toFixed(2);
-    if(recurring.length){
+    if(qRecurring.length){
       out+="\n\nRECURRING FIXED COSTS:\n";
-      recurring.forEach(r=>{const ms=recMonths(r).filter(m=>inQuarter(m)).map(m=>(M_LABEL[m]||m)).join(",");if(!ms)return;out+="  "+(r.emoji?r.emoji+" ":"")+r.name+": $"+parseFloat(r.amount).toFixed(2)+(ms?" ["+ms+"]":"")+"\n";});
+      qRecurring.forEach(r=>{const ms=recMonths(r).filter(m=>inQuarter(m)).map(m=>(M_LABEL[m]||m)).join(",");if(!ms)return;out+="  "+(r.emoji?r.emoji+" ":"")+r.name+": $"+parseFloat(r.amount).toFixed(2)+(ms?" ["+ms+"]":"")+"\n";});
     }
     return out;
   };
@@ -3112,16 +3170,18 @@ function AtlasBudget({onBack}) {
           </div>
           <div style={{display:"flex",alignItems:"center",gap:11}}>
             <div style={{textAlign:"right"}}>
-              <div style={{fontSize:16,fontWeight:900,color:"#fca5a5",lineHeight:1}}>{recMonthTotal(TODAY_M)>0?"−":""}{fmtMoney(recMonthTotal(TODAY_M),0)}</div>
-              <div style={{fontSize:6,color:"#b89a8c",letterSpacing:1,fontWeight:700}}>{M_LABEL[TODAY_M]}</div>
+              {(()=>{const repM=qMonths.includes(TODAY_M)?TODAY_M:qMonths[0];return(<React.Fragment>
+              <div style={{fontSize:16,fontWeight:900,color:"#fca5a5",lineHeight:1}}>{recMonthTotal(repM)>0?"−":""}{fmtMoney(recMonthTotal(repM),0)}</div>
+              <div style={{fontSize:6,color:"#b89a8c",letterSpacing:1,fontWeight:700}}>{M_LABEL[repM]} /mo</div>
+              </React.Fragment>);})()}
             </div>
             <span style={{fontSize:13,color:"#c9a96e",transform:recOpen?"rotate(90deg)":"none",transition:"transform .2s",display:"inline-block"}}>▸</span>
           </div>
         </div>
         {recOpen&&(<React.Fragment>
-        {recurring.length>0&&(
+        {qRecurring.length>0&&(
           <div style={{display:"flex",flexDirection:"column"}}>
-            {recurring.map((r,i)=>(
+            {qRecurring.map((r,i)=>(
               <div key={r.id} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",borderTop:i>0?"1px solid #f5efe9":"none"}}>
                 {r.emoji?<span style={{fontSize:14,flexShrink:0,width:18,textAlign:"center"}}>{r.emoji}</span>:<span style={{flexShrink:0,width:18}}/>}
                 <div style={{flex:1,minWidth:0}}>
@@ -3150,9 +3210,9 @@ function AtlasBudget({onBack}) {
               <input value={recForm.name} onChange={e=>setRecForm(f=>({...f,name:e.target.value}))} placeholder="Name (Rent, Claude, Phone...)" style={{flex:1,border:"1px solid #eaddd5",borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",outline:"none",minWidth:0}}/>
             </div>
             <input value={recForm.amount} onChange={e=>setRecForm(f=>({...f,amount:e.target.value}))} placeholder="$ amount" inputMode="decimal" style={{width:"100%",border:"1px solid #eaddd5",borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",outline:"none",marginBottom:10,boxSizing:"border-box"}}/>
-            <div style={{fontSize:7,fontWeight:800,color:"#9a8478",letterSpacing:1,marginBottom:5}}>APPLIES TO</div>
+            <div style={{fontSize:7,fontWeight:800,color:"#9a8478",letterSpacing:1,marginBottom:5}}>APPLIES TO ({QC.label})</div>
             <div style={{display:"flex",gap:6,marginBottom:12}}>
-              {MONTHS_ARR.map(mo=>{const on=(recForm.months||[]).includes(mo.m);return (
+              {MONTHS_ARR.filter(mo=>qMonths.includes(mo.m)).map(mo=>{const on=(recForm.months||[]).includes(mo.m);return (
                 <button key={mo.m} onClick={()=>toggleRecMonth(mo.m)} style={{flex:1,padding:"7px 0",borderRadius:8,border:on?"none":"1px solid #eaddd5",background:on?"#b45309":"#fff",color:on?"#fff":"#9a8478",fontSize:9,fontWeight:800,letterSpacing:.5,cursor:"pointer",fontFamily:"inherit"}}>{mo.short}</button>
               );})}
             </div>
@@ -3161,7 +3221,12 @@ function AtlasBudget({onBack}) {
               <button onClick={resetRecForm} style={{background:"#f2ede6",color:"#8a7f74",border:"none",borderRadius:8,padding:"9px 16px",fontSize:10,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
             </div>
           </div>
-          :<button onClick={()=>{setRecEditId(null);setRecForm({name:"",amount:"",emoji:"",months:[TODAY_M]});setShowRec(true);}} style={{width:"100%",padding:"9px 0",background:"#fffaf7",border:"none",borderTop:"1px solid #f5efe9",color:"#b45309",fontSize:9,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>+ ADD RECURRING PAYMENT</button>
+          :<div>
+            {qRecurring.length===0&&prevQRecurring.length>0&&(
+              <button onClick={copyPrevRecurring} style={{width:"100%",padding:"9px 0",background:"#fff7ed",border:"none",borderTop:"1px solid #f5efe9",color:"#b45309",fontSize:9,fontWeight:800,letterSpacing:0.5,cursor:"pointer",fontFamily:"inherit"}}>⧉ COPY {QUARTERS.find(x=>x.q===prevQ)?.label} PAYMENTS ({prevQRecurring.length})</button>
+            )}
+            <button onClick={()=>{setRecEditId(null);setRecForm({name:"",amount:"",emoji:"",months:[]});setShowRec(true);}} style={{width:"100%",padding:"9px 0",background:"#fffaf7",border:"none",borderTop:"1px solid #f5efe9",color:"#b45309",fontSize:9,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>+ ADD RECURRING PAYMENT</button>
+          </div>
         }
         </React.Fragment>)}
       </div>
@@ -4304,7 +4369,7 @@ function App() {
     <div style={{minHeight:"100vh",background:"#f2ede6",fontFamily:"'SF Mono','Courier New',monospace",maxWidth:430,margin:"0 auto",overflow:"hidden"}}>
       <div style={{background:"#fff",borderBottom:"1px solid #e8e0d5",padding:"12px 16px 0",position:"sticky",top:0,zIndex:30,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.3</span></div>
+          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.4</span></div>
           <div style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · {wkLabel(Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1]))||"W?"}</div>
         </div>
         {/* Rotating mantra — tap for next */}
