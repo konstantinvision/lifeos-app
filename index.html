@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Life OS v10.1 — 26Q3: weeks Jul 6–Oct 4, months to OCT, quarter labels, Highlight CHECKED, Weekly Wins quarters + FINAL -->
+<!-- Life OS v10.3 · Q3 % by Top3 tasks (amber), Month week labels fixed, Budget split Q2/Q3 with earned figures, Plan faint strikethrough, em-dashes purged from exports -->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -47,7 +47,12 @@
   </script>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"><div id="boot-splash" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#faf7f2;font-family:-apple-system,system-ui,sans-serif;z-index:1">
+    <div style="font-size:22px;font-weight:900;color:#2a2118;letter-spacing:-0.5">26Q3 <span style="font-size:11px;color:#b0a898;font-weight:400;letter-spacing:3">LIFE OS</span></div>
+    <div style="margin-top:14px;width:26px;height:26px;border:3px solid #e6ddd0;border-top-color:#c9a96e;border-radius:50%;animation:bootspin 0.7s linear infinite"></div>
+    <div style="margin-top:12px;font-size:9px;color:#b3a894;font-weight:700;letter-spacing:2">LOADING</div>
+  </div></div>
+  <style>@keyframes bootspin{to{transform:rotate(360deg)}}</style>
   <script>
     // Resilient loader: try jsDelivr, then unpkg, then cloudflare for each library.
     // A single CDN outage can no longer white-screen the app.
@@ -658,8 +663,21 @@ function initMonth(days) {
 }
 function fmtT(s) { return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; }
 function ecol(sym) { return ENERGY.find(e=>e.sym===sym)?.color||"#999"; }
-function top3pct(data, day) {
+// Q3 begins Jul 6, 2026. From Q3 on, the daily % reflects Top 3 TASKS completed
+// (T1/T2/T3 checkboxes), out of a fixed denominator of 3. Q2 days keep the original
+// HAT-mark logic (PW/PB/PA marked in the grid) so past numbers never change.
+function isQ3Day(m,d){ return (m*100+d)>=706; }
+function readTaskChecksLS(){ try{const v=localStorage.getItem("lifeos_v8_taskChecks");return v?JSON.parse(v):{};}catch(e){return {};} }
+function top3TasksPct(m,d){
+  const tc=readTaskChecksLS();
+  let done=0;
+  ["t1","t2","t3"].forEach(s=>{ if(tc[m+"-"+d+"-"+s+"-c"]) done++; });
+  return Math.round(done/3*100);
+}
+function top3pct(data, day, m) {
   if(!data) return 0;
+  // When the caller passes the month and it's a Q3 day, use Top 3 tasks.
+  if(m!=null && isQ3Day(m,day)) return top3TasksPct(m,day);
   return Math.round(TOP3.filter(h=>data.grid[h.code]?.[day]).length/TOP3.length*100);
 }
 function weeklyTop3(allData, wdList) {
@@ -736,19 +754,21 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
   );
 }
 
-// Deliberate-tap cell — fires on release, but only if the finger didn't slide (scrolls/grazes won't toggle).
-// Feels like a normal tap, just a touch more intentional so accidental marks don't happen.
-function HoldCell({onHold,minMs=40,style,title,children}){
-  const st=React.useRef(0);const sx=React.useRef(0);const sy=React.useRef(0);const moved=React.useRef(false);
-  const begin=(x,y)=>{st.current=Date.now();sx.current=x;sy.current=y;moved.current=false;};
-  const fire=()=>{if(!moved.current&&(Date.now()-st.current)>=minMs){onHold();}};
+// Tap cell — fires immediately on release. Only a real slide (scrolling) cancels it.
+// A quick tap always registers; touchend is authoritative, click is a fallback for
+// any environment that drops the touch sequence. The two never double-fire because
+// touchend calls preventDefault, which suppresses the synthetic click.
+function HoldCell({onHold,style,title,children}){
+  const sx=React.useRef(0);const sy=React.useRef(0);const moved=React.useRef(false);const handled=React.useRef(false);
+  const begin=(x,y)=>{sx.current=x;sy.current=y;moved.current=false;};
+  const slid=(x,y)=>(Math.abs(x-sx.current)>14||Math.abs(y-sy.current)>14);
   return (
-    <div style={{...style,userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} title={title}
+    <div style={{...style,userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",touchAction:"manipulation"}} title={title}
       onTouchStart={e=>{const c=e.touches[0];begin(c.clientX,c.clientY);}}
-      onTouchMove={e=>{const c=e.touches[0];if(Math.abs(c.clientX-sx.current)>16||Math.abs(c.clientY-sy.current)>16)moved.current=true;}}
-      onTouchEnd={fire} onTouchCancel={()=>{moved.current=true;}}
-      onMouseDown={e=>begin(e.clientX,e.clientY)}
-      onMouseUp={e=>{if(Math.abs(e.clientX-sx.current)>16||Math.abs(e.clientY-sy.current)>16)moved.current=true;fire();}}
+      onTouchMove={e=>{const c=e.touches[0];if(slid(c.clientX,c.clientY))moved.current=true;}}
+      onTouchEnd={e=>{if(!moved.current){e.preventDefault();handled.current=true;onHold();setTimeout(()=>{handled.current=false;},400);}}}
+      onTouchCancel={()=>{moved.current=true;}}
+      onClick={()=>{if(!handled.current)onHold();}}
       onContextMenu={e=>e.preventDefault()}>
       {children}
     </div>
@@ -761,7 +781,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
   const wd = weekDays();
   const [dayCopied,setDayCopied]=useState(false);
   const essDone = ESSENTIALS.filter(h=>data?.grid?.[h.code]?.[viewDay]).length;
-  const dayPct = top3pct(data, viewDay);
+  const dayPct = top3pct(data, viewDay, viewM);
   const wkPct = weeklyTop3(allData, wd);
   const curMood = data?.mood?.[viewDay]||null;
   const curNote = data?.notes?.[viewDay]||"";
@@ -975,8 +995,8 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
     const task=(allData[getMI(m)]?.tasks?.[d]?.[slot]||"").replace(/\u200b/g,"").trim();
     const mI=MONTHS_ARR.find(x=>x.m===m);
     let nm=m,nd=d+1;
-    if(mI&&nd>mI.days){nm=m+1;nd=1;}
-    if(nm>6) return;
+    if(mI&&nd>mI.days){const ci=getMI(m);const ni=ci+1;if(ni>=MONTHS_ARR.length) return;nm=MONTHS_ARR[ni].m;nd=1;}
+    if(getMI(nm)<0) return;
     if(carrying){
       if(!task) return;
       const destTasks=allData[getMI(nm)]?.tasks?.[nd]||{};
@@ -1063,7 +1083,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       {/* Day strip — full width, equal cells */}
       <div style={{display:"flex",gap:4,marginBottom:10}}>
         {wd.map(({m,d})=>{
-          const dd=allData[getMI(m)];const de=dd?.energy?.[d];const dp=top3pct(dd,d);
+          const dd=allData[getMI(m)];const de=dd?.energy?.[d];const dp=top3pct(dd,d,m);
           const hasNote=!!(dd?.notes?.[d]?.trim());
           const isWL=!!(winsLogged?.[m+"-"+d]);
           const mv=dd?.mood?.[d];
@@ -1181,9 +1201,9 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                     </HoldCell>
                   );
                 })}
-                {(()=>{const pp=top3pct(rData,rday.d);return (
-                  <div style={{width:24,flexShrink:0,height:20,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",borderLeft:"2px solid #ddd",background:isSel?"#f3ede2":isToday?"#fdfaf3":"#fafafa"}}>
-                    <span style={{fontSize:8,fontWeight:800,color:pp===100?"#14532d":pp>0?"#16a34a":"#ddd"}}>{pp>0?pp:""}</span>
+                {(()=>{const pp=top3pct(rData,rday.d,rday.m);const q3=isQ3Day(rday.m,rday.d);return (
+                  <div style={{width:24,flexShrink:0,height:20,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",borderLeft:q3?"2px solid #e6c67a":"2px solid #ddd",background:isSel?"#f3ede2":isToday?"#fdfaf3":"#fafafa"}}>
+                    <span style={{fontSize:8,fontWeight:800,color:pp===100?(q3?"#8a5a00":"#14532d"):pp>0?(q3?"#b8860b":"#16a34a"):"#ddd"}}>{pp>0?pp:""}</span>
                   </div>
                 );})()}
               </div>
@@ -1193,7 +1213,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         {/* Summary footer */}
         <div style={{padding:"2px 8px",background:"#fafafa",borderTop:"1px solid #eee",display:"flex",gap:8,alignItems:"center"}}>
           <span style={{fontSize:7,color:"#bf5000",fontWeight:700}}>ESS {ESSENTIALS.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{ESSENTIALS.length}</span>
-          <span style={{fontSize:7,color:"#1b5e20",fontWeight:700}}>TOP3 {dayPct}%</span>
+          <span style={{fontSize:7,color:isQ3Day(viewM,viewDay)?"#b8860b":"#1b5e20",fontWeight:700}}>{isQ3Day(viewM,viewDay)?"TASKS":"TOP3"} {dayPct}%</span>
           <span style={{fontSize:7,color:"#555"}}>{TRK_ALL.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TRK_ALL.length} trk</span>
           <span style={{marginLeft:"auto",fontSize:6.5,color:"#b0a898",fontWeight:700,letterSpacing:.5}}>👆 TAP TO MARK</span>
         </div>
@@ -1833,7 +1853,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
             {/* ── DATA ROWS ── */}
             {DAYS_EXT.map(({m:dm,d:day})=>{
               const rdata=allData[MONTHS_ARR.findIndex(x=>x.m===dm)];
-              const p=top3pct(rdata,day); const e=rdata?.energy?.[day];
+              const p=top3pct(rdata,day,dm); const e=rdata?.energy?.[day];
               const isSpill=dm!==month.m;
               const isT=dm===TODAY_M&&day===TODAY_D;
               const isPast=dm<TODAY_M||(dm===TODAY_M&&day<TODAY_D);
@@ -1849,7 +1869,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
               // Summary of THIS week shown in its own banner — % only
               const thisWkSummary=wkStartW?(()=>{
                 const thisDays=getWeekDaysInMonth(day);
-                const pcts=thisDays.map(d=>top3pct(data,d));
+                const pcts=thisDays.map(d=>top3pct(data,d,month.m));
                 const avg=thisDays.length?Math.round(pcts.reduce((a,b)=>a+b,0)/thisDays.length):0;
                 const hasData=pcts.some(p=>p>0);
                 return {avg, hasData};
@@ -1859,7 +1879,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                 <div key={day}>
                   {wkStartW&&(
                     <div style={{display:"flex",alignItems:"center",height:14,background:"#ebebeb",borderTop:"2px solid #333",borderBottom:"1px solid #aaa"}}>
-                      <div style={{width:COL_DAY+COL_EN,flexShrink:0,paddingLeft:4,fontSize:7,fontWeight:900,color:"#222",letterSpacing:1}}>W{wkStartW.n}</div>
+                      <div style={{width:COL_DAY+COL_EN,flexShrink:0,paddingLeft:4,fontSize:7,fontWeight:900,color:"#222",letterSpacing:1}}>{wkLabel(wkStartW)}</div>
                       {thisWkSummary&&thisWkSummary.hasData&&(
                         <span style={{fontSize:6,color:"#555",paddingLeft:4}}><span style={{color:"#16a34a",fontWeight:800}}>{thisWkSummary.avg}%</span></span>
                       )}
@@ -2282,7 +2302,7 @@ function ChallengePanel() {
                 <div key={day}>
                   {isWkStart&&(
                     <div style={{display:"flex",alignItems:"center",height:14,background:"#ebebeb",borderTop:"2px solid #333",borderBottom:"1px solid #aaa"}}>
-                      <div style={{paddingLeft:4,fontSize:7,fontWeight:900,color:"#222",letterSpacing:1}}>W{wk.n}</div>
+                      <div style={{paddingLeft:4,fontSize:7,fontWeight:900,color:"#222",letterSpacing:1}}>{wkLabel(wk)}</div>
                     </div>
                   )}
                   <div style={{display:"flex",alignItems:"stretch",background:rowBg,borderLeft:isT?"3px solid #1976d2":"3px solid transparent",borderBottom:"1px solid #ebebeb",height:CHALL_C}}>
@@ -2490,7 +2510,7 @@ function ExtraPanel({monthIdx, setMonthIdx, allData, toggleExtraHat, toggleLibHa
                 <div key={day}>
                   {wkStartW&&(
                     <div style={{display:"flex",alignItems:"center",height:14,background:"#ebebeb",borderTop:"2px solid #333",borderBottom:"1px solid #aaa"}}>
-                      <div style={{paddingLeft:4,fontSize:7,fontWeight:900,color:"#222",letterSpacing:1}}>W{wkStartW.n}</div>
+                      <div style={{paddingLeft:4,fontSize:7,fontWeight:900,color:"#222",letterSpacing:1}}>{wkLabel(wkStartW)}</div>
                     </div>
                   )}
                   <div style={{display:"flex",alignItems:"stretch",background:rowBg,borderLeft:isT?"3px solid #1976d2":"3px solid transparent",borderBottom:"1px solid #ebebeb",height:EX_C}}>
@@ -2885,7 +2905,7 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
             <div onTouchStart={()=>bStart(idx)} onTouchMove={bMove} onTouchEnd={bEnd}
               style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",width:22,alignSelf:"stretch",cursor:"grab",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",color:"#cfc6b6",fontSize:15,lineHeight:1}} title="Drag to reorder">⠿</div>
             <button onClick={()=>updItem(it.id,{done:!it.done})} style={{flexShrink:0,marginTop:1,width:18,height:18,borderRadius:"50%",border:"2px solid "+(it.done?"#16a34a":"#d8cdb8"),background:it.done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{it.done?"✓":""}</button>
-            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#4a4234":"#3a2e24",lineHeight:1.55,textDecoration:"none",padding:0,minWidth:0}}/>
+            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#8a8272":"#3a2e24",lineHeight:1.55,textDecoration:it.done?"line-through":"none",textDecorationColor:it.done?"#cbbfa6":"transparent",textDecorationThickness:"1px",padding:0,minWidth:0}}/>
             {!isTodayView&&<button onClick={()=>moveToToday(it.id)} title={"Move to today ("+M_LABEL[TODAY_M]+" "+TODAY_D+")"} style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:"#2563eb",color:"#fff",cursor:"pointer",padding:0,fontSize:13,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>→</button>}
             <button onClick={()=>pinItem(it.id)} title="Pin to top" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:it.pin?"#c9a96e":"#f3efe7",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}><span style={{opacity:it.pin?1:0.4}}>🔝</span></button>
             <button onClick={()=>{if(!(it.text||"").trim()||confirm("Delete this idea?"))delItem(it.id);}} title="Delete" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:12,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
@@ -2925,7 +2945,15 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
 
 function AtlasBudget({onBack}) {
   const BK="lifeos_budget26";
-  const GOAL=3000;
+  const QUARTERS=[
+    {q:2,label:"26Q2",sub:"APR–JUN 2026",months:[4,5,6],goal:3000},
+    {q:3,label:"26Q3",sub:"JUL–OCT 2026",months:[7,8,9,10],goal:4000},
+  ];
+  const defaultQ=TODAY_M>=7?3:2;
+  const [qView,setQView]=useState(defaultQ);
+  const QC=QUARTERS.find(x=>x.q===qView)||QUARTERS[0];
+  const GOAL=QC.goal;
+  const inQuarter=(m)=>QC.months.includes(m);
   const EARNED_CATS=["Rover","Photography","Gig","Business","Sales"];
   const OTHER_CATS=["Rent","OW/Gov"];
   const INCOME_CATS=[...EARNED_CATS,...OTHER_CATS];
@@ -2983,11 +3011,13 @@ function AtlasBudget({onBack}) {
   const startEditRec=(r)=>{setRecForm({name:r.name||"",amount:String(r.amount),emoji:r.emoji||"",months:((r.months&&r.months.length)?r.months.slice():MONTHS_ARR.map(x=>x.m))});setRecEditId(r.id);setShowRec(true);};
   const toggleRecMonth=(m)=>setRecForm(f=>{const has=(f.months||[]).includes(m);return{...f,months:has?f.months.filter(x=>x!==m):[...(f.months||[]),m]};});
   const deleteRecurring=(id)=>{save({...data,recurring:recurring.filter(r=>r.id!==id)});if(recEditId===id)resetRecForm();};
-  const totalAll=entries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
-  const totalEarned=entries.filter(e=>isEarned(e.cat)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const qEntries=entries.filter(e=>inQuarter(e.month));
+  const totalAll=qEntries.reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const totalEarned=qEntries.filter(e=>isEarned(e.cat)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalOther=totalAll-totalEarned;
-  const pendingTotal=entries.filter(e=>e.pending).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const pendingTotal=qEntries.filter(e=>e.pending).reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const totalMonth=(m)=>entries.filter(e=>e.month===m).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const earnedMonth=(m)=>entries.filter(e=>e.month===m&&isEarned(e.cat)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const addEntry=()=>{
     const num=parseFloat(String(form.amount).replace(",",".").trim());
     if(!num||num<=0){setAmtErr(true);return;}
@@ -3009,18 +3039,19 @@ function AtlasBudget({onBack}) {
     save({...data,entries:arr});
   };
   const buildExp=()=>{
-    let out="BUDGET Q2 2026\n"+"=".repeat(36)+"\n\n";
-    MONTHS_ARR.forEach(mo=>{
+    let out="BUDGET "+QC.label+" ("+QC.sub+")\n"+"=".repeat(36)+"\n\n";
+    MONTHS_ARR.filter(mo=>inQuarter(mo.m)).forEach(mo=>{
       const mes=entries.filter(e=>e.month===mo.m);
       if(!mes.length) return;
-      out+=mo.name.toUpperCase()+" -- $"+totalMonth(mo.m).toFixed(2)+"\n";
+      out+=mo.name.toUpperCase()+" -- $"+totalMonth(mo.m).toFixed(2)+" (earned $"+earnedMonth(mo.m).toFixed(2)+")\n";
       mes.forEach(e=>{out+="  "+(e.date?e.date+" ":"")+e.cat+(e.client?" ("+e.client+")":"")+": $"+parseFloat(e.amount).toFixed(2)+(e.pending?" [PENDING]":"")+(e.note?" - "+e.note:"")+"\n";});
       out+="\n";
     });
-    out+="Q2 TOTAL: $"+totalAll.toFixed(2);
+    out+=QC.label+" EARNED: $"+totalEarned.toFixed(2)+" / $"+GOAL+" goal\n";
+    out+=QC.label+" TOTAL CASH IN: $"+totalAll.toFixed(2);
     if(recurring.length){
       out+="\n\nRECURRING FIXED COSTS:\n";
-      recurring.forEach(r=>{const ms=recMonths(r).map(m=>({4:"Apr",5:"May",6:"Jun",7:"Jul"}[m]||m)).join(",");out+="  "+(r.emoji?r.emoji+" ":"")+r.name+": $"+parseFloat(r.amount).toFixed(2)+(ms?" ["+ms+"]":"")+"\n";});
+      recurring.forEach(r=>{const ms=recMonths(r).filter(m=>inQuarter(m)).map(m=>(M_LABEL[m]||m)).join(",");if(!ms)return;out+="  "+(r.emoji?r.emoji+" ":"")+r.name+": $"+parseFloat(r.amount).toFixed(2)+(ms?" ["+ms+"]":"")+"\n";});
     }
     return out;
   };
@@ -3032,10 +3063,15 @@ function AtlasBudget({onBack}) {
       </button>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
         <div>
-          <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>Budget Q2</div>
-          <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>APR-JUN 2026</div>
+          <div style={{fontSize:18,fontWeight:900,color:"#b8860b",letterSpacing:-0.5}}>Budget {QC.label}</div>
+          <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>{QC.sub}</div>
         </div>
-        <div style={{display:"flex",gap:6}}>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <div style={{display:"flex",gap:3,background:"#f2ede6",borderRadius:20,padding:3}}>
+            {QUARTERS.map(qq=>(
+              <button key={qq.q} onClick={()=>setQView(qq.q)} style={{background:qView===qq.q?"#2a2118":"transparent",color:qView===qq.q?"#c9a96e":"#9a8f7f",border:"none",borderRadius:16,padding:"5px 10px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>Q{qq.q}</button>
+            ))}
+          </div>
           <button onClick={()=>{copyText(buildExp());setShowExp(true);setTimeout(()=>setShowExp(false),1800);}} style={{background:showExp?"#16a34a":"#2a2118",color:showExp?"#fff":"#c9a96e",border:"none",borderRadius:20,padding:"7px 14px",fontSize:8.5,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",fontWeight:800,boxShadow:"0 2px 8px rgba(42,33,24,0.18)",whiteSpace:"nowrap"}}>{showExp?"✓ COPIED":"⧉ EXPORT BUDGET"}</button>
           <button onClick={()=>{setShowAdd(x=>!x);setEditId(null);setForm({month:TODAY_M,amount:"",cat:"Rover",client:"",note:"",date:""});}} style={{background:"#c9a96e",color:"#fff",border:"none",borderRadius:20,padding:"5px 10px",fontSize:8,letterSpacing:1.5,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>{showAdd?"CANCEL":"+ ADD"}</button>
         </div>
@@ -3131,10 +3167,11 @@ function AtlasBudget({onBack}) {
       </div>
       <div style={{fontSize:8,fontWeight:800,letterSpacing:2,color:"#4a9d6f",margin:"0 2px 7px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:11}}>＋</span>WHAT I EARNED · MONEY IN</div>
       <div style={{display:"flex",gap:6,marginBottom:12}}>
-        {MONTHS_ARR.map(mo=>(
-          <div key={mo.m} style={{flex:1,background:"#fff",borderRadius:10,padding:"8px 10px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+        {MONTHS_ARR.filter(mo=>inQuarter(mo.m)).map(mo=>(
+          <div key={mo.m} style={{flex:1,background:"#fff",borderRadius:10,padding:"8px 8px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
             <div style={{fontSize:7,color:"#b0a898",fontWeight:700,letterSpacing:1}}>{mo.short}</div>
             <div style={{fontSize:13,fontWeight:900,color:"#4a9d6f",marginTop:2}}>{fmtMoney(totalMonth(mo.m),0)}</div>
+            <div style={{fontSize:7,color:"#c9a96e",fontWeight:800,marginTop:1,letterSpacing:0.3}}>earn {fmtMoney(earnedMonth(mo.m),0)}</div>
           </div>
         ))}
       </div>
@@ -3184,7 +3221,7 @@ function AtlasBudget({onBack}) {
           </div>
           <div style={{marginBottom:8}}>
             <div style={{fontSize:7,fontWeight:700,color:"#888",letterSpacing:1.5,marginBottom:3}}>CATEGORY</div>
-            <div style={{fontSize:7,fontWeight:700,color:"#c9a96e",letterSpacing:1,marginBottom:4}}>EARNED — counts toward $3,000</div>
+            <div style={{fontSize:7,fontWeight:700,color:"#c9a96e",letterSpacing:1,marginBottom:4}}>EARNED, counts toward {fmtMoney(GOAL,0)}</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:7}}>
               {EARNED_CATS.map(c=>(
                 <button key={c} onClick={()=>setForm(f=>({...f,cat:c}))} style={{padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:700,background:form.cat===c?(CAT_COLOR[c]||"#555"):"#f0f0f0",color:form.cat===c?"#fff":"#666"}}>{catLabel(c)}</button>
@@ -3237,14 +3274,17 @@ function AtlasBudget({onBack}) {
       )}
       {entries.length===0
         ?<EmptyState icon="💰" line="Track every dollar you earn this quarter. Start with your last Rover or photography payment." onAdd={()=>{setShowAdd(true);setEditId(null);}} addLabel="+ ADD INCOME"/>
-        :[...MONTHS_ARR].reverse().map(mo=>{
+        :[...MONTHS_ARR].filter(mo=>inQuarter(mo.m)).reverse().map(mo=>{
           const mes=entries.filter(e=>e.month===mo.m&&(!selCat||e.cat===selCat));
           if(!mes.length) return null;
           return (
             <div key={mo.m} style={{marginBottom:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                 <div style={{fontSize:10,fontWeight:900,color:"#1a1a1a",letterSpacing:1}}>{mo.name.toUpperCase()}</div>
-                <div style={{fontSize:12,fontWeight:900,color:"#4a9d6f"}}>{fmtMoney(totalMonth(mo.m))}</div>
+                <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                  <span style={{fontSize:8,fontWeight:800,color:"#c9a96e",letterSpacing:0.3}}>earn {fmtMoney(earnedMonth(mo.m))}</span>
+                  <span style={{fontSize:12,fontWeight:900,color:"#4a9d6f"}}>{fmtMoney(totalMonth(mo.m))}</span>
+                </div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:5}}>
                 {mes.map((e,mi2)=>(
@@ -3444,7 +3484,7 @@ function buildWeekText(wk, allData){
   const tc=_exReadLS("lifeos_v8_taskChecks")||{};
   const pc=_exReadLS("lifeos_v8_priChecks")||{};
   const wa=_exReadLS("weekAssess")||{};
-  let out=`LIFE OS — 26Q${wk.q||2} WEEK ${wk.wn||wk.n} EXPORT (${wk.sm} ${wk.start[1]}–${wk.em} ${wk.end[1]})\n`;
+  let out=`LIFE OS · 26Q${wk.q||2} WEEK ${wk.wn||wk.n} EXPORT (${wk.sm} ${wk.start[1]} to ${wk.em} ${wk.end[1]})\n`;
   out+=`Generated: ${M_NAME[TODAY_M]||TODAY_M} ${TODAY_D}\n\n`;
   const finalWins=readWeeklyWins()["w"+wk.n];
   if(finalWins&&finalWins.trim()){
@@ -3452,11 +3492,11 @@ function buildWeekText(wk, allData){
     finalWins.trim().split("\n").forEach(l=>{if(l.trim())out+=`  ${l.trim()}\n`;});
     out+=`\n`;
   }
-  out+=`TOP 3 (PW·PB·PA) — DAILY:\n`;
+  out+=`TOP 3 (PW·PB·PA) DAILY:\n`;
   let t3FullDays=0;
   wdays.forEach(({m,d})=>{
     const mi=_exGMI(m); const data=allData[mi]; if(!data) return;
-    const pct=top3pct(data,d);
+    const pct=top3pct(data,d,m);
     const en=data.energy?.[d]||"·";
     const mood=data.mood?.[d]||"·";
     const marks=TOP3.map(h=>data.grid?.[h.code]?.[d]?"✓":"✗").join(" ");
@@ -3496,7 +3536,7 @@ function buildWeekText(wk, allData){
       if((p||"").trim()) out+=`  ${i+1}. [${wkPriChecks.includes(i)?"✓":"·"}] ${p}\n`;
     });
   }
-  out+=`\n— end of Q${wk.q||2} Week ${wk.wn||wk.n} export —`;
+  out+=`\nend of Q${wk.q||2} Week ${wk.wn||wk.n} export`;
   return out;
 }
 function buildMonthStats(mo, allData){
@@ -3526,7 +3566,7 @@ function buildMonthStats(mo, allData){
   out+=`TOP 3 TASKS FULLY DONE: ${t3Full}/${elapsed} days\n`;
   let hlN=0,winN=0;for(let d=1;d<=elapsed;d++){if(data.highlights?.[d]?.trim())hlN++;if(data.wins?.[d]?.trim())winN++;}
   out+=`HIGHLIGHTS LOGGED: ${hlN} days · WINS LOGGED: ${winN} days\n`;
-  out+=`\n(Full notes + highlights + wins text lives in the Month tab export)\n— end of ${mo.name} stats —`;
+  out+=`\n(Full notes + highlights + wins text lives in the Month tab export)\nend of ${mo.name} stats`;
   return out;
 }
 function buildDayText(m,d,allData){
@@ -3555,7 +3595,7 @@ function buildDayText(m,d,allData){
   const hl=data.highlights?.[d]; if(hl?.trim()){const _hc=(_exReadLS("lifeos_v8_hlChecked")||{})[m+"-"+d];out+=`\n✨ HIGHLIGHT${_hc?" ✓":""}:\n  ${hl.trim()}\n`;}
   const mn=data.moodNotes?.[d]; if(mn?.trim()) out+=`\n〰️ MOOD SHIFT:\n  ${mn.trim()}\n`;
   const wns=data.wins?.[d]; if(wns?.trim()){ out+=`\nWINS:\n`; wns.trim().split("\n").forEach(l=>{if(l.trim())out+=`  ${l.trim()}\n`;}); }
-  out+=`\n— end of day export —`;
+  out+=`\nend of day export`;
   return out;
 }
 const WEEKWINS_KEY="lifeos_weeklyWins26";
@@ -3594,11 +3634,11 @@ function AtlasWeeklyWins({onBack}) {
       const txt=wins["w"+wk.n];
       if(!txt||!txt.trim()) return;
       any=true;
-      out+=`\n— ${qu.label} W${wk.wn} · ${wk.sm} ${wk.start[1]} – ${wk.em} ${wk.end[1]}${wins["f"+wk.n]?" · FINAL ✓":" · draft"} —\n`;
+      out+=`\n${qu.label} W${wk.wn} · ${wk.sm} ${wk.start[1]} to ${wk.em} ${wk.end[1]}${wins["f"+wk.n]?" · FINAL ✓":" · draft"}\n`;
       txt.trim().split("\n").forEach(l=>{if(l.trim())out+=`${l.trim()}\n`;});
     });
     if(!any) out+="\n(no weekly wins saved for this quarter yet)\n";
-    out+=`\n— end of ${qu.label} weekly wins —`;
+    out+=`\nend of ${qu.label} weekly wins`;
     if(copyText(out)) flash();
   };
   const copyWeek=()=>{if(copyText(draft))flash();};
@@ -3677,7 +3717,7 @@ function buildFullGridText(allData){
     if(!data) return;
     out+=`\n${MNAME[mo.m]||mo.name} 2026\n`;
     for(let d=1;d<=elapsed;d++){
-      const pct=top3pct(data,d);
+      const pct=top3pct(data,d,mo.m);
       const en=data.energy?.[d]||"·";
       const mood=data.mood?.[d]||"·";
       const t3n=["t1","t2","t3"].filter(s=>!!tc[mo.m+"-"+d+"-"+s+"-c"]).length;
@@ -3695,9 +3735,9 @@ function buildFullGridText(allData){
       for(let d=1;d<=elapsed;d++){const st=data.grid?.[h.code]?.[d];if(st==="box")n+=2;else if(st)n++;}
       return n?`${h.code}:${n}`:null;
     }).filter(Boolean).join("  ");
-    out+=`  — ${mo.short} TOTALS (${elapsed}d): ${tot||"—"}\n`;
+    out+=`  ${mo.short} TOTALS (${elapsed}d): ${tot||"—"}\n`;
   });
-  out+=`\n— end of full quarter grid —`;
+  out+=`\nend of full quarter grid`;
   return out;
 }
 function AtlasWeekExport({allData, winsLogged, onBack}) {
@@ -3735,7 +3775,7 @@ function AtlasWeekExport({allData, winsLogged, onBack}) {
       <div style={{fontSize:8,fontWeight:800,color:"#888",letterSpacing:2,marginBottom:6}}>WEEKS</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5,marginBottom:10}}>
         {pastWeeks.map(wk=>(
-          <button key={wk.n} onClick={()=>showAndCopy("w"+wk.n,"W"+wk.n,buildWeekText(wk,allData))} style={sel==="w"+wk.n?chipSel:chip}>W{wk.n}</button>
+          <button key={wk.n} onClick={()=>showAndCopy("w"+wk.n,wkLabel(wk),buildWeekText(wk,allData))} style={sel==="w"+wk.n?chipSel:chip}>{"Q"+(wk.q||2)+"·"+(wk.wn||wk.n)}</button>
         ))}
       </div>
       {/* FULL EXPORTS */}
@@ -4151,15 +4191,15 @@ function App() {
     const wk=Q2_WEEKS[weekIdx];
     const wdays=weekDays();
     const M_NAME={4:"APR",5:"MAY",6:"JUN",7:"JUL",8:"AUG",9:"SEP",10:"OCT"};
-    let out=`LIFE OS — 26Q${wk.q||2} WEEK ${wk.wn||wk.n} EXPORT (${wk.sm} ${wk.start[1]}–${wk.em} ${wk.end[1]})\n`;
+    let out=`LIFE OS · 26Q${wk.q||2} WEEK ${wk.wn||wk.n} EXPORT (${wk.sm} ${wk.start[1]} to ${wk.em} ${wk.end[1]})\n`;
     out+=`Generated: ${M_NAME[TODAY_M]||TODAY_M} ${TODAY_D}\n\n`;
 
     // TOP 3 per day + tasks
-    out+=`TOP 3 (PW·PB·PA) — DAILY:\n`;
+    out+=`TOP 3 (PW·PB·PA) DAILY:\n`;
     let t3FullDays=0;
     wdays.forEach(({m,d})=>{
       const mi=getMI(m); const data=allData[mi]; if(!data) return;
-      const pct=top3pct(data,d);
+      const pct=top3pct(data,d,m);
       const en=data.energy?.[d]||"·";
       const mood=data.mood?.[d]||"·";
       const marks=TOP3.map(h=>data.grid[h.code]?.[d]?"✓":"✗").join(" ");
@@ -4217,7 +4257,7 @@ function App() {
       });
     }
 
-    out+=`\n— end of Q${wk.q||2} Week ${wk.wn||wk.n} export —`;
+    out+=`\nend of Q${wk.q||2} Week ${wk.wn||wk.n} export`;
 
     // Photo Challenge data for this week (if any)
     try {
@@ -4240,7 +4280,7 @@ function App() {
           }
         });
         if(challLines.length){
-          out+=`\n\n📸 PHOTO CHALLENGE — W${wk.n}:\n${challLines.join("\n")}`;
+          out+=`\n\n📸 PHOTO CHALLENGE · W${wk.n}:\n${challLines.join("\n")}`;
         }
       }
     } catch(e){}
@@ -4264,7 +4304,7 @@ function App() {
     <div style={{minHeight:"100vh",background:"#f2ede6",fontFamily:"'SF Mono','Courier New',monospace",maxWidth:430,margin:"0 auto",overflow:"hidden"}}>
       <div style={{background:"#fff",borderBottom:"1px solid #e8e0d5",padding:"12px 16px 0",position:"sticky",top:0,zIndex:30,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q2 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v9.9</span></div>
+          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.3</span></div>
           <div style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · {wkLabel(Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1]))||"W?"}</div>
         </div>
         {/* Rotating mantra — tap for next */}
@@ -4401,6 +4441,8 @@ function App() {
     }
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(ErrorBoundary,null,React.createElement(App)));
+    // Remove the boot splash on the next frame, once React has painted the app.
+    requestAnimationFrame(()=>{requestAnimationFrame(()=>{var s=document.getElementById("boot-splash");if(s&&s.parentNode)s.parentNode.removeChild(s);});});
   </script>
 </body>
 </html>
