@@ -1,6 +1,6 @@
 // Life OS Service Worker — v25
 // ⚠️ CACHE_NAME — меняй ЭТУ строку при каждом обновлении index.html
-const CACHE_NAME = "lifeos-v60";
+const CACHE_NAME = "lifeos-v61";
 
 self.addEventListener("install", e => {
   self.skipWaiting();
