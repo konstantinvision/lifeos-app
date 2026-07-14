@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Life OS v10.5 · easy instant tap restored, Escalated as separate collapsible block after Top 3, compact copy-day by GO bar, Q3 day header labeled TOP 3 TASKS -->
+<!-- Life OS v10.6 · safe task carry (never overwrites, appends after last filled), brainstorm done/undone contrast + gentle strike, Atlas Routines (week/month/quarter), bigger Copy Today button, weekly % task-based for Q3 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -681,8 +681,14 @@ function top3pct(data, day, m) {
   return Math.round(TOP3.filter(h=>data.grid[h.code]?.[day]).length/TOP3.length*100);
 }
 function weeklyTop3(allData, wdList) {
+  // Q3 days (Jul 6+) count Top 3 TASK checks; Q2 days keep original HAT logic.
+  const tc=readTaskChecksLS();
   let total=0, done=0;
   wdList.forEach(({m,d})=>{
+    if(isQ3Day(m,d)){
+      ["t1","t2","t3"].forEach(s=>{ total++; if(tc[m+"-"+d+"-"+s+"-c"]) done++; });
+      return;
+    }
     const mi=MONTHS_ARR.findIndex(x=>x.m===m);
     const data=allData[mi]; if(!data) return;
     TOP3.forEach(h=>{ total++; if(data.grid[h.code]?.[d]) done++; });
@@ -773,7 +779,7 @@ function HoldCell({onHold,style,title,children}){
   );
 }
 
-function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged,hlChecked,toggleHlChecked}) {
+function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,appendTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged,hlChecked,toggleHlChecked}) {
   const data = allData[getMI(viewM)];
   const w = Q2_WEEKS[weekIdx];
   const wd = weekDays();
@@ -990,26 +996,19 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
   const toggleCarry=(m,d,slot)=>{
     const key=m+"-"+d+"-"+slot+"-r";
     const carrying=!taskChecks[key];
-    saveTaskChecks({...taskChecks,[key]:carrying});
     const task=(allData[getMI(m)]?.tasks?.[d]?.[slot]||"").replace(/\u200b/g,"").trim();
+    if(carrying&&!task) return; // nothing to carry
+    saveTaskChecks({...taskChecks,[key]:carrying});
+    if(!carrying) return; // un-carry only removes the red flag. NEVER deletes anything on the next day.
     const mI=MONTHS_ARR.find(x=>x.m===m);
     let nm=m,nd=d+1;
     if(mI&&nd>mI.days){const ci=getMI(m);const ni=ci+1;if(ni>=MONTHS_ARR.length) return;nm=MONTHS_ARR[ni].m;nd=1;}
     if(getMI(nm)<0) return;
-    if(carrying){
-      if(!task) return;
-      const destTasks=allData[getMI(nm)]?.tasks?.[nd]||{};
-      let freeSlot=null;
-      for(let s=1;s<=10;s++){if(!(destTasks["t"+s]||"").replace(/\u200b/g,"").trim()){freeSlot="t"+s;break;}}
-      if(freeSlot) setTask(nm,nd,freeSlot,task);
-    } else {
-      if(!task) return;
-      const destTasks=allData[getMI(nm)]?.tasks?.[nd]||{};
-      for(let s=1;s<=10;s++){
-        const v=(destTasks["t"+s]||"").replace(/\u200b/g,"").trim();
-        if(v===task){setTask(nm,nd,"t"+s,"");break;}
-      }
-    }
+    const destTasks=allData[getMI(nm)]?.tasks?.[nd]||{};
+    const filledCount=Array.from({length:10},(_,i)=>"t"+(i+1)).filter(s=>(destTasks[s]||"").replace(/\u200b/g,"").trim()).length;
+    if(filledCount>=10){ alert("Next day already has 10 tasks. Nothing was changed."); return; }
+    // appendTask NEVER overwrites: it adds after the last filled slot and skips exact duplicates.
+    appendTask(nm,nd,task);
   };
   const allTasksDone=(m,d)=>{
     return ["t1","t2","t3"].every(slot=>isTaskChecked(m,d,slot));
@@ -1085,7 +1084,10 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
         </div>
         <button onClick={()=>{copyText(buildDayText(viewM,viewDay,allData));setDayCopied(true);setTimeout(()=>setDayCopied(false),1800);}}
           title={"Copy "+weekdayShort(viewM,viewDay)+" "+M_LABEL[viewM]+" "+viewDay}
-          style={{position:"absolute",right:0,top:"50%",transform:"translateY(-50%)",width:34,height:34,borderRadius:11,background:dayCopied?"#16a34a":"#fff",color:dayCopied?"#fff":"#a89e8c",border:"1px solid "+(dayCopied?"#16a34a":"#ece6dc"),cursor:"pointer",fontFamily:"inherit",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 5px rgba(42,33,24,0.06)",touchAction:"manipulation"}}>{dayCopied?"✓":"⧉"}</button>
+          style={{position:"absolute",right:0,top:"50%",transform:"translateY(-50%)",minWidth:52,padding:"6px 7px",borderRadius:12,background:dayCopied?"#16a34a":"#fff",color:dayCopied?"#fff":"#a89e8c",border:"1px solid "+(dayCopied?"#16a34a":"#ece6dc"),cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,boxShadow:"0 1px 5px rgba(42,33,24,0.06)",touchAction:"manipulation"}}>
+          <span style={{fontSize:15,lineHeight:1}}>{dayCopied?"✓":"⧉"}</span>
+          <span style={{fontSize:5.5,fontWeight:900,letterSpacing:0.8,lineHeight:1,whiteSpace:"nowrap"}}>{dayCopied?"COPIED":(viewM===TODAY_M&&viewDay===TODAY_D?"COPY TODAY":"COPY DAY")}</span>
+        </button>
       </div>
 
       {/* Day strip — full width, equal cells */}
@@ -2943,7 +2945,7 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
             <div onTouchStart={()=>bStart(idx)} onTouchMove={bMove} onTouchEnd={bEnd}
               style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",width:22,alignSelf:"stretch",cursor:"grab",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",color:"#cfc6b6",fontSize:15,lineHeight:1}} title="Drag to reorder">⠿</div>
             <button onClick={()=>updItem(it.id,{done:!it.done})} style={{flexShrink:0,marginTop:1,width:18,height:18,borderRadius:"50%",border:"2px solid "+(it.done?"#16a34a":"#d8cdb8"),background:it.done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{it.done?"✓":""}</button>
-            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} onKeyDown={e=>bHandleKey(e,it,idx)} dataBid={String(it.id)} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#b3ab9c":"#3a2e24",lineHeight:1.55,textDecoration:"none",padding:0,minWidth:0,transition:"color .15s"}}/>
+            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} onKeyDown={e=>bHandleKey(e,it,idx)} dataBid={String(it.id)} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#c8bfaf":"#241c12",fontWeight:it.done?400:600,lineHeight:1.55,textDecoration:it.done?"line-through":"none",textDecorationColor:"rgba(170,158,138,0.45)",textDecorationThickness:"1px",padding:0,minWidth:0,transition:"color .15s"}}/>
             {!isTodayView&&<button onClick={()=>moveToToday(it.id)} title={"Move to today ("+M_LABEL[TODAY_M]+" "+TODAY_D+")"} style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:"#2563eb",color:"#fff",cursor:"pointer",padding:0,fontSize:13,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>→</button>}
             <button onClick={()=>pinItem(it.id)} title="Pin to top" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:it.pin?"#c9a96e":"#f3efe7",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}><span style={{opacity:it.pin?1:0.4}}>🔝</span></button>
             <button onClick={()=>{if(!(it.text||"").trim()||confirm("Delete this idea?"))delItem(it.id);}} title="Delete" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:12,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
@@ -3965,11 +3967,99 @@ function AtlasVision({onBack}) {
 }
 
 // ── ATLAS PANEL ──────────────────────────────────────────────────────────────
+function AtlasRoutines({onBack}) {
+  const RK="lifeos_routines26";
+  const SEED=[
+    {id:"w1",period:"week",text:"Water the flowers"},
+    {id:"w2",period:"week",text:"Floss my teeth"},
+    {id:"m1",period:"month",text:"Change the bedspread on the bed"},
+    {id:"q1",period:"quarter",text:"Create the Vision for the next quarter"},
+  ];
+  const load=()=>{try{const v=localStorage.getItem(RK);const st=v?JSON.parse(v):null;if(st&&Array.isArray(st.items))return st;}catch(e){}return {items:SEED,checks:{}};};
+  const [state,setState]=useState(load);
+  const save=(next)=>{setState(next);try{localStorage.setItem(RK,JSON.stringify(next));}catch(e){}};
+  // Period keys: when the week / month / quarter rolls over, the key changes and
+  // every check in that group resets automatically.
+  const curWeek=Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1]);
+  const periodKey=(period)=>{
+    if(period==="week") return curWeek?("26Q"+(curWeek.q||2)+"-W"+(curWeek.wn||curWeek.n)):("wk-"+TODAY_M+"-"+TODAY_D);
+    if(period==="month") return "2026-"+TODAY_M;
+    return curWeek?("26Q"+(curWeek.q||2)):(TODAY_M>=7?"26Q3":"26Q2");
+  };
+  const isDone=(it)=>state.checks[it.id]===periodKey(it.period);
+  const toggle=(it)=>{
+    const checks={...state.checks};
+    if(isDone(it)) delete checks[it.id]; else checks[it.id]=periodKey(it.period);
+    save({...state,checks});
+  };
+  const [drafts,setDrafts]=useState({week:"",month:"",quarter:""});
+  const addItem=(period)=>{
+    const t=(drafts[period]||"").trim(); if(!t) return;
+    save({...state,items:[...state.items,{id:"u"+Date.now(),period,text:t}]});
+    setDrafts(d=>({...d,[period]:""}));
+  };
+  const delItem=(it)=>{
+    if(!confirm('Remove "'+it.text+'" from routines?')) return;
+    const checks={...state.checks}; delete checks[it.id];
+    save({items:state.items.filter(x=>x.id!==it.id),checks});
+  };
+  const GROUPS_R=[
+    {period:"week",   label:"ONCE A WEEK",    sub:"resets every week",    cur:curWeek?wkLabel(curWeek):"", color:"#0369a1", bg:"#f0f9ff", bdr:"#bae0f5"},
+    {period:"month",  label:"ONCE A MONTH",   sub:"resets every month",   cur:M_LABEL[TODAY_M]||"", color:"#b8860b", bg:"#fffbeb", bdr:"#f0dfb0"},
+    {period:"quarter",label:"ONCE A QUARTER", sub:"resets every quarter", cur:periodKey("quarter"), color:"#7c3aed", bg:"#f5f3ff", bdr:"#ddd3f5"},
+  ];
+  return (
+    <div>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
+      </button>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:18,fontWeight:900,color:"#0369a1",letterSpacing:-0.5}}>🔁 Routines</div>
+        <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>ONCE A WEEK · ONCE A MONTH · ONCE A QUARTER</div>
+      </div>
+      {GROUPS_R.map(grp=>{
+        const items=state.items.filter(it=>it.period===grp.period);
+        const doneN=items.filter(isDone).length;
+        return (
+          <div key={grp.period} style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
+            <div style={{padding:"9px 14px",background:grp.bg,borderBottom:"1px solid "+grp.bdr,display:"flex",alignItems:"center",gap:8}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:grp.color}}/>
+              <span style={{fontSize:9,fontWeight:900,letterSpacing:2,color:grp.color}}>{grp.label}</span>
+              <span style={{fontSize:7,color:"#a89e8c",fontWeight:700,letterSpacing:0.5}}>{grp.cur} · {grp.sub}</span>
+              <span style={{flex:1}}/>
+              <span style={{fontSize:9,fontWeight:900,color:doneN===items.length&&items.length>0?"#16a34a":"#b0a594"}}>{doneN}/{items.length}</span>
+            </div>
+            {items.map(it=>{
+              const done=isDone(it);
+              return (
+                <div key={it.id} style={{display:"flex",alignItems:"center",gap:9,padding:"10px 12px",borderTop:"1px solid #f3efe7"}}>
+                  <button onClick={()=>toggle(it)} style={{flexShrink:0,width:22,height:22,borderRadius:"50%",border:"2px solid "+(done?"#16a34a":"#d8cdb8"),background:done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{done?"✓":""}</button>
+                  <span style={{flex:1,fontSize:12,color:done?"#c8bfaf":"#241c12",fontWeight:done?400:600,textDecoration:done?"line-through":"none",textDecorationColor:"rgba(170,158,138,0.45)",textDecorationThickness:"1px",lineHeight:1.4}}>{it.text}</span>
+                  <button onClick={()=>delItem(it)} title="Remove" style={{flexShrink:0,width:22,height:22,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:12,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
+                </div>
+              );
+            })}
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderTop:"1px solid #f3efe7",background:"#fffdf8"}}>
+              <input value={drafts[grp.period]} onChange={e=>setDrafts(d=>({...d,[grp.period]:e.target.value}))}
+                onKeyDown={e=>{if(e.key==="Enter")addItem(grp.period);}} placeholder="Add routine..."
+                style={{flex:1,border:"none",outline:"none",background:"none",fontSize:11,fontFamily:"inherit",color:"#3a2e24",minWidth:0}}/>
+              <button onClick={()=>addItem(grp.period)} style={{flexShrink:0,background:grp.color,color:"#fff",border:"none",borderRadius:14,padding:"4px 12px",fontSize:8,fontWeight:900,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>+ ADD</button>
+            </div>
+          </div>
+        );
+      })}
+      <div style={{fontSize:8,color:"#b0a594",textAlign:"center",padding:"4px 0 14px",lineHeight:1.5}}>Checks reset automatically when a new week, month, or quarter starts.</div>
+    </div>
+  );
+}
+
 function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat, toggleLibHat, cycleEnergy, cycleMood, setHighlight, setMoodNote, setViewDay, setViewM, setWeekIdx, setTabIdx}) {
   const [section, setSection] = useState(null);
   const tiles = [
     {id:"highlights", icon:"✨", label:"Highlights\n& Mood",  color:"#c9a96e", bg:"#fdf8f0", desc:"All days · mood + highlight"},
     {id:"weekwins",   icon:"🏆", label:"Weekly\nWins",        color:"#b8860b", bg:"#fffbeb", desc:"Final lists · 26Q2 / 26Q3"},
+    {id:"routines",   icon:"🔁", label:"Routines",            color:"#0369a1", bg:"#f0f9ff", desc:"Once a week · month · quarter"},
     {id:"vision",     icon:"🎯", label:"Vision",              color:"#b8860b", bg:"#fdf8f0", desc:"Read it every morning"},
     {id:"budget",     icon:"💰", label:"Budget\n2026",        color:"#4a9d6f", bg:"#f0fdf4", desc:"Income by month"},
     {id:"jobs",       icon:"💼", label:"Job\nApplications",   color:"#0369a1", bg:"#f0f9ff", desc:"Track your applications"},
@@ -3984,6 +4074,7 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
   if(section==="jobs")       return <AtlasJobs onBack={()=>setSection(null)}/>;
   if(section==="weekwins")   return <AtlasWeeklyWins onBack={()=>setSection(null)}/>;
   if(section==="weekexport") return <AtlasWeekExport allData={allData} winsLogged={winsLogged} onBack={()=>setSection(null)}/>;
+  if(section==="routines")   return <AtlasRoutines onBack={()=>setSection(null)}/>;
   if(section==="vision")     return <AtlasVision onBack={()=>setSection(null)}/>;
   return (
     <div>
@@ -4151,6 +4242,25 @@ function App() {
     }
   };
   const setTask=(m,day,f,v)=>mutData(m,d=>({...d,tasks:{...d.tasks,[day]:{...d.tasks[day],[f]:v}}}));
+  // appendTask: safely ADD a task to a day. Free-slot search happens INSIDE the
+  // functional updater on fresh state, so it can never overwrite or delete an
+  // existing task, even with rapid taps. Appends AFTER the last filled slot.
+  // If the same text is already on that day, does nothing (no duplicates).
+  const appendTask=(m,day,text)=>{
+    const t=(text||"").replace(/\u200b/g,"").trim();
+    if(!t) return;
+    mutData(m,d=>{
+      const cur=(d.tasks&&d.tasks[day])||{};
+      let last=0;
+      for(let s=1;s<=10;s++){
+        const v=(cur["t"+s]||"").replace(/\u200b/g,"").trim();
+        if(v===t) return d; // already there — never duplicate, never touch anything
+        if(v) last=s;
+      }
+      if(last>=10) return d; // day is full
+      return {...d,tasks:{...d.tasks,[day]:{...cur,["t"+(last+1)]:t}}};
+    });
+  };
   const setNote=(m,day,v)=>mutData(m,d=>({...d,notes:{...(d.notes||{}),[day]:v}}));
   const setWins=(m,day,v)=>mutData(m,d=>({...d,wins:{...(d.wins||{}),[day]:v}}));
   // toggleExtraHat/toggleLibHat support both simple toggle (Today panel) and state strings (Extra panel)
@@ -4413,7 +4523,7 @@ function App() {
       <div style={{position:"relative",overflow:"hidden",touchAction:"pan-y",overscrollBehaviorX:"none"}} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
         {TABS.map((t,i)=>(
           <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"16px 14px 48px",boxSizing:"border-box",minHeight:"80vh"}}>
-            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} setNote={setNote} setHighlight={setHighlight} setMoodNote={setMoodNote} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged} hlChecked={hlChecked} toggleHlChecked={toggleHlChecked}/> }
+            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} appendTask={appendTask} setNote={setNote} setHighlight={setHighlight} setMoodNote={setMoodNote} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged} hlChecked={hlChecked} toggleHlChecked={toggleHlChecked}/> }
             {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
             {t==="plan"&&<PlanPanel viewM={viewM} viewDay={viewDay} setViewDay={setViewDay} setViewM={setViewM} planData={planData} setPlanField={setPlanField} clearPlanDay={clearPlanDay}/>}
             {t==="challenge"&&<ChallengePanel/>}
