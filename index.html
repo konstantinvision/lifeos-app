@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Life OS v10.6 · safe task carry (never overwrites, appends after last filled), brainstorm done/undone contrast + gentle strike, Atlas Routines (week/month/quarter), bigger Copy Today button, weekly % task-based for Q3 -->
+<!-- Life OS v10.13 · COPY button in Plan and Today now both export the FULL day (Top 3 + grid + notes + wins + brainstorm + timebox) for that exact date, Month grid day cells centered like the Today mini grid, brainstorm strike removed (faded text only, Safari drew the line too heavy), FIXED: duplicate React key on Month spillover rows (Jun 30 + Jul 1-5) · prev: v10.12 · divider after PULSE back to thin (only separates TOP 3 TASKS + PULSE from the rest), FIXED: Atlas exports showed Q2 pillars (PW/PB/PA) on Q3 days — now quarter-aware (PW/PA/MS) with code labels, removed dead essDone var · prev: v10.11 · Extra Hats regrouped BY LETTER (all D together, all M together; active codes first with a dot marker), divider after PULSE is now one square wide, end-of-grid line is thin grey, Week Priorities are 2-line textareas · prev: v10.10 · Week Priorities renamed P1-P5 with drag-to-reorder like Top 3 Tasks, Pillars stay purple when done (Q2 keeps its original green), PULSE recolored grey like Tracking, black divider lines after PULSE and at grid end (SM), TOP 3 TASKS/PULSE/group label fonts unified, Extra Hats compacted (flex-wrap, no more stretched gaps) with an "optional, not daily" note, PP/PV/PX/RS grouped and dimmed as read-only history -->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -199,7 +199,12 @@ const TRK_PR   = [{ code:"PR", label:"Reading" }];
 const TRK_RSLH = [{ code:"RS", label:"Spaces" }, { code:"LH", label:"House" }];
 const TRK_MV   = [{ code:"MV", label:"Vibe" }];
 const TRK_SM   = [{ code:"SM", label:"Social" }];
-const ALL_HATS = [...ESSENTIALS, ...TOP3, ...TRK_PXRV, ...TRK_PR, ...TRK_RSLH, ...TRK_MV, ...TRK_SM];
+// PB1 is the only BRAND NEW code in Q3 (the new morning technique).
+// RJ1 reuses the OLD "RJ" code/history (same journal-AM slot, just renamed).
+// PB2 reuses the OLD "PB" code/history (same evening routine, just renamed).
+// RJ2 reuses the existing "RJ2" code/history unchanged.
+const Q3_NEW = [{ code:"PB1", label:"Morning Technique" }];
+const ALL_HATS = [...ESSENTIALS, ...TOP3, ...TRK_PXRV, ...TRK_PR, ...TRK_RSLH, ...TRK_MV, ...TRK_SM, ...Q3_NEW];
 
 // Extra Active HATs (not in main grid)
 const EXTRA_ACTIVE = [
@@ -668,11 +673,14 @@ function ecol(sym) { return ENERGY.find(e=>e.sym===sym)?.color||"#999"; }
 // HAT-mark logic (PW/PB/PA marked in the grid) so past numbers never change.
 function isQ3Day(m,d){ return (m*100+d)>=706; }
 function readTaskChecksLS(){ try{const v=localStorage.getItem("lifeos_v8_taskChecks");return v?JSON.parse(v):{};}catch(e){return {};} }
-function top3TasksPct(m,d){
-  const tc=readTaskChecksLS();
-  let done=0;
-  ["t1","t2","t3"].forEach(s=>{ if(tc[m+"-"+d+"-"+s+"-c"]) done++; });
-  return Math.round(done/3*100);
+// From Q3 on, the Top 3 are weighted: T1 carries 60%, T2 and T3 carry 20% each.
+// T1 is the one that moves the quarter, so finishing it is worth more than the rest combined.
+const T_WEIGHTS = {t1:60, t2:20, t3:20};
+function top3TasksPct(m,d,tcIn){
+  const tc=tcIn||readTaskChecksLS();
+  let pct=0;
+  ["t1","t2","t3"].forEach(s=>{ if(tc[m+"-"+d+"-"+s+"-c"]) pct+=T_WEIGHTS[s]; });
+  return pct;
 }
 function top3pct(data, day, m) {
   if(!data) return 0;
@@ -681,19 +689,18 @@ function top3pct(data, day, m) {
   return Math.round(TOP3.filter(h=>data.grid[h.code]?.[day]).length/TOP3.length*100);
 }
 function weeklyTop3(allData, wdList) {
-  // Q3 days (Jul 6+) count Top 3 TASK checks; Q2 days keep original HAT logic.
+  // Q3 days average the WEIGHTED day score (T1 60 / T2 20 / T3 20).
+  // Q2 days keep the original HAT math, so past weeks never change.
   const tc=readTaskChecksLS();
-  let total=0, done=0;
+  let sum=0, n=0;
   wdList.forEach(({m,d})=>{
-    if(isQ3Day(m,d)){
-      ["t1","t2","t3"].forEach(s=>{ total++; if(tc[m+"-"+d+"-"+s+"-c"]) done++; });
-      return;
-    }
+    if(isQ3Day(m,d)){ sum+=top3TasksPct(m,d,tc); n++; return; }
     const mi=MONTHS_ARR.findIndex(x=>x.m===m);
     const data=allData[mi]; if(!data) return;
-    TOP3.forEach(h=>{ total++; if(data.grid[h.code]?.[d]) done++; });
+    const done=TOP3.filter(h=>data.grid[h.code]?.[d]).length;
+    sum+=Math.round(done/TOP3.length*100); n++;
   });
-  return total>0?Math.round(done/total*100):0;
+  return n>0?Math.round(sum/n):0;
 }
 
 function NBtn({onClick,on,children}) {
@@ -779,36 +786,20 @@ function HoldCell({onHold,style,title,children}){
   );
 }
 
-function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,appendTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged,hlChecked,toggleHlChecked}) {
-  const data = allData[getMI(viewM)];
-  const w = Q2_WEEKS[weekIdx];
-  const wd = weekDays();
-  const [dayCopied,setDayCopied]=useState(false);
+// ── TOP 3 TASKS ─────────────────────────────────────────────────────────────
+// One shared component rendered by BOTH the Today tab and the Plan tab.
+// All of its state lives in App, so the two tabs are always the same board:
+// edit, check, carry or reorder in one and the other shows it immediately.
+function Top3Tasks({allData,getMI,viewM,viewDay,setTask,appendTask,taskChecks,saveTaskChecks,taskSlotsMap,saveTaskSlotsMap,escalations,saveEscalations,onAllDone}) {
   const [escOpen,setEscOpen]=useState(false);
-  const essDone = ESSENTIALS.filter(h=>data?.grid?.[h.code]?.[viewDay]).length;
-  const dayPct = top3pct(data, viewDay, viewM);
-  const wkPct = weeklyTop3(allData, wd);
-  const curMood = data?.mood?.[viewDay]||null;
-  const curNote = data?.notes?.[viewDay]||"";
-  const curHighlight = data?.highlights?.[viewDay]||"";
-  const curWins = data?.wins?.[viewDay]||"";
-  const curExtra = data?.extraHats?.[viewDay]||[];
-  const curLib = data?.libHats?.[viewDay]||[];
-  const [showLib,setShowLib]=useState(false);
+  const dragIdxRef=useRef(null);
+  const dragOverIdxRef=useRef(null);
+  const [draggingSlot,setDraggingSlot]=useState(null);
+  const rowRefsArr=useRef([]);
 
-  // Extra task slots — stored per-day so each day is independent
-  const [taskSlotsMap,setTaskSlotsMap]=useState(()=>{
-    try{const v=localStorage.getItem("lifeos_v8_taskSlots");return v?JSON.parse(v):{}}catch(e){return {};}
-  });
-  const saveTaskSlotsMap=(next)=>{setTaskSlotsMap(next);try{localStorage.setItem("lifeos_v8_taskSlots",JSON.stringify(next));}catch(e){};};
   const getSlotCount=(m,d,tasks)=>{let filled=0;if(tasks){for(let s=1;s<=10;s++){if((tasks["t"+s]||"").trim())filled=s;}}return Math.max(3,filled,taskSlotsMap[m+"-"+d]||3);};
   const addTaskSlot=(m,d)=>{const cur=getSlotCount(m,d);if(cur<10)saveTaskSlotsMap({...taskSlotsMap,[m+"-"+d]:cur+1});};
 
-  // ESCALATION — isolated store, keyed by task text. Flagged items auto-land as T1 on Monday.
-  const [escalations,setEscalations]=useState(()=>{
-    try{const v=localStorage.getItem("lifeos_escalations26");return v?JSON.parse(v):{}}catch(e){return {};}
-  });
-  const saveEscalations=(next)=>{setEscalations(next);try{localStorage.setItem("lifeos_escalations26",JSON.stringify(next));}catch(e){}};
   const escKey=(text)=>(text||"").replace(/\u200b/g,"").trim().toLowerCase();
   const isEscalated=(text)=>{const k=escKey(text);return !!(k&&escalations[k]);};
   const toggleEscalation=(text)=>{
@@ -818,181 +809,18 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
     saveEscalations(next);
   };
 
-  // Drag refs at component level
-  const dragIdxRef=useRef(null);
-  const dragOverIdxRef=useRef(null);
-  const [draggingSlot,setDraggingSlot]=useState(null);
-  const rowRefsArr=useRef([]);
-
-  const [priChecks,setPriChecks]=useState(()=>{try{const v=localStorage.getItem("lifeos_v8_priChecks");return v?JSON.parse(v):{}}catch(e){return {};}});
-  const savePriChecks=(next)=>{setPriChecks(next);try{localStorage.setItem("lifeos_v8_priChecks",JSON.stringify(next));}catch(e){}};
-  const toggleCheck=(wn,i)=>{const key="w"+wn;const cur=priChecks[key]||[];const next=cur.includes(i)?cur.filter(x=>x!==i):[...cur,i];savePriChecks({...priChecks,[key]:next});};
-  const isChecked=(wn,i)=>(priChecks["w"+wn]||[]).includes(i);
-
-  const [taskChecks,setTaskChecks]=useState(()=>{
-    try{
-      const raw=localStorage.getItem("lifeos_v8_taskChecks");
-      if(!raw) return {};
-      const old=JSON.parse(raw);
-      // Migrate: detect old format keys like "5-4-c" (array of indices) → new "5-4-t1-c" (boolean)
-      let migrated=false;
-      const next={...old};
-      Object.keys(old).forEach(key=>{
-        // Old check key pattern: "m-d-c" with array value
-        const checkMatch=key.match(/^(\d+)-(\d+)-c$/);
-        if(checkMatch&&Array.isArray(old[key])){
-          const [,m,d]=checkMatch;
-          old[key].forEach(idx=>{
-            const slot="t"+(idx+1);
-            next[m+"-"+d+"-"+slot+"-c"]=true;
-          });
-          delete next[key];
-          migrated=true;
-        }
-        // Old carry key pattern: "m-d-r" with array value
-        const carryMatch=key.match(/^(\d+)-(\d+)-r$/);
-        if(carryMatch&&Array.isArray(old[key])){
-          const [,m,d]=carryMatch;
-          old[key].forEach(idx=>{
-            const slot="t"+(idx+1);
-            next[m+"-"+d+"-"+slot+"-r"]=true;
-          });
-          delete next[key];
-          migrated=true;
-        }
-      });
-      if(migrated){
-        localStorage.setItem("lifeos_v8_taskChecks",JSON.stringify(next));
-      }
-      return next;
-    }catch(e){return {};}
-  });
-  const saveTaskChecks=(next)=>{setTaskChecks(next);try{localStorage.setItem("lifeos_v8_taskChecks",JSON.stringify(next));}catch(e){}};
-  // Key format: "m-d-slot-c" for check, "m-d-slot-r" for carry
-  // slot = "t1","t2","t3"... — stays with the slot, not the visual position
-  // 🐝 BEE CELEBRATION — canvas overlay when all 3 tasks done
-  const beeCanvasRef=useRef(null);
-  const beeAnimRef=useRef(null);
-  const launchBees=()=>{
-    const canvas=beeCanvasRef.current;
-    if(!canvas) return;
-    canvas.style.display="block";
-    const ctx=canvas.getContext("2d");
-    const DPR=Math.min(window.devicePixelRatio||1,2);
-    const W=window.innerWidth, H=window.innerHeight;
-    canvas.width=W*DPR; canvas.height=H*DPR;
-    canvas.style.width=W+"px"; canvas.style.height=H+"px";
-    ctx.scale(DPR,DPR);
-    const DURATION=2800; // ms — same speed on every screen
-    const easeOutCubic=t=>1-Math.pow(1-t,3);
-    const easeOutBack=t=>{const c=1.70158;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2);};
-    const CONFETTI_COLORS=["#c9a96e","#f4c430","#ffd966","#e07b54","#7c6aad","#4a9d6f","#ff8fab","#fff1a8"];
-    const BEES=Array.from({length:22},()=>({
-      x:Math.random()*W,
-      y:H+30+Math.random()*90,
-      vx:(Math.random()-0.5)*2.6,
-      vy:-(3.6+Math.random()*3.4),
-      size:18+Math.random()*16,
-      wobble:Math.random()*Math.PI*2,
-      wobbleSpeed:0.055+Math.random()*0.05,
-      born:Math.random()*350, // staggered entrance, ms
-    }));
-    const origins=[{x:W*0.5,y:H*0.62},{x:W*0.18,y:H*0.72},{x:W*0.82,y:H*0.72}];
-    const CONFETTI=[];
-    origins.forEach((o,oi)=>{
-      for(let i=0;i<30;i++){
-        const ang=-Math.PI/2+(Math.random()-0.5)*2.0;
-        const spd=5.5+Math.random()*7.5;
-        CONFETTI.push({
-          x:o.x,y:o.y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,
-          w:5+Math.random()*6,h:8+Math.random()*7,
-          color:CONFETTI_COLORS[(Math.random()*CONFETTI_COLORS.length)|0],
-          rot:Math.random()*Math.PI*2, vr:(Math.random()-0.5)*0.28,
-          born:oi*90, // bursts cascade left to right
-        });
-      }
-    });
-    const SPARKLES=Array.from({length:18},()=>({
-      x:Math.random()*W, y:H*0.18+Math.random()*H*0.6,
-      size:9+Math.random()*14,
-      phase:Math.random()*Math.PI*2, speed:0.0045+Math.random()*0.004,
-    }));
-    const t0=performance.now();
-    let last=t0;
-    const draw=(now)=>{
-      const elapsed=now-t0;
-      const dt=Math.min((now-last)/16.667,3); last=now; // 60fps-normalized, capped
-      const prog=Math.min(elapsed/DURATION,1);
-      ctx.clearRect(0,0,W,H);
-      // Confetti — physics scaled by dt, gentle fade in last third
-      CONFETTI.forEach(c=>{
-        if(elapsed<c.born) return;
-        c.x+=c.vx*dt; c.y+=c.vy*dt; c.vy+=0.18*dt; c.vx*=Math.pow(0.995,dt); c.rot+=c.vr*dt;
-        const a=prog<0.6?1:Math.max(0,1-easeOutCubic((prog-0.6)/0.4));
-        ctx.save();ctx.globalAlpha=a;ctx.translate(c.x,c.y);ctx.rotate(c.rot);
-        ctx.fillStyle=c.color;ctx.fillRect(-c.w/2,-c.h/2,c.w,c.h);ctx.restore();
-      });
-      // Sparkles — time-based twinkle
-      SPARKLES.forEach(s=>{
-        const tw=(Math.sin(s.phase+elapsed*s.speed)+1)/2;
-        let a=tw*0.9; if(prog>0.55)a*=Math.max(0,1-(prog-0.55)/0.45);
-        ctx.globalAlpha=a;ctx.font=`${s.size}px serif`;ctx.textAlign="center";
-        ctx.fillText("✨",s.x,s.y);
-      });
-      // Bees — staggered entrance, smooth sway, soft fade
-      BEES.forEach(b=>{
-        if(elapsed<b.born) return;
-        b.x+=(b.vx+Math.sin(b.wobble)*1.25)*dt;
-        b.y+=b.vy*dt;
-        b.wobble+=b.wobbleSpeed*dt;
-        b.vy+=0.03*dt;
-        const a=prog<0.55?1:Math.max(0,1-easeOutCubic((prog-0.55)/0.45));
-        ctx.save();ctx.globalAlpha=a;ctx.translate(b.x,b.y);
-        ctx.rotate(Math.sin(b.wobble*0.7)*0.28);
-        ctx.font=`${b.size}px serif`;ctx.textAlign="center";
-        ctx.fillText("🐝",0,0);ctx.restore();
-      });
-      // ALL DONE — soft gold glow, ease-out-back pop, gentle float, smooth fade
-      if(prog<0.62){
-        const inP=Math.min(1,elapsed/420);
-        const scale=0.7+easeOutBack(inP)*0.4;
-        const floatY=Math.sin(elapsed*0.0022)*5;
-        const ta=prog<0.42?1:Math.max(0,1-easeOutCubic((prog-0.42)/0.2));
-        const cx=W/2, cy=H*0.4+floatY;
-        ctx.save();ctx.globalAlpha=ta;
-        const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,150);
-        glow.addColorStop(0,"rgba(201,169,110,0.32)");
-        glow.addColorStop(1,"rgba(201,169,110,0)");
-        ctx.fillStyle=glow;ctx.fillRect(cx-160,cy-160,320,320);
-        ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.textAlign="center";
-        ctx.font="900 34px -apple-system,system-ui,sans-serif";
-        ctx.shadowColor="rgba(201,169,110,0.5)";ctx.shadowBlur=18;
-        ctx.fillStyle="#c9a96e";ctx.fillText("ALL DONE",0,0);
-        ctx.shadowBlur=0;
-        ctx.font="22px serif";ctx.fillText("🎉",0,34);
-        ctx.restore();
-      }
-      ctx.globalAlpha=1;
-      if(elapsed<DURATION) beeAnimRef.current=requestAnimationFrame(draw);
-      else { ctx.clearRect(0,0,W,H); canvas.style.display="none"; }
-    };
-    if(beeAnimRef.current) cancelAnimationFrame(beeAnimRef.current);
-    beeAnimRef.current=requestAnimationFrame(draw);
-  };
-
+  const isTaskChecked=(m,d,slot)=>!!(taskChecks[m+"-"+d+"-"+slot+"-c"]);
+  const isCarried=(m,d,slot)=>!!(taskChecks[m+"-"+d+"-"+slot+"-r"]);
   const toggleTaskCheck=(m,d,slot)=>{
     const key=m+"-"+d+"-"+slot+"-c";
     const cur=taskChecks[key]||false;
     const next={...taskChecks,[key]:!cur};
     saveTaskChecks(next);
-    // Fire bees if this completes all 3 top tasks for today
-    if(!cur&&m===viewM&&d===viewDay){
+    if(!cur&&m===viewM&&d===viewDay&&onAllDone){
       const allNowDone=["t1","t2","t3"].every(s=>s===slot?true:!!(next[m+"-"+d+"-"+s+"-c"]));
-      if(allNowDone) setTimeout(launchBees,120);
+      if(allNowDone) setTimeout(onAllDone,120);
     }
   };
-  const isTaskChecked=(m,d,slot)=>!!(taskChecks[m+"-"+d+"-"+slot+"-c"]);
-  const isCarried=(m,d,slot)=>!!(taskChecks[m+"-"+d+"-"+slot+"-r"]);
   const toggleCarry=(m,d,slot)=>{
     const key=m+"-"+d+"-"+slot+"-r";
     const carrying=!taskChecks[key];
@@ -1010,25 +838,6 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
     // appendTask NEVER overwrites: it adds after the last filled slot and skips exact duplicates.
     appendTask(nm,nd,task);
   };
-  const allTasksDone=(m,d)=>{
-    return ["t1","t2","t3"].every(slot=>isTaskChecked(m,d,slot));
-  };
-  // TRACKING weekly goal met — mirrors Month tab. Boxing already shows as a mark on its day.
-  const TRK_CODES=TRK_ALL.map(h=>h.code);
-  const trkWeekMet=(code,m,d)=>{
-    if(!TRK_CODES.includes(code)) return false;
-    const wk=Q2_WEEKS.find(w=>m*100+d>=w.start[0]*100+w.start[1]&&m*100+d<=w.end[0]*100+w.end[1]);
-    if(!wk) return false;
-    let cm=wk.start[0],cd=wk.start[1],count=0;
-    for(let i=0;i<14;i++){
-      const st=allData[getMI(cm)]?.grid?.[code]?.[cd];
-      if(st==="box") count+=2; else if(st) count+=1; // boxing = 2 sessions
-      if(cm===wk.end[0]&&cd===wk.end[1]) break;
-      cd++;const mi=getMI(cm);
-      if(mi>=0&&cd>MONTHS_ARR[mi].days){const ni=mi+1;if(ni>=MONTHS_ARR.length)break;cm=MONTHS_ARR[ni].m;cd=1;}
-    }
-    return count>=(TRK_DEFAULT_GOALS[code]||1);
-  };
   const carryStreak=(m,d,text)=>{
     const t=(text||"").replace(/\u200b/g,"").trim();
     if(!t) return 0;
@@ -1043,259 +852,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
     return count;
   };
 
-  return (
-    <div style={{position:"relative"}}>
-      {/* 🐝 BEE CANVAS — fullscreen overlay */}
-      <canvas ref={beeCanvasRef} style={{display:"none",position:"fixed",top:0,left:0,width:"100%",height:"100%",zIndex:999,pointerEvents:"none"}}/>
-
-      {/* Daily progress — hero (dark like Plan/Month/Atlas, green accents when done) */}
-      <div style={{position:"relative",overflow:"hidden",background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:16,marginBottom:12,padding:"13px 16px",boxShadow:dayPct===100?"0 5px 18px rgba(20,83,45,0.22)":"0 5px 16px rgba(42,33,24,0.2)",border:dayPct===100?"1px solid rgba(74,222,128,0.45)":"1px solid rgba(201,169,110,0.14)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:13}}>
-          <span style={{fontSize:30,fontWeight:900,letterSpacing:-1,color:dayPct===100?"#4ade80":"#fff",lineHeight:1,flexShrink:0}}>{dayPct}<span style={{fontSize:14,color:dayPct===100?"#bbf7d0":"#c9a96e"}}>%</span></span>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6,gap:6}}>
-              <span style={{fontSize:13,fontWeight:900,letterSpacing:0.4,color:"#fff",whiteSpace:"nowrap"}}>{weekdayShort(viewM,viewDay)} {M_LABEL[viewM]} {viewDay}</span>
-              <span style={{fontSize:7.5,color:dayPct===100?"#86efac":"#c9a96e",fontWeight:800,letterSpacing:1.5,whiteSpace:"nowrap"}}>{dayPct===100?"✓ ALL DONE":isQ3Day(viewM,viewDay)?"TOP 3 TASKS":"TOP 3"}</span>
-            </div>
-            <div style={{background:"rgba(255,255,255,0.10)",borderRadius:20,height:6,overflow:"hidden",marginBottom:5}}>
-              <div style={{background:dayPct===100?"linear-gradient(90deg,#4ade80,#bbf7d0)":"linear-gradient(90deg,#c9a96e,#e8c98f)",height:"100%",width:dayPct+"%",borderRadius:20,transition:"width .45s cubic-bezier(.4,0,.2,1)",boxShadow:dayPct>0?"0 0 8px rgba(201,169,110,0.4)":"none"}}/>
-            </div>
-            {(()=>{
-              const q3=isQ3Day(viewM,viewDay);
-              const tDone=["t1","t2","t3"].filter(s=>isTaskChecked(viewM,viewDay,s)).length;
-              return <div style={{fontSize:7,color:"#a89e8c",fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>{wkLabel(w)} · {wkPct}% week · {q3?(tDone+"/3 tasks"):(TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length+"/"+TOP3.length+" HATs")}</div>;
-            })()}
-          </div>
-        </div>
-      </div>
-      {/* Week nav + 5-4-3-2-1 */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,gap:4}}>
-        <NBtn onClick={()=>setWeekIdx(x=>Math.max(0,x-1))} on={weekIdx>0}>‹</NBtn>
-        <div style={{textAlign:"center",flex:1}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#555",letterSpacing:0.5}}>{wkLabel(w)} · {w.sm} {w.start[1]}–{w.em} {w.end[1]}</div>
-        </div>
-        <NBtn onClick={()=>setWeekIdx(x=>Math.min(Q2_WEEKS.length-1,x+1))} on={weekIdx<Q2_WEEKS.length-1}>›</NBtn>
-      </div>
-      {/* 5-4-3-2-1 + speed mantra, with compact copy-day on the side */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8,position:"relative"}}>
-        <div style={{textAlign:"center"}}>
-          <span style={{display:"inline-block",background:"#f3ece0",color:"#8a6d3b",border:"1px solid #e6d8c0",borderRadius:20,padding:"4px 16px",fontSize:9,fontWeight:900,letterSpacing:4,fontFamily:"'SF Mono','Courier New',monospace"}}>5 · 4 · 3 · 2 · 1 GO</span>
-          <div style={{marginTop:4,fontSize:8,fontWeight:700,color:"#b3a894",letterSpacing:2}}>⚡ LIGHT SPEED · WHAT'S NEXT?</div>
-        </div>
-        <button onClick={()=>{copyText(buildDayText(viewM,viewDay,allData));setDayCopied(true);setTimeout(()=>setDayCopied(false),1800);}}
-          title={"Copy "+weekdayShort(viewM,viewDay)+" "+M_LABEL[viewM]+" "+viewDay}
-          style={{position:"absolute",right:0,top:"50%",transform:"translateY(-50%)",minWidth:52,padding:"6px 7px",borderRadius:12,background:dayCopied?"#16a34a":"#fff",color:dayCopied?"#fff":"#a89e8c",border:"1px solid "+(dayCopied?"#16a34a":"#ece6dc"),cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,boxShadow:"0 1px 5px rgba(42,33,24,0.06)",touchAction:"manipulation"}}>
-          <span style={{fontSize:15,lineHeight:1}}>{dayCopied?"✓":"⧉"}</span>
-          <span style={{fontSize:5.5,fontWeight:900,letterSpacing:0.8,lineHeight:1,whiteSpace:"nowrap"}}>{dayCopied?"COPIED":(viewM===TODAY_M&&viewDay===TODAY_D?"COPY TODAY":"COPY DAY")}</span>
-        </button>
-      </div>
-
-      {/* Day strip — full width, equal cells */}
-      <div style={{display:"flex",gap:4,marginBottom:10}}>
-        {wd.map(({m,d})=>{
-          const dd=allData[getMI(m)];const de=dd?.energy?.[d];const dp=top3pct(dd,d,m);
-          const hasNote=!!(dd?.notes?.[d]?.trim());
-          const isWL=!!(winsLogged?.[m+"-"+d]);
-          const mv=dd?.mood?.[d];
-          const isT=m===TODAY_M&&d===TODAY_D,isV=m===viewM&&d===viewDay;
-          // Streak: consecutive days where t1+t2+t3 all checked by slot key
-          const taskStreak=(()=>{
-            let s=0,cm=m,cd=d;
-            for(let i=0;i<60;i++){
-              const allDone=["t1","t2","t3"].every(slot=>isTaskChecked(cm,cd,slot));
-              if(allDone) s++;
-              else break;
-              cd--;
-              if(cd<1){const pi=MONTHS_ARR.findIndex(x=>x.m===cm)-1;if(pi<0)break;cm=MONTHS_ARR[pi].m;cd=MONTHS_ARR[pi].days;}
-            }
-            return s;
-          })();
-          return (
-            <button key={m+"-"+d} onClick={()=>{setViewDay(d);setViewM(m);}} style={{flex:1,background:isV?"#2a2118":"#fff",border:`1.5px solid ${isT&&!isV?"#c9a96e":"transparent"}`,borderRadius:12,padding:"5px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,position:"relative",boxShadow:isV?"0 4px 14px rgba(42,33,24,0.22)":"0 1px 5px rgba(42,33,24,0.06)",transition:"transform .12s ease"}}>
-              {hasNote&&<div style={{position:"absolute",top:3,right:3,width:5,height:5,borderRadius:"50%",background:isV?"#c9a96e":"#7c3aed"}}/>}
-              {isWL&&<div style={{position:"absolute",top:2,left:3,fontSize:8,lineHeight:1}}>⭐</div>}
-              <div style={{fontSize:6,fontWeight:800,color:isV?"#c9a96e":isT?"#9a7b3c":"#b0a898",letterSpacing:.5}}>{weekdayShort(m,d)}</div>
-              <div style={{fontSize:16,fontWeight:isT?900:600,color:isV?"#fff":isT?"#9a7b3c":"#1a1a1a",lineHeight:1.1}}>{d}</div>
-              <div style={{fontSize:9,color:isV?"#999":de?ecol(de):"#ddd",marginTop:2}}>{de||"·"}</div>
-              <div style={{fontSize:8,fontWeight:800,color:isV?"#aaa":dp===100?"#14532d":dp>0?"#555":"#e0e0e0"}}>{dp>0?dp+"%":""}</div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",minHeight:13,marginTop:1,paddingLeft:1,paddingRight:1}}>
-                <span style={{fontSize:7,fontWeight:900,color:isV?"#a09080":mv?moodColor(mv):"transparent",lineHeight:1}}>{mv||"·"}</span>
-                {taskStreak>=2?<span style={{fontSize:6,fontWeight:900,color:isV?"#93c5fd":"#1d4ed8",lineHeight:1}}>⚡{taskStreak}</span>:<span/>}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      {/* HAT MINI GRID — energy · mood · 14 hats */}
-      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
-        {/* Header row: group labels */}
-        <div style={{display:"flex"}}>
-          <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",height:12}}/>
-          <div style={{width:18,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:"#888"}}></div>
-          <div style={{width:18,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:"#888"}}></div>
-          {[
-            {label:"ESS", cols:4, color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
-            {label:"TOP 3", cols:3, color:"#1b5e20", bg:"#e8f5e9", bdr:"#66bb6a"},
-            {label:"TRACKING", cols:7, color:"#555", bg:"#f5f5f5", bdr:"#bbb"},
-          ].map((g,gi)=>(
-            <div key={gi} style={{width:g.cols*18,flexShrink:0,height:12,background:g.bg,borderLeft:`2px solid ${g.bdr}`,borderTop:`1px solid ${g.bdr}`,borderBottom:`1px solid ${g.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:g.color,letterSpacing:1,boxSizing:"border-box"}}>{g.label}</div>
-          ))}
-          <div style={{width:24,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"2px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",boxSizing:"border-box"}}/>
-        </div>
-        {/* Code row */}
-        <div style={{display:"flex"}}>
-          <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",borderBottom:"2px solid #ccc",height:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,color:"#bbb"}}>HAT</div>
-          <div style={{width:18,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:"#888"}}>⚡</div>
-          <div style={{width:18,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:"#888"}}>😊</div>
-          {FLAT_HATS.map((h,hi)=>{
-            const sec=MONTH_SECTIONS.find(s=>s.hats.some(x=>x.code===h.code));
-            const grp=GROUPS.find(g=>hi>=g.start&&hi<=g.end);
-            const isFirstInGrp=hi===(grp?grp.start:hi);
-            return (
-              <div key={h.code} style={{width:18,height:16,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",background:sec?.bg||"#fff",borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"88"}`,borderBottom:"2px solid #ccc",fontSize:6,fontWeight:800,color:sec?.color||"#555"}}>{h.code==="RJ2"?"R2":h.code}</div>
-            );
-          })}
-          <div style={{width:24,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"2px solid #ccc",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:900,color:"#1b5e20",boxSizing:"border-box"}}>%</div>
-        </div>
-        {/* Data rows — full current week (7 days, crosses month boundaries) */}
-        {(()=>{
-          const rowDays=wd;
-          return rowDays.map((rday,ri)=>{
-            const rData=allData[getMI(rday.m)];
-            const isSel=rday.m===viewM&&rday.d===viewDay;
-            const isToday=rday.m===TODAY_M&&rday.d===TODAY_D;
-            return (
-              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:1,borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",borderBottom:isSel?"2px solid #c9a96e":"none",background:isSel?"#fbf6ec":isToday?"#fdfaf3":"transparent",marginTop:isSel?2:0,marginBottom:isSel?2:0}}>
-                <div style={{width:36,flexShrink:0,height:20,background:isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-                  <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":isToday?"#c9a96e":"#666",lineHeight:1}}>{rday.d}</span>
-                  <span style={{fontSize:5,fontWeight:700,color:isToday?"#c9a96e":"#aaa",lineHeight:1,letterSpacing:.3}}>{weekdayShort(rday.m,rday.d)}</span>
-                </div>
-                {/* Energy cell — tap cycles */}
-                {(()=>{
-                  const curE=rData?.energy?.[rday.d];
-                  const en=ENERGY.find(e=>e.sym===curE);
-                  return (
-                    <HoldCell onHold={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color:"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
-                      <span style={{fontSize:8,fontWeight:900,color:en?"#fff":"#ddd",lineHeight:1}}>{curE||"·"}</span>
-                    </HoldCell>
-                  );
-                })()}
-                {/* Mood cell — tap cycles 1-10 */}
-                {(()=>{
-                  const mv=rData?.mood?.[rday.d];
-                  return (
-                    <HoldCell onHold={()=>cycleMood(rday.m,rday.d,mv>=10?0:(mv||0)+1)} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
-                      <span style={{fontSize:7,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}}>{mv||"·"}</span>
-                    </HoldCell>
-                  );
-                })()}
-                {FLAT_HATS.map((h,hi)=>{
-                  const sec=MONTH_SECTIONS.find(s=>s.hats.some(x=>x.code===h.code));
-                  const grp=GROUPS.find(g=>hi>=g.start&&hi<=g.end);
-                  const isFirstInGrp=hi===(grp?grp.start:hi);
-                  const st=rData?.grid?.[h.code]?.[rday.d];
-                  const mk=stMark(st,sec?.color||"#555");
-                  const isTop3=TOP3.some(t=>t.code===h.code);
-                  const goalMet=trkWeekMet(h.code,rday.m,rday.d);
-                  let bg=isTop3&&st?"#bbf7d0":st?(sec?.bg||"#f5f5f5"):"#fff";
-                  if(goalMet){ bg="#d4d4d4"; }
-                  return (
-                    <HoldCell key={h.code} onHold={()=>cycleCell(h.code,rday.m,rday.d)} title="Tap to mark" style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
-                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isTop3&&st?"#15803d":goalMet?"#666":mk.c}}>{mk.ch}</span>
-                    </HoldCell>
-                  );
-                })}
-                {(()=>{const pp=top3pct(rData,rday.d,rday.m);const q3=isQ3Day(rday.m,rday.d);return (
-                  <div style={{width:24,flexShrink:0,height:20,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",borderLeft:q3?"2px solid #e6c67a":"2px solid #ddd",background:isSel?"#f3ede2":isToday?"#fdfaf3":"#fafafa"}}>
-                    <span style={{fontSize:8,fontWeight:800,color:pp===100?(q3?"#8a5a00":"#14532d"):pp>0?(q3?"#b8860b":"#16a34a"):"#ddd"}}>{pp>0?pp:""}</span>
-                  </div>
-                );})()}
-              </div>
-            );
-          });
-        })()}
-        {/* Summary footer */}
-        <div style={{padding:"2px 8px",background:"#fafafa",borderTop:"1px solid #eee",display:"flex",gap:8,alignItems:"center"}}>
-          <span style={{fontSize:7,color:"#bf5000",fontWeight:700}}>ESS {ESSENTIALS.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{ESSENTIALS.length}</span>
-          <span style={{fontSize:7,color:isQ3Day(viewM,viewDay)?"#b8860b":"#1b5e20",fontWeight:700}}>{isQ3Day(viewM,viewDay)?"TASKS":"TOP3"} {dayPct}%</span>
-          <span style={{fontSize:7,color:"#555"}}>{TRK_ALL.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{TRK_ALL.length} trk</span>
-          <span style={{marginLeft:"auto",fontSize:6.5,color:"#b0a898",fontWeight:700,letterSpacing:.5}}>👆 TAP TO MARK</span>
-        </div>
-      </div>
-
-      {/* EXTRA HATS — collapsible, before tasks */}
-      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
-        <div onClick={()=>setShowLib(x=>!x)} style={{padding:"6px 12px",background:"#faf7f3",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
-          <span style={{fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>
-            EXTRA HATS
-            {(curExtra.length+curLib.length)>0&&<span style={{fontWeight:400,color:"#7c3aed",marginLeft:6}}>{[...curExtra,...curLib].map(e=>e.includes(":")?e.split(":")[0]:e).join(" · ")}</span>}
-          </span>
-          <span style={{fontSize:9,color:"#aaa"}}>{showLib?"▲":"▼"}</span>
-        </div>
-        {showLib&&(()=>{
-          const cycleExtra=(code)=>{
-            const cur=curExtra.find(e=>e===code||e.startsWith(code+":"));
-            if(!cur) { toggleExtraHat(viewM,viewDay,code,"x"); }
-            else {
-              const st=cur.includes(":")?cur.split(":")[1]:"x";
-              if(st==="x") toggleExtraHat(viewM,viewDay,code,"box");
-              else toggleExtraHat(viewM,viewDay,code,null);
-            }
-          };
-          const cycleLib=(code)=>{
-            const cur=curLib.find(e=>e===code||e.startsWith(code+":"));
-            if(!cur) { toggleLibHat(viewM,viewDay,code,"x"); }
-            else {
-              const st=cur.includes(":")?cur.split(":")[1]:"x";
-              if(st==="x") toggleLibHat(viewM,viewDay,code,"box");
-              else toggleLibHat(viewM,viewDay,code,null);
-            }
-          };
-          const getExtraSt=(code)=>{const e=curExtra.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
-          const getLibSt=(code)=>{const e=curLib.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
-          const CAT_META={
-            P:{label:"P · PRIORITY",  color:"#7c3aed", bg:"#f5f3ff", bdr:"#c4b5fd"},
-            M:{label:"M · MIND",      color:"#1565c0", bg:"#e3f2fd", bdr:"#90caf9"},
-            D:{label:"D · DEVELOP",   color:"#795548", bg:"#efebe9", bdr:"#bcaaa4"},
-            S:{label:"S · SOCIAL",    color:"#ca8a04", bg:"#fffde7", bdr:"#fde68a"},
-            R:{label:"R · REFLECT",   color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
-            L:{label:"L · LOGISTICS", color:"#546e7a", bg:"#f5f5f5", bdr:"#cfd8dc"},
-            C:{label:"C · CREATIVE",  color:"#16a34a", bg:"#f0fdf4", bdr:"#86efac"},
-          };
-          const activeGroups={};
-          EXTRA_ACTIVE.forEach(h=>{const cat=h.cat||h.code[0];if(!activeGroups[cat])activeGroups[cat]=[];activeGroups[cat].push(h);});
-          const libGroups={};
-          LIB_TAGS.forEach(h=>{const cat=h.cat||h.code[0];if(!libGroups[cat])libGroups[cat]=[];libGroups[cat].push(h);});
-          const renderHatBtn=(h,st,onTap,isLib)=>{
-            const catKey=h.cat||h.code[0];
-            const cm=CAT_META[catKey]||{color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
-            const isOn=!!st,isBox=st==="box";
-            return (
-              <button key={h.code} onClick={onTap} style={{padding:"5px 3px",borderRadius:6,border:`${isBox?"2.5px":"1.5px"} solid ${isOn?(isBox?"#1565c0":cm.color):"#e0e0e0"}`,background:isOn?(isBox?"#dbeafe":cm.bg):"#fafafa",cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:0}}>
-                <span style={{fontSize:isLib?8:9,fontWeight:900,color:isOn?(isBox?"#1e40af":cm.color):"#999",lineHeight:1}}>{isBox?"⊠":isOn?"×":"·"} {h.emoji}{h.code}</span>
-                <span style={{fontSize:5.5,color:isOn?"#444":"#999",lineHeight:1,textAlign:"center",whiteSpace:"nowrap",overflow:"hidden",maxWidth:50}}>{h.label}</span>
-              </button>
-            );
-          };
-          return (
-            <div style={{padding:"8px 10px 6px",borderTop:"1px solid #f0f0f0"}}>
-              <div style={{fontSize:7,color:"#7c3aed",letterSpacing:2,fontWeight:900,marginBottom:6,borderBottom:"1px solid #e0e0e0",paddingBottom:3}}>ACTIVE · tap=done · 2×=boxing</div>
-              {Object.entries(activeGroups).map(([cat,hats])=>{
-                const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
-                return (<div key={cat} style={{marginBottom:6}}><div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:3,paddingLeft:2}}>{cm.label}</div><div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>{hats.map(h=>renderHatBtn(h,getExtraSt(h.code),()=>cycleExtra(h.code),false))}</div></div>);
-              })}
-              <div style={{fontSize:7,color:"#555",letterSpacing:2,fontWeight:900,marginTop:8,marginBottom:6,borderBottom:"1px solid #e0e0e0",paddingBottom:3}}>LIBRARY · {LIB_TAGS.length} TAGS · tap=done · 2×=boxing</div>
-              {Object.entries(libGroups).map(([cat,hats])=>{
-                const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
-                return (<div key={cat} style={{marginBottom:6}}><div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:3,paddingLeft:2}}>{cm.label}</div><div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>{hats.map(h=>renderHatBtn(h,getLibSt(h.code),()=>cycleLib(h.code),true))}</div></div>);
-              })}
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* TOP 3 TASKS — per-day slot count stored in localStorage, drag uses component-level refs */}
-      {(()=>{
+        const data = allData[getMI(viewM)];
         const tasks = data?.tasks?.[viewDay]||{};
         const totalSlots = getSlotCount(viewM,viewDay,tasks);
         const slots = Array.from({length:totalSlots},(_,i)=>"t"+(i+1));
@@ -1440,41 +997,44 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             const pending=flagged.filter(f=>!presentToday.has((f.text||"").trim().toLowerCase()));
             if(!pending.length) return null;
             const addToTop=(text)=>{
+              const t=(text||"").replace(/\u200b/g,"").trim();
+              if(!t) return;
+              // Snapshot the whole day. Text + done + carried always travel together.
               const snap=slots.map(s=>({text:tasks[s]||"",chk:isTaskChecked(viewM,viewDay,s),car:isCarried(viewM,viewDay,s)}));
-              const arr=[{text,chk:false,car:false},...snap];
+              // Trailing EMPTY slots can be reused. Real text is never dropped.
+              while(snap.length&&!(snap[snap.length-1].text||"").replace(/\u200b/g,"").trim()) snap.pop();
+              if(snap.some(st=>(st.text||"").replace(/\u200b/g,"").trim().toLowerCase()===t.toLowerCase())) return; // already on this day
+              const arr=[{text:t,chk:false,car:false},...snap];
+              if(arr.length>10){ alert("This day already has 10 tasks. Finish or remove one first — nothing was changed."); return; }
               const next={...taskChecks};
+              // Write EVERY item back, including the one pushed off the bottom.
               arr.forEach((st,i)=>{
-                if(i>=slots.length) return;
-                const slot=slots[i];
+                const slot="t"+(i+1);
                 if((tasks[slot]||"")!==st.text) setTask(viewM,viewDay,slot,st.text);
                 const kC=viewM+"-"+viewDay+"-"+slot+"-c",kR=viewM+"-"+viewDay+"-"+slot+"-r";
                 if(st.chk) next[kC]=true; else delete next[kC];
                 if(st.car) next[kR]=true; else delete next[kR];
               });
               saveTaskChecks(next);
-              const overflow=arr.slice(slots.length).filter(st=>escKey(st.text));
-              if(overflow.length){
-                const ne={...escalations};
-                overflow.forEach(st=>{const k=escKey(st.text);if(!ne[k])ne[k]={text:(st.text||"").replace(/\u200b/g,"").trim(),since:TODAY_M+"-"+TODAY_D};});
-                saveEscalations(ne);
-              }
+              // Make sure the day shows enough rows to hold what we just wrote.
+              if(arr.length>slots.length) saveTaskSlotsMap({...taskSlotsMap,[viewM+"-"+viewDay]:arr.length});
             };
             return (
-              <div style={{background:"#fff",borderRadius:16,border:"1px solid #fde4c4",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(180,83,9,0.06)"}}>
-                <button onClick={()=>setEscOpen(o=>!o)} style={{width:"100%",display:"flex",alignItems:"center",gap:7,padding:"9px 12px",background:"linear-gradient(135deg,#fff7ed,#ffedd5)",border:"none",cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>
+              <div style={{background:"#fff",borderRadius:16,border:"1px solid #fecdd3",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(220,38,38,0.07)"}}>
+                <button onClick={()=>setEscOpen(o=>!o)} style={{width:"100%",display:"flex",alignItems:"center",gap:7,padding:"9px 12px",background:"linear-gradient(135deg,#fff1f2,#ffe4e6)",border:"none",cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>
                   <span style={{fontSize:10,lineHeight:1}}>⚡</span>
-                  <span style={{fontSize:8,fontWeight:900,color:"#b45309",letterSpacing:1.5}}>ESCALATED · START THESE FIRST</span>
-                  <span style={{background:"#f59e0b",color:"#fff",borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 7px",lineHeight:1.4}}>{pending.length}</span>
+                  <span style={{fontSize:8,fontWeight:900,color:"#be123c",letterSpacing:1.5}}>ESCALATED · START THESE FIRST</span>
+                  <span style={{background:"#e11d48",color:"#fff",borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 7px",lineHeight:1.4}}>{pending.length}</span>
                   <span style={{flex:1}}/>
-                  <span style={{fontSize:12,color:"#c9954e",transform:escOpen?"rotate(90deg)":"none",transition:"transform .2s",display:"inline-block"}}>▸</span>
+                  <span style={{fontSize:12,color:"#e77a8c",transform:escOpen?"rotate(90deg)":"none",transition:"transform .2s",display:"inline-block"}}>▸</span>
                 </button>
                 {escOpen&&(
                   <div style={{padding:"10px 12px",display:"flex",flexDirection:"column",gap:7}}>
                   {pending.map((f,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:8,background:"#fffaf4",borderRadius:12,border:"1px solid #fcd9a8",borderLeft:"3px solid #f59e0b",padding:"9px 10px",boxShadow:"0 1px 5px rgba(180,83,9,0.07)"}}>
-                      <span style={{fontSize:11.5,color:"#7c2d12",fontWeight:700,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.text}</span>
-                      <button onClick={()=>addToTop(f.text)} style={{flexShrink:0,background:"#f59e0b",color:"#fff",border:"none",borderRadius:20,padding:"5px 11px",fontSize:8,fontWeight:900,letterSpacing:0.5,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 6px rgba(245,158,11,0.3)",touchAction:"manipulation"}}>↑ T1</button>
-                      <button onClick={()=>{if(confirm("Remove \""+f.text+"\" from escalated?"))toggleEscalation(f.text);}} title="Remove flag" style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:"#fdf0e2",border:"none",fontSize:11,color:"#c4906a",cursor:"pointer",padding:0,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>✕</button>
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:8,background:"#fff5f6",borderRadius:12,border:"1px solid #fecdd3",borderLeft:"3px solid #f43f5e",padding:"9px 10px",boxShadow:"0 1px 5px rgba(220,38,38,0.07)"}}>
+                      <span style={{fontSize:11.5,color:"#881337",fontWeight:700,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.text}</span>
+                      <button onClick={()=>addToTop(f.text)} style={{flexShrink:0,background:"#e11d48",color:"#fff",border:"none",borderRadius:20,padding:"5px 11px",fontSize:8,fontWeight:900,letterSpacing:0.5,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 6px rgba(225,29,72,0.3)",touchAction:"manipulation"}}>↑ T1</button>
+                      <button onClick={()=>{if(confirm("Remove \""+f.text+"\" from escalated?"))toggleEscalation(f.text);}} title="Remove flag" style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:"#ffe4e6",border:"none",fontSize:11,color:"#d98a99",cursor:"pointer",padding:0,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>✕</button>
                     </div>
                   ))}
                   </div>
@@ -1484,34 +1044,561 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           })()}
           </React.Fragment>
         );
+}
+
+function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,appendTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged,hlChecked,toggleHlChecked,taskChecks,saveTaskChecks,taskSlotsMap,saveTaskSlotsMap,escalations,saveEscalations,planData}) {
+  const data = allData[getMI(viewM)];
+  const w = Q2_WEEKS[weekIdx];
+  const wd = weekDays();
+  const [dayCopied,setDayCopied]=useState(false);
+  const [escOpen,setEscOpen]=useState(false);
+  const dayPct = top3pct(data, viewDay, viewM);
+  const wkPct = weeklyTop3(allData, wd);
+  const curMood = data?.mood?.[viewDay]||null;
+  const curNote = data?.notes?.[viewDay]||"";
+  const curHighlight = data?.highlights?.[viewDay]||"";
+  const curWins = data?.wins?.[viewDay]||"";
+  const curExtra = data?.extraHats?.[viewDay]||[];
+  const curLib = data?.libHats?.[viewDay]||[];
+  const [showLib,setShowLib]=useState(false);
+
+  // Top 3 slot counts, escalations and task checks live in App now and are shared
+  // with the Plan tab. Drag state lives inside Top3Tasks.
+
+  const [priChecks,setPriChecks]=useState(()=>{try{const v=localStorage.getItem("lifeos_v8_priChecks");return v?JSON.parse(v):{}}catch(e){return {};}});
+  // Week Priorities drag-to-reorder — same pattern as Top 3 Tasks
+  const prioDragIdxRef=useRef(null);
+  const prioDragOverIdxRef=useRef(null);
+  const [draggingPrio,setDraggingPrio]=useState(null);
+  const prioRowRefsArr=useRef([]);
+  const savePriChecks=(next)=>{setPriChecks(next);try{localStorage.setItem("lifeos_v8_priChecks",JSON.stringify(next));}catch(e){}};
+  const toggleCheck=(wn,i)=>{const key="w"+wn;const cur=priChecks[key]||[];const next=cur.includes(i)?cur.filter(x=>x!==i):[...cur,i];savePriChecks({...priChecks,[key]:next});};
+  const isChecked=(wn,i)=>(priChecks["w"+wn]||[]).includes(i);
+
+  // Key format: "m-d-slot-c" for check, "m-d-slot-r" for carry
+  // slot = "t1","t2","t3"... — stays with the slot, not the visual position
+  // 🐝 BEE CELEBRATION — canvas overlay when all 3 tasks done
+  const beeCanvasRef=useRef(null);
+  const beeAnimRef=useRef(null);
+  const launchBees=()=>{
+    const canvas=beeCanvasRef.current;
+    if(!canvas) return;
+    canvas.style.display="block";
+    const ctx=canvas.getContext("2d");
+    const DPR=Math.min(window.devicePixelRatio||1,2);
+    const W=window.innerWidth, H=window.innerHeight;
+    canvas.width=W*DPR; canvas.height=H*DPR;
+    canvas.style.width=W+"px"; canvas.style.height=H+"px";
+    ctx.scale(DPR,DPR);
+    const DURATION=2800; // ms — same speed on every screen
+    const easeOutCubic=t=>1-Math.pow(1-t,3);
+    const easeOutBack=t=>{const c=1.70158;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2);};
+    const CONFETTI_COLORS=["#c9a96e","#f4c430","#ffd966","#e07b54","#7c6aad","#4a9d6f","#ff8fab","#fff1a8"];
+    const BEES=Array.from({length:22},()=>({
+      x:Math.random()*W,
+      y:H+30+Math.random()*90,
+      vx:(Math.random()-0.5)*2.6,
+      vy:-(3.6+Math.random()*3.4),
+      size:18+Math.random()*16,
+      wobble:Math.random()*Math.PI*2,
+      wobbleSpeed:0.055+Math.random()*0.05,
+      born:Math.random()*350, // staggered entrance, ms
+    }));
+    const origins=[{x:W*0.5,y:H*0.62},{x:W*0.18,y:H*0.72},{x:W*0.82,y:H*0.72}];
+    const CONFETTI=[];
+    origins.forEach((o,oi)=>{
+      for(let i=0;i<30;i++){
+        const ang=-Math.PI/2+(Math.random()-0.5)*2.0;
+        const spd=5.5+Math.random()*7.5;
+        CONFETTI.push({
+          x:o.x,y:o.y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,
+          w:5+Math.random()*6,h:8+Math.random()*7,
+          color:CONFETTI_COLORS[(Math.random()*CONFETTI_COLORS.length)|0],
+          rot:Math.random()*Math.PI*2, vr:(Math.random()-0.5)*0.28,
+          born:oi*90, // bursts cascade left to right
+        });
+      }
+    });
+    const SPARKLES=Array.from({length:18},()=>({
+      x:Math.random()*W, y:H*0.18+Math.random()*H*0.6,
+      size:9+Math.random()*14,
+      phase:Math.random()*Math.PI*2, speed:0.0045+Math.random()*0.004,
+    }));
+    const t0=performance.now();
+    let last=t0;
+    const draw=(now)=>{
+      const elapsed=now-t0;
+      const dt=Math.min((now-last)/16.667,3); last=now; // 60fps-normalized, capped
+      const prog=Math.min(elapsed/DURATION,1);
+      ctx.clearRect(0,0,W,H);
+      // Confetti — physics scaled by dt, gentle fade in last third
+      CONFETTI.forEach(c=>{
+        if(elapsed<c.born) return;
+        c.x+=c.vx*dt; c.y+=c.vy*dt; c.vy+=0.18*dt; c.vx*=Math.pow(0.995,dt); c.rot+=c.vr*dt;
+        const a=prog<0.6?1:Math.max(0,1-easeOutCubic((prog-0.6)/0.4));
+        ctx.save();ctx.globalAlpha=a;ctx.translate(c.x,c.y);ctx.rotate(c.rot);
+        ctx.fillStyle=c.color;ctx.fillRect(-c.w/2,-c.h/2,c.w,c.h);ctx.restore();
+      });
+      // Sparkles — time-based twinkle
+      SPARKLES.forEach(s=>{
+        const tw=(Math.sin(s.phase+elapsed*s.speed)+1)/2;
+        let a=tw*0.9; if(prog>0.55)a*=Math.max(0,1-(prog-0.55)/0.45);
+        ctx.globalAlpha=a;ctx.font=`${s.size}px serif`;ctx.textAlign="center";
+        ctx.fillText("✨",s.x,s.y);
+      });
+      // Bees — staggered entrance, smooth sway, soft fade
+      BEES.forEach(b=>{
+        if(elapsed<b.born) return;
+        b.x+=(b.vx+Math.sin(b.wobble)*1.25)*dt;
+        b.y+=b.vy*dt;
+        b.wobble+=b.wobbleSpeed*dt;
+        b.vy+=0.03*dt;
+        const a=prog<0.55?1:Math.max(0,1-easeOutCubic((prog-0.55)/0.45));
+        ctx.save();ctx.globalAlpha=a;ctx.translate(b.x,b.y);
+        ctx.rotate(Math.sin(b.wobble*0.7)*0.28);
+        ctx.font=`${b.size}px serif`;ctx.textAlign="center";
+        ctx.fillText("🐝",0,0);ctx.restore();
+      });
+      // ALL DONE — soft gold glow, ease-out-back pop, gentle float, smooth fade
+      if(prog<0.62){
+        const inP=Math.min(1,elapsed/420);
+        const scale=0.7+easeOutBack(inP)*0.4;
+        const floatY=Math.sin(elapsed*0.0022)*5;
+        const ta=prog<0.42?1:Math.max(0,1-easeOutCubic((prog-0.42)/0.2));
+        const cx=W/2, cy=H*0.4+floatY;
+        ctx.save();ctx.globalAlpha=ta;
+        const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,150);
+        glow.addColorStop(0,"rgba(201,169,110,0.32)");
+        glow.addColorStop(1,"rgba(201,169,110,0)");
+        ctx.fillStyle=glow;ctx.fillRect(cx-160,cy-160,320,320);
+        ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.textAlign="center";
+        ctx.font="900 34px -apple-system,system-ui,sans-serif";
+        ctx.shadowColor="rgba(201,169,110,0.5)";ctx.shadowBlur=18;
+        ctx.fillStyle="#c9a96e";ctx.fillText("ALL DONE",0,0);
+        ctx.shadowBlur=0;
+        ctx.font="22px serif";ctx.fillText("🎉",0,34);
+        ctx.restore();
+      }
+      ctx.globalAlpha=1;
+      if(elapsed<DURATION) beeAnimRef.current=requestAnimationFrame(draw);
+      else { ctx.clearRect(0,0,W,H); canvas.style.display="none"; }
+    };
+    if(beeAnimRef.current) cancelAnimationFrame(beeAnimRef.current);
+    beeAnimRef.current=requestAnimationFrame(draw);
+  };
+
+  const isTaskChecked=(m,d,slot)=>!!(taskChecks[m+"-"+d+"-"+slot+"-c"]);
+  // TRACKING weekly goal met — mirrors Month tab. Boxing already shows as a mark on its day.
+  const TRK_CODES=TRK_ALL.map(h=>h.code);
+  const trkWeekMet=(code,m,d)=>{
+    if(!TRK_CODES.includes(code)) return false;
+    const wk=Q2_WEEKS.find(w=>m*100+d>=w.start[0]*100+w.start[1]&&m*100+d<=w.end[0]*100+w.end[1]);
+    if(!wk) return false;
+    let cm=wk.start[0],cd=wk.start[1],count=0;
+    for(let i=0;i<14;i++){
+      const st=allData[getMI(cm)]?.grid?.[code]?.[cd];
+      if(st==="box") count+=2; else if(st) count+=1; // boxing = 2 sessions
+      if(cm===wk.end[0]&&cd===wk.end[1]) break;
+      cd++;const mi=getMI(cm);
+      if(mi>=0&&cd>MONTHS_ARR[mi].days){const ni=mi+1;if(ni>=MONTHS_ARR.length)break;cm=MONTHS_ARR[ni].m;cd=1;}
+    }
+    return count>=(TRK_DEFAULT_GOALS[code]||1);
+  };
+
+  return (
+    <div style={{position:"relative"}}>
+      {/* 🐝 BEE CANVAS — fullscreen overlay */}
+      <canvas ref={beeCanvasRef} style={{display:"none",position:"fixed",top:0,left:0,width:"100%",height:"100%",zIndex:999,pointerEvents:"none"}}/>
+
+      {/* Daily progress — hero (dark like Plan/Month/Atlas, green accents when done) */}
+      <div style={{position:"relative",overflow:"hidden",background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:16,marginBottom:12,padding:"13px 16px",boxShadow:dayPct===100?"0 5px 18px rgba(20,83,45,0.22)":"0 5px 16px rgba(42,33,24,0.2)",border:dayPct===100?"1px solid rgba(74,222,128,0.45)":"1px solid rgba(201,169,110,0.14)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:13}}>
+          <span style={{fontSize:30,fontWeight:900,letterSpacing:-1,color:dayPct===100?"#4ade80":"#fff",lineHeight:1,flexShrink:0}}>{dayPct}<span style={{fontSize:14,color:dayPct===100?"#bbf7d0":"#c9a96e"}}>%</span></span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6,gap:6}}>
+              <span style={{fontSize:13,fontWeight:900,letterSpacing:0.4,color:"#fff",whiteSpace:"nowrap"}}>{weekdayShort(viewM,viewDay)} {M_LABEL[viewM]} {viewDay}</span>
+              <span style={{fontSize:7.5,color:dayPct===100?"#86efac":"#c9a96e",fontWeight:800,letterSpacing:1.5,whiteSpace:"nowrap"}}>{dayPct===100?"✓ ALL DONE":isQ3Day(viewM,viewDay)?"TOP 3 TASKS":"TOP 3"}</span>
+            </div>
+            <div style={{background:"rgba(255,255,255,0.10)",borderRadius:20,height:6,overflow:"hidden",marginBottom:5}}>
+              <div style={{background:dayPct===100?"linear-gradient(90deg,#4ade80,#bbf7d0)":"linear-gradient(90deg,#c9a96e,#e8c98f)",height:"100%",width:dayPct+"%",borderRadius:20,transition:"width .45s cubic-bezier(.4,0,.2,1)",boxShadow:dayPct>0?"0 0 8px rgba(201,169,110,0.4)":"none"}}/>
+            </div>
+            {(()=>{
+              const q3=isQ3Day(viewM,viewDay);
+              const tDone=["t1","t2","t3"].filter(s=>isTaskChecked(viewM,viewDay,s)).length;
+              return <div style={{fontSize:7,color:"#a89e8c",fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>{wkLabel(w)} · {wkPct}% week · {q3?(tDone+"/3 tasks"):(TOP3.filter(h=>data?.grid?.[h.code]?.[viewDay]).length+"/"+TOP3.length+" HATs")}</div>;
+            })()}
+          </div>
+        </div>
+      </div>
+      {/* Week nav + 5-4-3-2-1 */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,gap:4}}>
+        <NBtn onClick={()=>setWeekIdx(x=>Math.max(0,x-1))} on={weekIdx>0}>‹</NBtn>
+        <div style={{textAlign:"center",flex:1}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#555",letterSpacing:0.5}}>{wkLabel(w)} · {w.sm} {w.start[1]}–{w.em} {w.end[1]}</div>
+        </div>
+        <NBtn onClick={()=>setWeekIdx(x=>Math.min(Q2_WEEKS.length-1,x+1))} on={weekIdx<Q2_WEEKS.length-1}>›</NBtn>
+      </div>
+      {/* 5-4-3-2-1 + speed mantra, with compact copy-day on the side */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8,position:"relative"}}>
+        <div style={{textAlign:"center"}}>
+          <span style={{display:"inline-block",background:"#f3ece0",color:"#8a6d3b",border:"1px solid #e6d8c0",borderRadius:20,padding:"4px 16px",fontSize:9,fontWeight:900,letterSpacing:4,fontFamily:"'SF Mono','Courier New',monospace"}}>5 · 4 · 3 · 2 · 1 GO</span>
+          <div style={{marginTop:4,fontSize:8,fontWeight:700,color:"#b3a894",letterSpacing:2}}>⚡ LIGHT SPEED · WHAT'S NEXT?</div>
+        </div>
+        <button onClick={()=>{copyText(buildDayText(viewM,viewDay,allData,planData));setDayCopied(true);setTimeout(()=>setDayCopied(false),1800);}}
+          title={"Copy everything for "+weekdayShort(viewM,viewDay)+" "+M_LABEL[viewM]+" "+viewDay+" — Top 3, grid, notes, wins, brainstorm and timebox"}
+          style={{position:"absolute",right:0,top:"50%",transform:"translateY(-50%)",minWidth:52,padding:"6px 7px",borderRadius:12,background:dayCopied?"#16a34a":"#fff",color:dayCopied?"#fff":"#a89e8c",border:"1px solid "+(dayCopied?"#16a34a":"#ece6dc"),cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,boxShadow:"0 1px 5px rgba(42,33,24,0.06)",touchAction:"manipulation"}}>
+          <span style={{fontSize:15,lineHeight:1}}>{dayCopied?"✓":"⧉"}</span>
+          <span style={{fontSize:5.5,fontWeight:900,letterSpacing:0.8,lineHeight:1,whiteSpace:"nowrap"}}>{dayCopied?"COPIED":(viewM===TODAY_M&&viewDay===TODAY_D?"COPY TODAY":"COPY DAY")}</span>
+        </button>
+      </div>
+
+      {/* Day strip — full width, equal cells */}
+      <div style={{display:"flex",gap:4,marginBottom:10}}>
+        {wd.map(({m,d})=>{
+          const dd=allData[getMI(m)];const de=dd?.energy?.[d];const dp=top3pct(dd,d,m);
+          const hasNote=!!(dd?.notes?.[d]?.trim());
+          const isWL=!!(winsLogged?.[m+"-"+d]);
+          const mv=dd?.mood?.[d];
+          const isT=m===TODAY_M&&d===TODAY_D,isV=m===viewM&&d===viewDay;
+          // Streak: consecutive days where t1+t2+t3 all checked by slot key
+          const taskStreak=(()=>{
+            let s=0,cm=m,cd=d;
+            for(let i=0;i<60;i++){
+              const allDone=["t1","t2","t3"].every(slot=>isTaskChecked(cm,cd,slot));
+              if(allDone) s++;
+              else break;
+              cd--;
+              if(cd<1){const pi=MONTHS_ARR.findIndex(x=>x.m===cm)-1;if(pi<0)break;cm=MONTHS_ARR[pi].m;cd=MONTHS_ARR[pi].days;}
+            }
+            return s;
+          })();
+          return (
+            <button key={m+"-"+d} onClick={()=>{setViewDay(d);setViewM(m);}} style={{flex:1,background:isV?"#2a2118":"#fff",border:`1.5px solid ${isT&&!isV?"#c9a96e":"transparent"}`,borderRadius:12,padding:"5px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,position:"relative",boxShadow:isV?"0 4px 14px rgba(42,33,24,0.22)":"0 1px 5px rgba(42,33,24,0.06)",transition:"transform .12s ease"}}>
+              {hasNote&&<div style={{position:"absolute",top:3,right:3,width:5,height:5,borderRadius:"50%",background:isV?"#c9a96e":"#7c3aed"}}/>}
+              {isWL&&<div style={{position:"absolute",top:2,left:3,fontSize:8,lineHeight:1}}>⭐</div>}
+              <div style={{fontSize:6,fontWeight:800,color:isV?"#c9a96e":isT?"#9a7b3c":"#b0a898",letterSpacing:.5}}>{weekdayShort(m,d)}</div>
+              <div style={{fontSize:16,fontWeight:isT?900:600,color:isV?"#fff":isT?"#9a7b3c":"#1a1a1a",lineHeight:1.1}}>{d}</div>
+              <div style={{fontSize:9,color:isV?"#999":de?ecol(de):"#ddd",marginTop:2}}>{de||"·"}</div>
+              <div style={{fontSize:8,fontWeight:800,color:isV?"#aaa":dp===100?"#14532d":dp>0?"#555":"#e0e0e0"}}>{dp>0?dp+"%":""}</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",minHeight:13,marginTop:1,paddingLeft:1,paddingRight:1}}>
+                <span style={{fontSize:7,fontWeight:900,color:isV?"#a09080":mv?moodColor(mv):"transparent",lineHeight:1}}>{mv||"·"}</span>
+                {taskStreak>=2?<span style={{fontSize:6,fontWeight:900,color:isV?"#93c5fd":"#1d4ed8",lineHeight:1}}>⚡{taskStreak}</span>:<span/>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {/* HAT MINI GRID — same columns, same order, same colors as the Month tab grid */}
+      {(()=>{
+        const isQ3v=isQ3Day(viewM,viewDay);
+        const mGroups=isQ3v?Q3_GROUPS:GROUPS;
+        const mMeta=isQ3v?Q3_SECTION_META:SECTION_META;
+        const mFlat=isQ3v?Q3_FLAT_HATS:FLAT_HATS;
+        const mPillars=isQ3v?Q3_PILLARS:TOP3;
+        const mTrk=isQ3v?Q3_TRACKING:TRK_ALL;
+        return (
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
+        {/* Header row: group labels */}
+        <div style={{display:"flex"}}>
+          <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",height:12}}/>
+          {isQ3v&&(
+            <div style={{width:4*18,flexShrink:0,height:12,background:Q3_TASKC.bg,borderLeft:`2px solid ${Q3_TASKC.bdr}`,borderTop:`1px solid ${Q3_TASKC.bdr}`,borderBottom:`1px solid ${Q3_TASKC.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:Q3_TASKC.color,letterSpacing:0.5}}>TOP 3 TASKS</div>
+          )}
+          <div style={{width:36,flexShrink:0,height:12,background:PULSE_C.bg,borderLeft:`2px solid ${PULSE_C.bdr}`,borderTop:`1px solid ${PULSE_C.bdr}`,borderBottom:`1px solid ${PULSE_C.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:PULSE_C.color,letterSpacing:0.5,boxSizing:"border-box"}}>PULSE</div>
+          <div style={{width:3,flexShrink:0,height:12,background:"#171310"}}/>
+          {(isQ3v?mGroups.map(g=>({label:g.label,cols:g.end-g.start+1,color:g.color,bg:g.bg,bdr:g.bdr})):[
+            {label:"ESS", cols:4, color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
+            {label:"TOP 3", cols:3, color:"#1b5e20", bg:"#e8f5e9", bdr:"#66bb6a"},
+            {label:"TRACKING", cols:7, color:"#555", bg:"#f5f5f5", bdr:"#bbb"},
+          ]).map((g,gi)=>(
+            <div key={gi} style={{width:g.cols*18,flexShrink:0,height:12,background:g.bg,borderLeft:`2px solid ${g.bdr}`,borderTop:`1px solid ${g.bdr}`,borderBottom:`1px solid ${g.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:g.color,letterSpacing:1,boxSizing:"border-box"}}>{g.label}</div>
+          ))}
+          <div style={{width:1,flexShrink:0,height:12,background:"#bbb"}}/>
+          {!isQ3v&&<div style={{width:24,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"2px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",boxSizing:"border-box"}}/>}
+        </div>
+        {/* Code row */}
+        <div style={{display:"flex"}}>
+          <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",borderBottom:"2px solid #ccc",height:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,color:"#bbb"}}>HAT</div>
+          {isQ3v&&[...Q3_TASK_COLS,{slot:"pct",label:"T%"}].map((tc,ti)=>(
+            <div key={tc.slot} style={{width:18,flexShrink:0,height:16,background:Q3_TASKC.bg,borderLeft:`${ti===0?"2":"1"}px solid ${Q3_TASKC.bdr}${ti===0?"":"88"}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:Q3_TASKC.color}}>{tc.label}</div>
+          ))}
+          <div style={{width:18,flexShrink:0,height:16,background:PULSE_C.bg,borderLeft:`2px solid ${PULSE_C.bdr}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:PULSE_C.color}}>⚡</div>
+          <div style={{width:18,flexShrink:0,height:16,background:PULSE_C.bg,borderLeft:`1px solid ${PULSE_C.bdr}88`,borderRight:`1px solid ${PULSE_C.bdr}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:PULSE_C.color}}>😊</div>
+          <div style={{width:3,flexShrink:0,height:16,background:"#171310"}}/>
+          {mFlat.map((h,hi)=>{
+            const sec=isQ3v?(mMeta.find(mm=>mm.h.code===h.code)?.sec):MONTH_SECTIONS.find(s=>s.hats.some(x=>x.code===h.code));
+            const grp=mGroups.find(g=>hi>=g.start&&hi<=g.end);
+            const isFirstInGrp=hi===(grp?grp.start:hi);
+            return (
+              <div key={h.code} style={{width:18,height:16,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",background:sec?.bg||"#fff",borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"88"}`,borderBottom:"2px solid #ccc",fontSize:(h.disp||h.code).length>2?5:6,fontWeight:800,color:sec?.color||"#555"}}>{h.disp?h.disp:(h.code==="RJ2"?"R2":h.code)}</div>
+            );
+          })}
+          <div style={{width:1,flexShrink:0,height:16,background:"#bbb"}}/>
+          {!isQ3v&&<div style={{width:24,flexShrink:0,height:16,background:"#f0f0f0",borderLeft:"2px solid #ccc",borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:900,color:"#1b5e20",boxSizing:"border-box"}}>%</div>}
+        </div>
+        {/* Data rows — full current week (7 days, crosses month boundaries) */}
+        {(()=>{
+          const rowDays=wd;
+          return rowDays.map((rday,ri)=>{
+            const rData=allData[getMI(rday.m)];
+            const isSel=rday.m===viewM&&rday.d===viewDay;
+            const isToday=rday.m===TODAY_M&&rday.d===TODAY_D;
+            return (
+              <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",opacity:1,borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",borderBottom:isSel?"2px solid #c9a96e":"none",background:isSel?"#fbf6ec":isToday?"#fdfaf3":"transparent",marginTop:isSel?2:0,marginBottom:isSel?2:0}}>
+                <div style={{width:36,flexShrink:0,height:20,background:isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":isToday?"#c9a96e":"#666",lineHeight:1}}>{rday.d}</span>
+                  <span style={{fontSize:5,fontWeight:700,color:isToday?"#c9a96e":"#aaa",lineHeight:1,letterSpacing:.3}}>{weekdayShort(rday.m,rday.d)}</span>
+                </div>
+                {isQ3Day(rday.m,rday.d)&&<Q3TaskCells m={rday.m} d={rday.d} taskChecks={taskChecks} colW={18} colH={20}/>}
+                {/* Energy cell — tap cycles */}
+                {(()=>{
+                  const curE=rData?.energy?.[rday.d];
+                  const en=ENERGY.find(e=>e.sym===curE);
+                  return (
+                    <HoldCell onHold={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color:"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                      <span style={{fontSize:8,fontWeight:900,color:en?"#fff":"#ddd",lineHeight:1}}>{curE||"·"}</span>
+                    </HoldCell>
+                  );
+                })()}
+                {/* Mood cell — tap cycles 1-10 */}
+                {(()=>{
+                  const mv=rData?.mood?.[rday.d];
+                  return (
+                    <HoldCell onHold={()=>cycleMood(rday.m,rday.d,mv>=10?0:(mv||0)+1)} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                      <span style={{fontSize:7,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}}>{mv||"·"}</span>
+                    </HoldCell>
+                  );
+                })()}
+                <div style={{width:3,flexShrink:0,height:20,background:"#171310"}}/>
+                {mFlat.map((h,hi)=>{
+                  const rowIsQ3=isQ3Day(rday.m,rday.d);
+                  const rMeta=rowIsQ3?Q3_SECTION_META:SECTION_META;
+                  const rGroups=rowIsQ3?Q3_GROUPS:GROUPS;
+                  const rPillars=rowIsQ3?Q3_PILLARS:TOP3;
+                  const sec=rowIsQ3?(rMeta.find(mm=>mm.h.code===h.code)?.sec):MONTH_SECTIONS.find(s=>s.hats.some(x=>x.code===h.code));
+                  const grp=rGroups.find(g=>hi>=g.start&&hi<=g.end);
+                  const isFirstInGrp=hi===(grp?grp.start:hi);
+                  const st=rData?.grid?.[h.code]?.[rday.d];
+                  const mk=stMark(st,sec?.color||"#555");
+                  const isPillarCell=rPillars.some(t=>t.code===h.code);
+                  const goalMet=trkWeekMet(h.code,rday.m,rday.d);
+                  let bg=isPillarCell&&st?(rowIsQ3?"#ddd6fe":"#bbf7d0"):isPillarCell?(sec?.bg||"#f5f5f5"):st?(sec?.bg||"#f5f5f5"):"#fff";
+                  if(goalMet){ bg="#d4d4d4"; }
+                  return (
+                    <HoldCell key={h.code} onHold={()=>cycleCell(h.code,rday.m,rday.d)} title="Tap to mark" style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
+                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isPillarCell&&st?(rowIsQ3?"#6d28d9":"#15803d"):goalMet?"#666":mk.c}}>{mk.ch}</span>
+                    </HoldCell>
+                  );
+                })}
+                <div style={{width:1,flexShrink:0,height:20,background:"#bbb"}}/>
+                {(()=>{const pp=top3pct(rData,rday.d,rday.m);const q3=isQ3Day(rday.m,rday.d);if(q3) return null; return (
+                  <div style={{width:24,flexShrink:0,height:20,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",borderLeft:"2px solid #ddd",background:isSel?"#f3ede2":isToday?"#fdfaf3":"#fafafa"}}>
+                    <span style={{fontSize:8,fontWeight:800,color:pp===100?"#14532d":pp>0?"#16a34a":"#ddd"}}>{pp>0?pp:""}</span>
+                  </div>
+                );})()}
+              </div>
+            );
+          });
+        })()}
+        {/* Summary footer */}
+        <div style={{padding:"2px 8px",background:"#fafafa",borderTop:"1px solid #eee",display:"flex",gap:8,alignItems:"center"}}>
+          <span style={{fontSize:7,color:"#bf5000",fontWeight:700}}>ESS {(isQ3v?Q3_ESSENTIALS:ESSENTIALS).filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{(isQ3v?Q3_ESSENTIALS:ESSENTIALS).length}</span>
+          <span style={{fontSize:7,color:isQ3v?"#b8860b":"#1b5e20",fontWeight:700}}>{isQ3v?"TASKS":"TOP3"} {dayPct}%</span>
+          <span style={{fontSize:7,color:"#555"}}>{mTrk.filter(h=>data?.grid?.[h.code]?.[viewDay]).length}/{mTrk.length} trk</span>
+          <span style={{marginLeft:"auto",fontSize:6.5,color:"#b0a898",fontWeight:700,letterSpacing:.5}}>👆 TAP TO MARK</span>
+        </div>
+      </div>
+        );
       })()}
-      {/* Week Priorities with checkboxes */}
+
+      {/* EXTRA HATS — collapsible, before tasks */}
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
+        <div onClick={()=>setShowLib(x=>!x)} style={{padding:"6px 12px",background:"#faf7f3",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+          <span style={{fontSize:8,fontWeight:800,color:"#555",letterSpacing:2}}>
+            EXTRA HATS
+            {(curExtra.length+curLib.length)>0&&<span style={{fontWeight:400,color:"#7c3aed",marginLeft:6}}>{[...curExtra,...curLib].map(e=>e.includes(":")?e.split(":")[0]:e).join(" · ")}</span>}
+          </span>
+          <span style={{fontSize:9,color:"#aaa"}}>{showLib?"▲":"▼"}</span>
+        </div>
+        {showLib&&(()=>{
+          const cycleExtra=(code)=>{
+            const cur=curExtra.find(e=>e===code||e.startsWith(code+":"));
+            if(!cur) { toggleExtraHat(viewM,viewDay,code,"x"); }
+            else {
+              const st=cur.includes(":")?cur.split(":")[1]:"x";
+              if(st==="x") toggleExtraHat(viewM,viewDay,code,"box");
+              else toggleExtraHat(viewM,viewDay,code,null);
+            }
+          };
+          const cycleLib=(code)=>{
+            const cur=curLib.find(e=>e===code||e.startsWith(code+":"));
+            if(!cur) { toggleLibHat(viewM,viewDay,code,"x"); }
+            else {
+              const st=cur.includes(":")?cur.split(":")[1]:"x";
+              if(st==="x") toggleLibHat(viewM,viewDay,code,"box");
+              else toggleLibHat(viewM,viewDay,code,null);
+            }
+          };
+          const getExtraSt=(code)=>{const e=curExtra.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
+          const getLibSt=(code)=>{const e=curLib.find(e=>e===code||e.startsWith(code+":"));if(!e)return null;return e.includes(":")?e.split(":")[1]:"x";};
+          const CAT_META={
+            P:{label:"P · PRIORITY",  color:"#7c3aed", bg:"#f5f3ff", bdr:"#c4b5fd"},
+            M:{label:"M · MIND",      color:"#1565c0", bg:"#e3f2fd", bdr:"#90caf9"},
+            D:{label:"D · DEVELOP",   color:"#795548", bg:"#efebe9", bdr:"#bcaaa4"},
+            S:{label:"S · SOCIAL",    color:"#ca8a04", bg:"#fffde7", bdr:"#fde68a"},
+            R:{label:"R · REFLECT",   color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
+            L:{label:"L · LOGISTICS", color:"#546e7a", bg:"#f5f5f5", bdr:"#cfd8dc"},
+            C:{label:"C · CREATIVE",  color:"#16a34a", bg:"#f0fdf4", bdr:"#86efac"},
+          };
+          const activeGroups={};
+          EXTRA_ACTIVE.forEach(h=>{const cat=h.cat||h.code[0];if(!activeGroups[cat])activeGroups[cat]=[];activeGroups[cat].push(h);});
+          const libGroups={};
+          LIB_TAGS.forEach(h=>{const cat=h.cat||h.code[0];if(!libGroups[cat])libGroups[cat]=[];libGroups[cat].push(h);});
+          const renderHatBtn=(h,st,onTap,isLib,dim,isActive)=>{
+            const catKey=h.cat||h.code[0];
+            const cm=CAT_META[catKey]||{color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
+            const isOn=!!st,isBox=st==="box";
+            return (
+              <button key={h.code} onClick={onTap} style={{width:54,flexShrink:0,padding:"5px 3px",borderRadius:6,border:`${isBox?"2.5px":"1.5px"} solid ${isOn?(isBox?"#1565c0":cm.color):"#e0e0e0"}`,background:isOn?(isBox?"#dbeafe":cm.bg):"#fafafa",cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:2,opacity:dim?0.55:1,position:"relative"}}>
+                {isActive&&<span style={{position:"absolute",top:2,right:3,width:3,height:3,borderRadius:"50%",background:"#7c3aed"}}/>}
+                <span style={{fontSize:isLib?8:9,fontWeight:900,color:isOn?(isBox?"#1e40af":cm.color):"#999",lineHeight:1}}>{isBox?"⊠":isOn?"×":"·"} {h.emoji}{h.code}</span>
+                <span style={{fontSize:5.5,color:isOn?"#444":"#999",lineHeight:1,textAlign:"center",whiteSpace:"nowrap",overflow:"hidden",maxWidth:50}}>{h.label}</span>
+              </button>
+            );
+          };
+          // One list grouped BY LETTER. Active and Library codes of the same letter sit
+          // together (D with D, M with M). Active ones come first inside their letter and
+          // keep a dot marker, so the two kinds are still tellable apart.
+          const CAT_ORDER=["P","M","D","R","S","L","C"];
+          const byLetter={};
+          EXTRA_ACTIVE.forEach(h=>{const c=h.cat||h.code[0];(byLetter[c]=byLetter[c]||[]).push({h,kind:"active"});});
+          LIB_TAGS.forEach(h=>{const c=h.cat||h.code[0];(byLetter[c]=byLetter[c]||[]).push({h,kind:"lib"});});
+          const RO_CODES=[{code:"PX",label:"Digital"},{code:"RS",label:"Spaces"}];
+          const HIST_CODES=["PP","PV"]; // tracked as other HAT — history only
+          const roChip=(rc)=>{
+            const st=data?.grid?.[rc.code]?.[viewDay];
+            const on=!!st;
+            return (
+              <div key={rc.code} title={rc.code+" — edit in the grid, not here"} style={{width:54,flexShrink:0,padding:"5px 3px",borderRadius:6,border:"1.5px dashed #ddd",background:"#fafafa",opacity:0.55,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                <span style={{fontSize:9,fontWeight:900,color:on?"#666":"#aaa",lineHeight:1}}>{on?"×":"·"} {rc.code}</span>
+                <span style={{fontSize:5.5,color:"#999",lineHeight:1,textAlign:"center",whiteSpace:"nowrap"}}>{rc.label}</span>
+              </div>
+            );
+          };
+          return (
+            <div style={{padding:"7px 10px 5px",borderTop:"1px solid #f0f0f0"}}>
+              <div style={{fontSize:6.5,color:"#b0a898",letterSpacing:0.5,fontWeight:600,marginBottom:2,fontStyle:"italic"}}>optional — only when needed, not part of daily tracking</div>
+              <div style={{fontSize:6,color:"#c4bcae",letterSpacing:0.5,fontWeight:600,marginBottom:6,paddingBottom:5,borderBottom:"1px solid #ece8e0"}}>tap=done · 2×=boxing · <span style={{color:"#7c3aed",fontWeight:800}}>•</span> = active</div>
+              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                {CAT_ORDER.filter(c=>byLetter[c]).map(cat=>{
+                  const cm=CAT_META[cat]||{label:cat,color:"#555",bg:"#f5f5f5",bdr:"#ccc"};
+                  // active first, then library — but all under one letter heading
+                  const items=[...byLetter[cat]].sort((a,b)=>(a.kind==="active"?0:1)-(b.kind==="active"?0:1));
+                  return (
+                    <div key={cat}>
+                      <div style={{fontSize:6,fontWeight:900,color:cm.color,letterSpacing:1.5,marginBottom:2,paddingLeft:2}}>{cm.label}</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
+                        {items.map(({h,kind})=>{
+                          const dim=HIST_CODES.includes(h.code);
+                          return kind==="active"
+                            ? renderHatBtn(h,getExtraSt(h.code),()=>cycleExtra(h.code),false,false,true)
+                            : renderHatBtn(h,getLibSt(h.code),()=>cycleLib(h.code),true,dim,false);
+                        })}
+                        {cat==="P"&&RO_CODES.map(roChip)}
+                      </div>
+                      {cat==="P"&&<div style={{fontSize:5.5,color:"#b8b0a2",fontWeight:600,marginTop:2,paddingLeft:2}}>PP · PV · PX · RS — tracked as other HAT, for history only</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* TOP 3 TASKS + ESCALATED — shared with the Plan tab */}
+      <Top3Tasks allData={allData} getMI={getMI} viewM={viewM} viewDay={viewDay}
+        setTask={setTask} appendTask={appendTask}
+        taskChecks={taskChecks} saveTaskChecks={saveTaskChecks}
+        taskSlotsMap={taskSlotsMap} saveTaskSlotsMap={saveTaskSlotsMap}
+        escalations={escalations} saveEscalations={saveEscalations}
+        onAllDone={launchBees}/>
+      {/* Week Priorities — same drag-to-reorder feel as Top 3 Tasks */}
       <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         <div style={{padding:"5px 12px",background:"#faf7f3",borderBottom:"1px solid #ede8e0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:8,fontWeight:800,color:"#333",letterSpacing:2}}>WEEK PRIORITIES</span>
           <span style={{fontSize:8,color:"#aaa"}}>{wkLabel(w)}</span>
         </div>
-        <div style={{padding:"6px 10px"}}>
-          {(weekAssess?.["w"+w.n]?.priorities||["","","","",""]).map((p,i)=>{
-            const checked=isChecked(w.n,i);
-            return (
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                <button onClick={()=>toggleCheck(w.n,i)} style={{
-                  width:18,height:18,borderRadius:4,border:"2px solid "+(checked?"#1b5e20":"#ddd"),
-                  background:checked?"#1b5e20":"#fff",cursor:"pointer",flexShrink:0,
-                  display:"flex",alignItems:"center",justifyContent:"center",padding:0,
-                }}>
-                  {checked&&<span style={{fontSize:10,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
-                </button>
-                <input
-                  value={p}
-                  onChange={e=>setPriority(w.n,i,e.target.value)}
-                  placeholder={"Priority "+(i+1)+"..."}
-                  style={{flex:1,border:"none",borderBottom:"1px solid #f0f0f0",padding:"3px 2px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:checked?"#aaa":"#333",outline:"none",background:"transparent",textDecoration:checked?"line-through":"none"}}
-                />
-              </div>
-            );
-          })}
+        <div style={{padding:"2px 0"}}>
+          {(()=>{
+            const priorities=weekAssess?.["w"+w.n]?.priorities||["","","","",""];
+            const movePriority=(from,to)=>{
+              if(from===to) return;
+              const checkedSet=new Set(priChecks["w"+w.n]||[]);
+              const snap=priorities.map((text,i)=>({text,chk:checkedSet.has(i)}));
+              const arr=[...snap];
+              const [moved]=arr.splice(from,1);
+              arr.splice(to,0,moved);
+              setAssess("w"+w.n,{...(weekAssess?.["w"+w.n]||{}),priorities:arr.map(x=>x.text)});
+              const nextChecked=[];
+              arr.forEach((x,i)=>{ if(x.chk) nextChecked.push(i); });
+              savePriChecks({...priChecks,["w"+w.n]:nextChecked});
+            };
+            const onDragStart=(i)=>{prioDragIdxRef.current=i;setDraggingPrio(i);};
+            const onDragEnter=(i)=>{prioDragOverIdxRef.current=i;};
+            const onDragEnd=()=>{
+              if(prioDragIdxRef.current!==null&&prioDragOverIdxRef.current!==null&&prioDragIdxRef.current!==prioDragOverIdxRef.current){
+                movePriority(prioDragIdxRef.current,prioDragOverIdxRef.current);
+              }
+              prioDragIdxRef.current=null;prioDragOverIdxRef.current=null;setDraggingPrio(null);
+            };
+            const onTouchStart=(i)=>{prioDragIdxRef.current=i;setDraggingPrio(i);};
+            const onTouchMove=(e)=>{
+              if(prioDragIdxRef.current===null) return;
+              e.preventDefault();
+              const y=e.touches[0].clientY;
+              let closest=prioDragIdxRef.current,minDist=Infinity;
+              prioRowRefsArr.current.forEach((ref,ri)=>{
+                if(!ref) return;
+                const rect=ref.getBoundingClientRect();
+                const dist=Math.abs(y-(rect.top+rect.height/2));
+                if(dist<minDist){minDist=dist;closest=ri;}
+              });
+              prioDragOverIdxRef.current=closest;
+            };
+            const onTouchEnd=()=>onDragEnd();
+            return priorities.map((p,i)=>{
+              const checked=isChecked(w.n,i);
+              const isDraggingThis=draggingPrio===i;
+              return (
+                <div key={i} ref={el=>prioRowRefsArr.current[i]=el}
+                  draggable onDragStart={()=>onDragStart(i)} onDragEnter={()=>onDragEnter(i)}
+                  onDragEnd={onDragEnd} onDragOver={ev=>ev.preventDefault()}
+                  style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderBottom:i<priorities.length-1?"1px solid #f3efe7":"none",background:isDraggingThis?"#f0f4ff":"transparent",opacity:isDraggingThis?0.5:1}}>
+                  <div onTouchStart={()=>onTouchStart(i)} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+                    style={{display:"flex",flexDirection:"column",alignItems:"center",cursor:"grab",flexShrink:0,padding:"2px",touchAction:"none",userSelect:"none",WebkitUserSelect:"none"}}>
+                    <span style={{fontSize:7,fontWeight:900,color:"#c9a96e",lineHeight:1,marginBottom:1,letterSpacing:0.3}}>P{i+1}</span>
+                    <span style={{fontSize:12,color:"#ccc",lineHeight:1}}>⠿</span>
+                  </div>
+                  <button onClick={()=>toggleCheck(w.n,i)} style={{
+                    width:18,height:18,borderRadius:4,border:"2px solid "+(checked?"#1b5e20":"#ddd"),
+                    background:checked?"#1b5e20":"#fff",cursor:"pointer",flexShrink:0,
+                    display:"flex",alignItems:"center",justifyContent:"center",padding:0,touchAction:"manipulation",
+                  }}>
+                    {checked&&<span style={{fontSize:10,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
+                  </button>
+                  <textarea
+                    value={p} rows={1}
+                    ref={el=>{if(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,30)+"px";}}}
+                    onChange={e=>{setPriority(w.n,i,e.target.value.replace(/\n/g,""));e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,30)+"px";}}
+                    onKeyDown={e=>{if(e.key==="Enter")e.preventDefault();}}
+                    placeholder={"Priority for week — P"+(i+1)+"..."}
+                    style={{flex:1,border:"none",padding:"3px 2px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:checked?"#aaa":"#333",outline:"none",background:"transparent",textDecoration:checked?"line-through":"none",minWidth:0,resize:"none",lineHeight:1.35,overflowY:"auto",display:"block"}}
+                  />
+                </div>
+              );
+            });
+          })()}
         </div>
       </div>
 
@@ -1653,6 +1740,105 @@ function buildSectionMeta() {
 }
 const SECTION_META = buildSectionMeta();
 
+// ── Q3 GRID (from Q3 W1 = Jul 6) ────────────────────────────────────────────
+// Different structure from Q2 on purpose. Q2 above is frozen so history never moves.
+// ESSENTIALS (gold): PB1 · RJ1 · MM · LH · RJ2 · PB2  — RJ1 writes to the existing "RJ" code.
+// PILLARS (green, no red "missed" state): PW · PA · MS
+// TRACKING (grey): PR (2×/wk, boxing counts as 2) · MV (1×) · SM (1×)
+// PB1 = new code, its own history (the new morning technique).
+// RJ1 = the OLD "RJ" code. Same journal-AM slot as before, just renamed.
+// PB2 = the OLD "PB" code. Same evening routine ("in bed on time" = "no phone
+// 20 min + prep + relaxation"), just renamed — its history carries over.
+const Q3_ESS_A = [{ code:"PB1", label:"Morning Technique", disp:"PB1" }, { code:"RJ", label:"App Block AM", disp:"RJ1" }];
+const Q3_ESS_B = [{ code:"MM", label:"Mind", disp:"MM" }, { code:"LH", label:"House", disp:"LH" }];
+const Q3_ESS_C = [{ code:"RJ2", label:"Journal PM", disp:"RJ2" }, { code:"PB", label:"Evening Routine", disp:"PB2" }];
+const Q3_ESSENTIALS = [...Q3_ESS_A, ...Q3_ESS_B, ...Q3_ESS_C];
+const Q3_PILLARS = [{ code:"PW", label:"Work", disp:"PW" }, { code:"PA", label:"Advance", disp:"PA" }, { code:"MS", label:"Sport", disp:"MS" }];
+const Q3_TRK_PR = [{ code:"PR", label:"Reading", disp:"PR" }];
+const Q3_TRK_MV = [{ code:"MV", label:"Vibe", disp:"MV" }];
+const Q3_TRK_SM = [{ code:"SM", label:"Social", disp:"SM" }];
+const Q3_TRACKING = [...Q3_TRK_PR, ...Q3_TRK_MV, ...Q3_TRK_SM];
+// Column order in the grid (both Month full grid and the Today mini grid):
+// T1 · T2 · T3 · T% (read-only, auto) | Energy | Mood | PILLARS | ESSENTIALS | TRACKING
+// TOP 3 TASKS header color (green — the T1/T2/T3 cells already go green/light-red on their own)
+const Q3_TASKC = { color:"#15803d", bg:"#dcfce7", bdr:"#86efac" };
+// PULSE = Energy + Mood, grouped together like every other column pair. Grey, like Tracking.
+const PULSE_C = { color:"#555", bg:"#f5f5f5", bdr:"#bbb" };
+const Q3_SECTIONS = [
+  { hats:Q3_PILLARS, color:"#6d28d9", bg:"#f5f3ff", bdr:"#c4b5fd", gap:true  },
+  { hats:Q3_ESS_A,   color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d", gap:true  },
+  { hats:Q3_ESS_B,   color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d", gap:true  },
+  { hats:Q3_ESS_C,   color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d", gap:true  },
+  { hats:Q3_TRK_PR,  color:"#666",    bg:"#fafafa", bdr:"#cccccc", gap:false },
+  { hats:Q3_TRK_MV,  color:"#555",    bg:"#f5f5f5", bdr:"#c0c0c0", gap:false },
+  { hats:Q3_TRK_SM,  color:"#666",    bg:"#fafafa", bdr:"#cccccc", gap:false },
+];
+// cols: 0..2 pillars | 3..8 essentials | 9..11 tracking
+const Q3_GROUPS = [
+  {label:"PILLARS",    start:0, end:2,  color:"#6d28d9", bg:"#f5f3ff", bdr:"#c4b5fd"},
+  {label:"ESSENTIALS", start:3, end:8,  color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
+  {label:"TRACKING",   start:9, end:11, color:"#555",    bg:"#f5f5f5", bdr:"#bbb"},
+];
+const Q3_TASK_COLS = [
+  {slot:"t1", label:"T1", sub:"60"},
+  {slot:"t2", label:"T2", sub:"20"},
+  {slot:"t3", label:"T3", sub:"20"},
+];
+// Renders the T1/T2/T3/T% strip. Read-only: filled automatically from the Top 3
+// Tasks board, never tappable here. Green once done, light red until then — the
+// number (its weight: 60/20/20) always stays visible either way.
+function Q3TaskCells({m,d,taskChecks,colW,colH}){
+  const done=(slot)=>!!(taskChecks[m+"-"+d+"-"+slot+"-c"]);
+  const pct=top3TasksPct(m,d,taskChecks);
+  return (
+    <React.Fragment>
+      {Q3_TASK_COLS.map(tc=>{
+        const on=done(tc.slot);
+        return (
+          <div key={tc.slot} title={tc.label+" "+m+"/"+d+" · worth "+tc.sub+"%"} style={{
+            width:colW,height:colH,flexShrink:0,boxSizing:"border-box",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            background:on?"#bbf7d0":"#fee2e2",
+            borderLeft:tc.slot==="t1"?`2px solid ${Q3_TASKC.bdr}`:`1px solid ${Q3_TASKC.bdr}88`,
+            borderTop:`1px solid ${Q3_TASKC.bdr}55`,borderBottom:`1px solid ${Q3_TASKC.bdr}55`,
+          }}>
+            <span style={{fontSize:8,fontWeight:900,lineHeight:1,color:on?"#15803d":"#b91c1c"}}>{tc.sub}</span>
+          </div>
+        );
+      })}
+      <div title="Weighted total for the day" style={{
+        width:colW,height:colH,flexShrink:0,boxSizing:"border-box",
+        display:"flex",alignItems:"center",justifyContent:"center",
+        background:pct===100?"#bbf7d0":"#fee2e2",
+        borderLeft:`1px solid ${Q3_TASKC.bdr}88`,borderRight:`1px solid ${Q3_TASKC.bdr}`,
+        borderTop:`1px solid ${Q3_TASKC.bdr}55`,borderBottom:`1px solid ${Q3_TASKC.bdr}55`,
+      }}>
+        <span style={{fontSize:pct>=100?8:7,fontWeight:900,lineHeight:1,color:pct===100?"#15803d":"#b91c1c"}}>{pct}</span>
+      </div>
+    </React.Fragment>
+  );
+}
+function buildMeta(sections,groups){
+  let i=0; const meta=[];
+  sections.forEach((sec,si)=>{
+    sec.hats.forEach((h,hi)=>{
+      const grp=groups.find(g=>i>=g.start&&i<=g.end);
+      meta.push({h,sec,si,isFirstInSec:hi===0,isLastInSec:hi===sec.hats.length-1,
+        isFirstInGrp:i===(grp?grp.start:i),isLastInGrp:i===(grp?grp.end:i),grp,globalIdx:i});
+      i++;
+    });
+  });
+  return meta;
+}
+const Q3_FLAT_HATS = Q3_SECTIONS.flatMap(s=>s.hats);
+const Q3_SECTION_META = buildMeta(Q3_SECTIONS,Q3_GROUPS);
+const Q3_TRK_GOALS = {PR:2, MV:1, SM:1};
+// Month tab quarters — same idea as the Budget quarter switcher.
+const MQUARTERS = [
+  {q:2, label:"26Q2", sub:"APR 6 – JUL 5", months:[4,5,6]},
+  {q:3, label:"26Q3", sub:"JUL 6 – OCT 4", months:[7,8,9,10]},
+];
+
 function getWeekForDay(m,d) {
   return Q2_WEEKS.find(w=>{
     const [sm,sd]=w.start,[em,ed]=w.end;
@@ -1665,10 +1851,32 @@ function isWeekEnd(month,day) {
   return em===month.m&&ed===day;
 }
 
-function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMood,setTabIdx,setViewDay,setViewM,setWeekIdx,toggleExtraHat,toggleLibHat}) {
-  const month=MONTHS_ARR[monthIdx];
-  const data=allData[monthIdx];
-  const DAYS=Array.from({length:month.days},(_,i)=>i+1);
+function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMood,setTabIdx,setViewDay,setViewM,setWeekIdx,toggleExtraHat,toggleLibHat,taskChecks}) {
+  // Quarter switcher — same idea as Budget. Q3 uses a different grid than Q2,
+  // and Q2 stays exactly as it was so history never moves.
+  const [mq,setMq]=useState(()=>isQ3Day(TODAY_M,TODAY_D)?3:2);
+  const QDEF=MQUARTERS.find(x=>x.q===mq)||MQUARTERS[MQUARTERS.length-1];
+  const isQ3=mq===3;
+  const qMonthIdxs=QDEF.months.map(mm=>MONTHS_ARR.findIndex(x=>x.m===mm)).filter(i=>i>=0);
+  // Keep the shown month inside the selected quarter without a flash of the wrong data.
+  const safeIdx=qMonthIdxs.includes(monthIdx)?monthIdx:qMonthIdxs[0];
+  const posInQ=qMonthIdxs.indexOf(safeIdx);
+
+  // Grid definition for the selected quarter
+  const gMeta    = isQ3?Q3_SECTION_META:SECTION_META;
+  const gFlat    = isQ3?Q3_FLAT_HATS:FLAT_HATS;
+  const gGroups  = isQ3?Q3_GROUPS:GROUPS;
+  const gEss     = isQ3?Q3_ESSENTIALS:ESSENTIALS;
+  const gPillars = isQ3?Q3_PILLARS:TOP3;
+  const gTrk     = isQ3?Q3_TRACKING:TRK_ALL;
+  const gGoals   = isQ3?Q3_TRK_GOALS:TRK_DEFAULT_GOALS;
+  const pillarLabel = isQ3?"PILLARS":"TOP 3";
+
+  const month=MONTHS_ARR[safeIdx];
+  const data=allData[safeIdx];
+  // Q3 starts mid-July, so July only shows day 6 onward here. Jul 1-5 stay visible
+  // in the Q2 view as the spillover of Q2 W13.
+  const DAYS=Array.from({length:month.days},(_,i)=>i+1).filter(d=>isQ3?isQ3Day(month.m,d):true);
   // Extended day list: append spillover days when the month's last week continues into the next month
   const DAYS_EXT=(()=>{
     const arr=DAYS.map(d=>({m:month.m,d}));
@@ -1679,9 +1887,9 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
     return arr;
   })();
   const isCur=month.m===TODAY_M;
-  const totalW=COL_DAY+COL_EN+COL_MOOD+FLAT_HATS.length*C+COL_PCT+2;
+  const totalW=COL_DAY+(isQ3?4*C:0)+COL_EN+COL_MOOD+3+1+gFlat.length*C+(isQ3?0:COL_PCT)+2;
 
-  const [trkGoals,setTrkGoals]=useState(()=>({...TRK_DEFAULT_GOALS}));
+  const [trkGoals,setTrkGoals]=useState(()=>({...TRK_DEFAULT_GOALS,...Q3_TRK_GOALS}));
   const [showGoals,setShowGoals]=useState(false);
   const [picker,setPicker]=useState(null); // {day, type:'ex'|'lb'}
   const [showExp,setShowExp]=useState(false);
@@ -1731,14 +1939,38 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
 
   return (
     <div style={{position:"relative"}}>
-      <div style={{background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:18,padding:"12px 14px",marginBottom:10,boxShadow:"0 5px 18px rgba(42,33,24,0.2)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <button onClick={()=>monthIdx>0&&setMonthIdx(x=>Math.max(0,x-1))} style={{background:"rgba(255,255,255,0.08)",border:"none",color:monthIdx>0?"#c9a96e":"#5a5145",borderRadius:16,width:30,height:30,fontSize:16,cursor:monthIdx>0?"pointer":"default",fontFamily:"inherit"}}>‹</button>
-        <div style={{textAlign:"center"}}>
-          <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>Month</div>
-          <div style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.3,lineHeight:1.15}}>{month.name} <span style={{fontSize:9,color:"#a89e8c",fontWeight:400,letterSpacing:2}}>2026</span></div>
-          <div style={{fontSize:6.5,color:"#8a7f6d",fontWeight:700,letterSpacing:1,marginTop:2}}>👆 TAP TO MARK</div>
+      <div style={{background:"linear-gradient(135deg,#332817,#241c12)",borderRadius:18,padding:"12px 14px",marginBottom:10,boxShadow:"0 5px 18px rgba(42,33,24,0.2)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <button onClick={()=>posInQ>0&&setMonthIdx(qMonthIdxs[posInQ-1])} style={{background:"rgba(255,255,255,0.08)",border:"none",color:posInQ>0?"#c9a96e":"#5a5145",borderRadius:16,width:30,height:30,fontSize:16,cursor:posInQ>0?"pointer":"default",fontFamily:"inherit"}}>‹</button>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:8,fontWeight:800,letterSpacing:3,color:"#c9a96e",textTransform:"uppercase"}}>Month</div>
+            <div style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.3,lineHeight:1.15}}>{month.name} <span style={{fontSize:9,color:"#a89e8c",fontWeight:400,letterSpacing:2}}>2026</span></div>
+            <div style={{fontSize:6.5,color:"#8a7f6d",fontWeight:700,letterSpacing:1,marginTop:2}}>👆 TAP TO MARK</div>
+          </div>
+          <button onClick={()=>posInQ<qMonthIdxs.length-1&&setMonthIdx(qMonthIdxs[posInQ+1])} style={{background:"rgba(255,255,255,0.08)",border:"none",color:posInQ<qMonthIdxs.length-1?"#c9a96e":"#5a5145",borderRadius:16,width:30,height:30,fontSize:16,cursor:posInQ<qMonthIdxs.length-1?"pointer":"default",fontFamily:"inherit"}}>›</button>
         </div>
-        <button onClick={()=>monthIdx<MONTHS_ARR.length-1&&setMonthIdx(x=>Math.min(MONTHS_ARR.length-1,x+1))} style={{background:"rgba(255,255,255,0.08)",border:"none",color:monthIdx<MONTHS_ARR.length-1?"#c9a96e":"#5a5145",borderRadius:16,width:30,height:30,fontSize:16,cursor:monthIdx<MONTHS_ARR.length-1?"pointer":"default",fontFamily:"inherit"}}>›</button>
+        {/* Quarter switcher — each quarter has its own grid */}
+        <div style={{display:"flex",gap:6,marginTop:10,justifyContent:"center"}}>
+          {MQUARTERS.map(q=>{
+            const on=q.q===mq;
+            return (
+              <button key={q.q} onClick={()=>{
+                setMq(q.q);
+                const idxs=q.months.map(mm=>MONTHS_ARR.findIndex(x=>x.m===mm)).filter(i=>i>=0);
+                const todayIdx=MONTHS_ARR.findIndex(x=>x.m===TODAY_M);
+                setMonthIdx(idxs.includes(todayIdx)?todayIdx:idxs[0]);
+              }} style={{
+                background:on?"#c9a96e":"rgba(255,255,255,0.06)",
+                border:"1px solid "+(on?"#c9a96e":"rgba(201,169,110,0.3)"),
+                color:on?"#2a2118":"#a89e8c",borderRadius:14,padding:"4px 14px",cursor:"pointer",
+                fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:1,touchAction:"manipulation",
+              }}>
+                <span style={{fontSize:9,fontWeight:900,letterSpacing:1,lineHeight:1.2}}>{q.label}</span>
+                <span style={{fontSize:6,fontWeight:700,letterSpacing:0.5,opacity:0.75,lineHeight:1.2}}>{q.sub}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ALL MONTHS EXPORT */}
@@ -1791,7 +2023,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
           <div style={{marginTop:6,background:"#fff",border:"1px solid #e0e0e0",borderRadius:8,padding:"8px 10px"}}>
             <div style={{fontSize:8,color:"#aaa",letterSpacing:2,marginBottom:6}}>TRACKING — TIMES PER WEEK</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {TRK_ALL.map(h=>(
+              {gTrk.map(h=>(
                 <div key={h.code} style={{display:"flex",alignItems:"center",gap:4,background:"#f8f8f8",borderRadius:8,padding:"3px 6px"}}>
                   <span style={{fontSize:10,fontWeight:800,color:"#444",minWidth:22}}>{h.code}</span>
                   <Cb bg="#e0e0e0" col="#444" onClick={()=>adjustGoal(h.code,-1)}>−</Cb>
@@ -1814,9 +2046,12 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
               {/* ROW 1: Group labels */}
               <div style={{display:"flex",height:HDR_GRP}}>
                 <div style={{width:COL_DAY,flexShrink:0}}/>
-                <div style={{width:COL_EN,flexShrink:0,height:HDR_GRP,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderTop:"1px solid #ddd",boxSizing:"border-box"}}/>
-                <div style={{width:COL_MOOD,flexShrink:0,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderTop:"1px solid #ddd",borderRight:"none",borderBottom:"none",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:"#666666",letterSpacing:.5,boxSizing:"border-box"}}>MOOD</div>
-                {GROUPS.map((grp,gi)=>{
+                {isQ3&&(
+                  <div style={{width:4*C,flexShrink:0,background:Q3_TASKC.bg,borderTop:`1px solid ${Q3_TASKC.bdr}`,borderRight:`1px solid ${Q3_TASKC.bdr}`,borderLeft:`2px solid ${Q3_TASKC.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:900,color:Q3_TASKC.color,letterSpacing:0.5,overflow:"hidden"}}>TOP 3 TASKS</div>
+                )}
+                <div style={{width:COL_EN+COL_MOOD,flexShrink:0,height:HDR_GRP,background:PULSE_C.bg,borderTop:`1px solid ${PULSE_C.bdr}`,borderRight:`1px solid ${PULSE_C.bdr}`,borderLeft:`2px solid ${PULSE_C.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:900,color:PULSE_C.color,letterSpacing:1,boxSizing:"border-box"}}>PULSE</div>
+                <div style={{width:3,flexShrink:0,height:HDR_GRP,background:"#171310"}}/>
+                {gGroups.map((grp,gi)=>{
                   const w=(grp.end-grp.start+1)*C;
                   return (
                     <div key={gi} style={{
@@ -1832,15 +2067,20 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                     }}>{grp.label}</div>
                   );
                 })}
-                <div style={{width:COL_PCT,flexShrink:0}}/>
+                <div style={{width:1,flexShrink:0,height:HDR_GRP,background:"#bbb"}}/>
+                {!isQ3&&<div style={{width:COL_PCT,flexShrink:0}}/>}
               </div>
 
               {/* ROW 2: HAT codes */}
               <div style={{display:"flex",height:HDR_CODE}}>
                 <div style={{width:COL_DAY,flexShrink:0}}/>
-                <div style={{width:COL_EN,flexShrink:0,height:HDR_CODE,background:"#f0f0f0",borderLeft:"1px solid #ddd",borderBottom:"1px solid #d0d0d0",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,boxSizing:"border-box"}}>⚡</div>
-                <div style={{width:COL_MOOD,flexShrink:0,height:HDR_CODE,display:"flex",alignItems:"center",justifyContent:"center",background:"#f0f0f0",borderLeft:"1px solid #ddd",borderBottom:"1px solid #d0d0d0",fontSize:7,fontWeight:800,color:"#666666",boxSizing:"border-box"}}>😊</div>
-                {SECTION_META.map(meta=>{
+                {isQ3&&[...Q3_TASK_COLS,{slot:"pct",label:"T%"}].map((tc,ti)=>(
+                  <div key={tc.slot} style={{width:C,flexShrink:0,height:HDR_CODE,display:"flex",alignItems:"center",justifyContent:"center",background:Q3_TASKC.bg,borderLeft:`${ti===0?"2":"1"}px solid ${Q3_TASKC.bdr}${ti===0?"":"88"}`,borderRight:ti===3?`1px solid ${Q3_TASKC.bdr}`:"none",borderBottom:`1px solid ${Q3_TASKC.bdr}`,fontSize:7,fontWeight:800,color:Q3_TASKC.color}}>{tc.label}</div>
+                ))}
+                <div style={{width:COL_EN,flexShrink:0,height:HDR_CODE,background:PULSE_C.bg,borderLeft:`2px solid ${PULSE_C.bdr}`,borderBottom:`1px solid ${PULSE_C.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,boxSizing:"border-box"}}>⚡</div>
+                <div style={{width:COL_MOOD,flexShrink:0,height:HDR_CODE,display:"flex",alignItems:"center",justifyContent:"center",background:PULSE_C.bg,borderLeft:`1px solid ${PULSE_C.bdr}88`,borderRight:`1px solid ${PULSE_C.bdr}`,borderBottom:`1px solid ${PULSE_C.bdr}`,fontSize:7,fontWeight:800,color:PULSE_C.color,boxSizing:"border-box"}}>😊</div>
+                <div style={{width:3,flexShrink:0,height:HDR_CODE,background:"#171310"}}/>
+                {gMeta.map(meta=>{
                   const {h,sec,isFirstInGrp,isLastInGrp,grp}=meta;
                   return (
                     <div key={h.code} style={{
@@ -1850,13 +2090,14 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                       borderLeft:`${isFirstInGrp?"2":"1"}px solid ${sec.bdr}${isFirstInGrp?"":"88"}`,
                       borderRight:isLastInGrp?`1px solid ${sec.bdr}`:"none",
                       borderBottom:`1px solid ${sec.bdr}`,
-                      fontSize:7,fontWeight:800,color:sec.color,
+                      fontSize:(h.disp||h.code).length>2?6:7,fontWeight:800,color:sec.color,
                     }}>
-                      {h.code==="RJ2"?"R2":h.code}
+                      {h.disp?h.disp:(h.code==="RJ2"?"R2":h.code)}
                     </div>
                   );
                 })}
-                <div style={{width:COL_PCT,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,color:"#1b5e20",fontWeight:800,borderLeft:"2px solid #ddd"}}>%</div>
+                <div style={{width:1,flexShrink:0,height:HDR_CODE,background:"#bbb"}}/>
+                {!isQ3&&<div style={{width:COL_PCT,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,color:"#1b5e20",fontWeight:800,borderLeft:"2px solid #ddd"}}>%</div>}
               </div>
             </div>
 
@@ -1886,10 +2127,10 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
               })():null;
 
               return (
-                <div key={day}>
+                <div key={dm+"-"+day}>
                   {wkStartW&&(
                     <div style={{display:"flex",alignItems:"center",height:14,background:"#ebebeb",borderTop:"2px solid #333",borderBottom:"1px solid #aaa"}}>
-                      <div style={{width:COL_DAY+COL_EN,flexShrink:0,paddingLeft:4,fontSize:7,fontWeight:900,color:"#222",letterSpacing:1}}>{wkLabel(wkStartW)}</div>
+                      <div style={{width:COL_DAY+(isQ3?4*C:0)+COL_EN,flexShrink:0,paddingLeft:4,fontSize:7,fontWeight:900,color:"#222",letterSpacing:1}}>{wkLabel(wkStartW)}</div>
                       {thisWkSummary&&thisWkSummary.hasData&&(
                         <span style={{fontSize:6,color:"#555",paddingLeft:4}}><span style={{color:"#16a34a",fontWeight:800}}>{thisWkSummary.avg}%</span></span>
                       )}
@@ -1902,16 +2143,19 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                     borderBottom:"1px solid #ebebeb",
                     height:C,
                   }}>
-                    {/* Day number + weekday — tap to jump to Today */}
+                    {/* Day number + weekday — centered, same look as the Today mini grid */}
                     <div onClick={()=>{const wi=weekIdxForDay(dm,day);if(wi>=0)setWeekIdx(wi);setViewDay(day);setViewM(dm);setTabIdx(0);}} style={{
-                      width:COL_DAY-3,flexShrink:0,
-                      display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"center",
-                      paddingRight:4,lineHeight:1,
-                      cursor:"pointer",
+                      width:COL_DAY-3,flexShrink:0,height:C,boxSizing:"border-box",
+                      background:isT?"#f3ede2":"#fafafa",
+                      borderRight:"1px solid #e0e0e0",
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                      lineHeight:1,cursor:"pointer",
                     }}>
-                      <span style={{fontSize:11,fontWeight:isT?900:600,color:isT?"#1565c0":isSpill?"#9a7b3c":"#333"}}>{day}</span>
-                      <span style={{fontSize:5,fontWeight:700,color:isT?"#1565c0":"#aaa",letterSpacing:.3,marginTop:1}}>{weekdayShort(dm,day)}</span>
+                      <span style={{fontSize:7,fontWeight:900,color:isT?"#c9a96e":isSpill?"#9a7b3c":"#666",lineHeight:1}}>{day}</span>
+                      <span style={{fontSize:5,fontWeight:700,color:isT?"#c9a96e":"#aaa",lineHeight:1,letterSpacing:.3}}>{weekdayShort(dm,day)}</span>
                     </div>
+
+                    {isQ3&&<Q3TaskCells m={dm} d={day} taskChecks={taskChecks} colW={C} colH={C}/>}
 
                     {/* Energy — filled square (matches Today) */}
                     <HoldCell onHold={()=>cycleEnergy(dm,day)} title="Tap to set" style={{
@@ -1940,16 +2184,18 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                       );
                     })()}
 
+                    <div style={{width:3,flexShrink:0,height:C,background:"#171310"}}/>
                     {/* HAT cells */}
-                    {SECTION_META.map(meta=>{
+                    {gMeta.map(meta=>{
                       const {h,sec,isFirstInGrp}=meta;
                       const st=rdata?.grid?.[h.code]?.[day];
                       const mk=stMark(st,sec.color);
-                      const isTop3=TOP3.some(t=>t.code===h.code);
-                      const isTrk=TRK_ALL.some(t=>t.code===h.code);
+                      const isPillar=gPillars.some(t=>t.code===h.code);
+                      const isTrk=gTrk.some(t=>t.code===h.code);
                       const goalMet=isTrk&&!isSpill&&trkGoalMet(h.code,day);
                       let bg=sec.bg;
-                      if(isTop3){ bg=st?"#bbf7d0":isPast?"#fecaca":sec.bg; }
+                      // Q3 pillars: white -> green only. No red for a day left unmarked.
+                      if(isPillar){ bg=st?(isQ3?"#ddd6fe":"#bbf7d0"):(isQ3?sec.bg:(isPast?"#fecaca":sec.bg)); }
                       if(goalMet){ bg="#d4d4d4"; }
                       // cell border: always visible; stronger left border at group boundary
                       const bdrLeft=isFirstInGrp?`2px solid ${sec.bdr}`:`1px solid ${goalMet?"#aaa":sec.bdr+"66"}`;
@@ -1965,16 +2211,19 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                         }}>
                           <span style={{
                             fontSize:mk.fs,fontWeight:mk.fw,lineHeight:1,
-                            color:isTop3&&st?"#15803d":isTop3&&isPast&&!st?"#dc2626":goalMet?"#666":mk.c,
+                            color:isPillar&&st?(isQ3?"#6d28d9":"#15803d"):(!isQ3&&isPillar&&isPast&&!st)?"#dc2626":goalMet?"#666":mk.c,
                           }}>{mk.ch}</span>
                         </HoldCell>
                       );
                     })}
+                    <div style={{width:1,flexShrink:0,height:C,background:"#bbb"}}/>
 
-                    {/* % */}
-                    <div style={{width:COL_PCT,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",borderLeft:"2px solid #ddd"}}>
-                      <span style={{fontSize:8,fontWeight:800,color:p===100?"#14532d":p>0?"#16a34a":"#e5e7eb"}}>{p>0?p:""}</span>
-                    </div>
+                    {/* % — Q2 only. Q3 already shows T% next to T1-T3. */}
+                    {!isQ3&&(
+                      <div style={{width:COL_PCT,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",borderLeft:"2px solid #ddd"}}>
+                        <span style={{fontSize:8,fontWeight:800,color:p===100?"#14532d":p>0?"#16a34a":"#e5e7eb"}}>{p>0?p:""}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -2008,13 +2257,13 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
           {(()=>{
             const [showStats,setShowStats]=useState(false);
             const totalDays=isCur?TODAY_D:month.days;
-            const hatTotals=ALL_HATS.map(h=>{
+            const hatTotals=[...gEss,...gPillars,...gTrk].map(h=>{
               const filled=DAYS.filter(d=>data.grid[h.code]?.[d]).length;
               return {code:h.code,label:h.label,filled,pct:totalDays>0?Math.round(filled/totalDays*100):0};
             });
-            const essStats=hatTotals.filter(h=>ESSENTIALS.some(e=>e.code===h.code));
-            const top3Stats=hatTotals.filter(h=>TOP3.some(e=>e.code===h.code));
-            const trkStats=hatTotals.filter(h=>TRK_ALL.some(e=>e.code===h.code));
+            const essStats=hatTotals.filter(h=>gEss.some(e=>e.code===h.code));
+            const top3Stats=hatTotals.filter(h=>gPillars.some(e=>e.code===h.code));
+            const trkStats=hatTotals.filter(h=>gTrk.some(e=>e.code===h.code));
             return (
               <div style={{margin:"6px 4px 16px",background:"#fff",borderRadius:8,border:"1px solid #e0e0e0",overflow:"hidden"}}>
                 <div onClick={()=>setShowStats(x=>!x)} style={{padding:"7px 10px",background:"#f8f8f8",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -2023,7 +2272,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                 </div>
                 {showStats&&(
                   <div style={{padding:"8px 10px"}}>
-                    {[{label:"ESSENTIALS",color:"#bf5000",stats:essStats},{label:"TOP 3",color:"#1b5e20",stats:top3Stats},{label:"TRACKING",color:"#555",stats:trkStats}].map(grp=>(
+                    {[{label:"ESSENTIALS",color:"#bf5000",stats:essStats},{label:pillarLabel,color:"#1b5e20",stats:top3Stats},{label:"TRACKING",color:"#555",stats:trkStats}].map(grp=>(
                       <div key={grp.label} style={{marginBottom:8}}>
                         <div style={{fontSize:7,fontWeight:800,color:grp.color,letterSpacing:2,marginBottom:4}}>{grp.label}</div>
                         {grp.stats.map(h=>(
@@ -2844,7 +3093,7 @@ function buildPlanText(m,d,planData){
   return out.trim();
 }
 
-function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clearPlanDay}){
+function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clearPlanDay,allData,getMI,setTask,appendTask,taskChecks,saveTaskChecks,taskSlotsMap,saveTaskSlotsMap,escalations,saveEscalations}){
   const dk=viewM+"-"+viewDay;
   const day=planData[dk]||{};
   const gotoDay=(delta)=>{
@@ -2923,10 +3172,17 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
         </div>
         <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:8,alignItems:"center",flexWrap:"wrap"}}>
           <button onClick={()=>{setViewM(TODAY_M);setViewDay(TODAY_D);}} style={{background:"none",border:"1px solid rgba(201,169,110,0.4)",color:"#c9a96e",borderRadius:12,padding:"3px 12px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>TODAY</button>
-          <button onClick={()=>{copyText(buildPlanText(viewM,viewDay,planData));setCopied(true);setTimeout(()=>setCopied(false),1800);}} style={{background:copied?"#16a34a":"rgba(201,169,110,0.15)",border:"1px solid rgba(201,169,110,0.4)",color:copied?"#fff":"#c9a96e",borderRadius:12,padding:"3px 12px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{copied?"✓ COPIED":"⧉ COPY PLAN"}</button>
+          <button onClick={()=>{copyText(buildDayText(viewM,viewDay,allData,planData));setCopied(true);setTimeout(()=>setCopied(false),1800);}} title="Copies everything for this day: Top 3, grid, notes, wins, brainstorm and timebox" style={{background:copied?"#16a34a":"rgba(201,169,110,0.15)",border:"1px solid rgba(201,169,110,0.4)",color:copied?"#fff":"#c9a96e",borderRadius:12,padding:"3px 12px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{copied?"✓ COPIED":(viewM===TODAY_M&&viewDay===TODAY_D?"⧉ COPY TODAY":"⧉ COPY DAY")}</button>
           <span style={{fontSize:8,color:"#a89e8c",fontWeight:700}}>{doneCount}/{items.length} ideas · {filled} slots</span>
         </div>
       </div>
+
+      {/* TOP 3 TASKS — the very same board as the Today tab, not a copy */}
+      <Top3Tasks allData={allData} getMI={getMI} viewM={viewM} viewDay={viewDay}
+        setTask={setTask} appendTask={appendTask}
+        taskChecks={taskChecks} saveTaskChecks={saveTaskChecks}
+        taskSlotsMap={taskSlotsMap} saveTaskSlotsMap={saveTaskSlotsMap}
+        escalations={escalations} saveEscalations={saveEscalations}/>
 
       <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         <div style={{padding:"8px 14px",background:"#fffdf8",borderBottom:"1px solid #f0e9da",display:"flex",alignItems:"center",gap:8}}>
@@ -2945,7 +3201,7 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
             <div onTouchStart={()=>bStart(idx)} onTouchMove={bMove} onTouchEnd={bEnd}
               style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",width:22,alignSelf:"stretch",cursor:"grab",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",color:"#cfc6b6",fontSize:15,lineHeight:1}} title="Drag to reorder">⠿</div>
             <button onClick={()=>updItem(it.id,{done:!it.done})} style={{flexShrink:0,marginTop:1,width:18,height:18,borderRadius:"50%",border:"2px solid "+(it.done?"#16a34a":"#d8cdb8"),background:it.done?"#16a34a":"#fff",cursor:"pointer",padding:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",lineHeight:1,touchAction:"manipulation"}}>{it.done?"✓":""}</button>
-            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} onKeyDown={e=>bHandleKey(e,it,idx)} dataBid={String(it.id)} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#c8bfaf":"#241c12",fontWeight:it.done?400:600,lineHeight:1.55,textDecoration:it.done?"line-through":"none",textDecorationColor:"rgba(170,158,138,0.45)",textDecorationThickness:"1px",padding:0,minWidth:0,transition:"color .15s"}}/>
+            <AutoTextarea value={it.text} onChange={e=>updItem(it.id,{text:e.target.value})} onKeyDown={e=>bHandleKey(e,it,idx)} dataBid={String(it.id)} placeholder="Idea..." style={{flex:1,border:"none",outline:"none",background:"none",fontSize:12,fontFamily:"'SF Mono','Courier New',monospace",color:it.done?"#cfc7b8":"#241c12",fontWeight:it.done?400:600,lineHeight:1.55,textDecoration:"none",padding:0,minWidth:0,transition:"color .15s"}}/>
             {!isTodayView&&<button onClick={()=>moveToToday(it.id)} title={"Move to today ("+M_LABEL[TODAY_M]+" "+TODAY_D+")"} style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:"#2563eb",color:"#fff",cursor:"pointer",padding:0,fontSize:13,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}>→</button>}
             <button onClick={()=>pinItem(it.id)} title="Pin to top" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,border:"none",background:it.pin?"#c9a96e":"#f3efe7",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"manipulation"}}><span style={{opacity:it.pin?1:0.4}}>🔝</span></button>
             <button onClick={()=>{if(!(it.text||"").trim()||confirm("Delete this idea?"))delItem(it.id);}} title="Delete" style={{flexShrink:0,marginTop:0,width:22,height:22,borderRadius:6,background:"none",border:"none",color:"#cfc6b6",fontSize:12,cursor:"pointer",padding:0,touchAction:"manipulation"}}>✕</button>
@@ -3571,7 +3827,8 @@ function buildWeekText(wk, allData){
     const pct=top3pct(data,d,m);
     const en=data.energy?.[d]||"·";
     const mood=data.mood?.[d]||"·";
-    const marks=TOP3.map(h=>data.grid?.[h.code]?.[d]?"✓":"✗").join(" ");
+    const _pil=isQ3Day(m,d)?Q3_PILLARS:TOP3;
+    const marks=_pil.map(h=>(h.disp||h.code)+(data.grid?.[h.code]?.[d]?"✓":"✗")).join(" ");
     const allChecked=["t1","t2","t3"].every(slot=>!!tc[m+"-"+d+"-"+slot+"-c"]);
     if(allChecked) t3FullDays++;
     out+=`  ${M_NAME[m]||m} ${d}: ${marks} [${pct}%] energy:${en} mood:${mood}${allChecked?" ✓✓✓":""}\n`;
@@ -3641,7 +3898,9 @@ function buildMonthStats(mo, allData){
   out+=`\n(Full notes + highlights + wins text lives in the Month tab export)\nend of ${mo.name} stats`;
   return out;
 }
-function buildDayText(m,d,allData){
+// One export for the whole day: everything from the Today tab AND the Plan tab.
+// Both COPY buttons (Today + Plan) call this, so they always produce the same text.
+function buildDayText(m,d,allData,planData){
   const mi=_exGMI(m);
   const data=allData[mi];
   const M={4:"APR",5:"MAY",6:"JUN",7:"JUL",8:"AUG",9:"SEP",10:"OCT"};
@@ -3667,6 +3926,19 @@ function buildDayText(m,d,allData){
   const hl=data.highlights?.[d]; if(hl?.trim()){const _hc=(_exReadLS("lifeos_v8_hlChecked")||{})[m+"-"+d];out+=`\n✨ HIGHLIGHT${_hc?" ✓":""}:\n  ${hl.trim()}\n`;}
   const mn=data.moodNotes?.[d]; if(mn?.trim()) out+=`\n〰️ MOOD SHIFT:\n  ${mn.trim()}\n`;
   const wns=data.wins?.[d]; if(wns?.trim()){ out+=`\nWINS:\n`; wns.trim().split("\n").forEach(l=>{if(l.trim())out+=`  ${l.trim()}\n`;}); }
+  // ── PLAN TAB — same day only ──
+  const pd=planData||_exReadLS("lifeos_v8_plan")||{};
+  const pday=pd[m+"-"+d]||{};
+  const bItems=(pday.brainstormItems||(pday.brainstorm?[{text:pday.brainstorm,done:false}]:[])).filter(it=>(it.text||"").trim());
+  if(bItems.length){
+    out+=`\nBRAINSTORM:\n`;
+    bItems.forEach(it=>{ out+=`  [${it.done?"x":" "}] ${it.text.trim()}\n`; });
+  }
+  const tbSlots=TIMEBOX_SLOTS.filter(s=>(pday[s.key]||"").trim());
+  if(tbSlots.length){
+    out+=`\nTIMEBOX:\n`;
+    tbSlots.forEach(s=>{ out+=`  ${s.label}  ${pday[s.key].trim()}\n`; });
+  }
   out+=`\nend of day export`;
   return out;
 }
@@ -4149,6 +4421,21 @@ function App() {
     if(Array.isArray(d)&&d.length<MONTHS_ARR.length){
       for(let i=d.length;i<MONTHS_ARR.length;i++) d.push(initMonth(MONTHS_ARR[i].days));
     }
+    // Append-only migration: months saved by an older version have no column for
+    // codes added later (PB1/PB2). Add the missing columns, never touch existing ones.
+    if(Array.isArray(d)){
+      d.forEach((mo,i)=>{
+        if(!mo||typeof mo!=="object") return;
+        if(!mo.grid) mo.grid={};
+        const days=MONTHS_ARR[i]?.days||31;
+        ALL_HATS.forEach(h=>{
+          if(!mo.grid[h.code]){
+            const col={}; for(let dd=1;dd<=days;dd++) col[dd]=null;
+            mo.grid[h.code]=col;
+          }
+        });
+      });
+    }
     return d;
   });
   const [hatCounts,setHatCounts]=useState(()=>lsGet("hatCounts", (()=>{const o={};ALL_HATS.forEach(h=>{o[h.code]=0;});return o;})()));
@@ -4166,6 +4453,57 @@ function App() {
   const [hlChecked,setHlChecked]=useState(()=>lsGet("hlChecked",{}));
   useEffect(()=>lsSet("hlChecked",hlChecked),[hlChecked]);
   const toggleHlChecked=(m,day)=>setHlChecked(p=>{const k=m+"-"+day;return{...p,[k]:!p[k]};});
+
+  // ── TOP 3 TASKS — shared state for the Today tab and the Plan tab ──
+  // Extra task slots — stored per-day so each day is independent
+  const [taskSlotsMap,setTaskSlotsMap]=useState(()=>{
+    try{const v=localStorage.getItem("lifeos_v8_taskSlots");return v?JSON.parse(v):{}}catch(e){return {};}
+  });
+  const saveTaskSlotsMap=(next)=>{setTaskSlotsMap(next);try{localStorage.setItem("lifeos_v8_taskSlots",JSON.stringify(next));}catch(e){};};
+  // ESCALATION — isolated store, keyed by task text.
+  const [escalations,setEscalations]=useState(()=>{
+    try{const v=localStorage.getItem("lifeos_escalations26");return v?JSON.parse(v):{}}catch(e){return {};}
+  });
+  const saveEscalations=(next)=>{setEscalations(next);try{localStorage.setItem("lifeos_escalations26",JSON.stringify(next));}catch(e){}};
+  const [taskChecks,setTaskChecks]=useState(()=>{
+    try{
+      const raw=localStorage.getItem("lifeos_v8_taskChecks");
+      if(!raw) return {};
+      const old=JSON.parse(raw);
+      // Migrate: detect old format keys like "5-4-c" (array of indices) → new "5-4-t1-c" (boolean)
+      let migrated=false;
+      const next={...old};
+      Object.keys(old).forEach(key=>{
+        // Old check key pattern: "m-d-c" with array value
+        const checkMatch=key.match(/^(\d+)-(\d+)-c$/);
+        if(checkMatch&&Array.isArray(old[key])){
+          const [,m,d]=checkMatch;
+          old[key].forEach(idx=>{
+            const slot="t"+(idx+1);
+            next[m+"-"+d+"-"+slot+"-c"]=true;
+          });
+          delete next[key];
+          migrated=true;
+        }
+        // Old carry key pattern: "m-d-r" with array value
+        const carryMatch=key.match(/^(\d+)-(\d+)-r$/);
+        if(carryMatch&&Array.isArray(old[key])){
+          const [,m,d]=carryMatch;
+          old[key].forEach(idx=>{
+            const slot="t"+(idx+1);
+            next[m+"-"+d+"-"+slot+"-r"]=true;
+          });
+          delete next[key];
+          migrated=true;
+        }
+      });
+      if(migrated){
+        localStorage.setItem("lifeos_v8_taskChecks",JSON.stringify(next));
+      }
+      return next;
+    }catch(e){return {};}
+  });
+  const saveTaskChecks=(next)=>{setTaskChecks(next);try{localStorage.setItem("lifeos_v8_taskChecks",JSON.stringify(next));}catch(e){}};
 
   // Day Plan (brainstorm + timeboxing) — scratch planning, persisted per day
   const [planData,setPlanData]=useState(()=>lsGet("plan",{}));
@@ -4222,7 +4560,13 @@ function App() {
 
   const getMI=m=>MONTHS_ARR.findIndex(x=>x.m===m);
   const mutData=(m,fn)=>setAllData(p=>{const c=[...p];c[getMI(m)]=fn(p[getMI(m)]);return c;});
-  const cycleCell=(code,m,day)=>mutData(m,d=>({...d,grid:{...d.grid,[code]:{...d.grid[code],[day]:nextSt(d.grid[code][day])}}}));
+  // Defensive: a HAT code added in a later quarter (PB1/PB2) has no entry in data
+  // saved by an older version. Reading d.grid[code][day] directly would throw and
+  // white-screen the app, so build the column if it is missing.
+  const cycleCell=(code,m,day)=>mutData(m,d=>{
+    const col=(d.grid&&d.grid[code])||{};
+    return {...d,grid:{...d.grid,[code]:{...col,[day]:nextSt(col[day])}}};
+  });
   const cycleEnergy=(m,day,directVal)=>{
     if(directVal!==undefined){
       mutData(m,d=>({...d,energy:{...d.energy,[day]:directVal}}));
@@ -4382,7 +4726,8 @@ function App() {
       const pct=top3pct(data,d,m);
       const en=data.energy?.[d]||"·";
       const mood=data.mood?.[d]||"·";
-      const marks=TOP3.map(h=>data.grid[h.code]?.[d]?"✓":"✗").join(" ");
+      const _pil=isQ3Day(m,d)?Q3_PILLARS:TOP3;
+      const marks=_pil.map(h=>(h.disp||h.code)+(data.grid[h.code]?.[d]?"✓":"✗")).join(" ");
       // count days where all 3 tasks were checked
       let t3checks_legacy=[];try{const v=localStorage.getItem("lifeos_v8_taskChecks");if(v){const tc=JSON.parse(v);t3checks_legacy=tc[m+"-"+d+"-c"]||[];}}catch(e){}
       const allChecked=["t1","t2","t3"].every(slot=>{
@@ -4484,7 +4829,7 @@ function App() {
     <div style={{minHeight:"100vh",background:"#f2ede6",fontFamily:"'SF Mono','Courier New',monospace",maxWidth:430,margin:"0 auto",overflow:"hidden"}}>
       <div style={{background:"#fff",borderBottom:"1px solid #e8e0d5",padding:"12px 16px 0",position:"sticky",top:0,zIndex:30,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.5</span></div>
+          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.13</span></div>
           <div style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · {wkLabel(Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1]))||"W?"}</div>
         </div>
         {/* Rotating mantra — tap for next */}
@@ -4522,10 +4867,10 @@ function App() {
 
       <div style={{position:"relative",overflow:"hidden",touchAction:"pan-y",overscrollBehaviorX:"none"}} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
         {TABS.map((t,i)=>(
-          <div key={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"16px 14px 48px",boxSizing:"border-box",minHeight:"80vh"}}>
-            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} appendTask={appendTask} setNote={setNote} setHighlight={setHighlight} setMoodNote={setMoodNote} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged} hlChecked={hlChecked} toggleHlChecked={toggleHlChecked}/> }
-            {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat}/>}
-            {t==="plan"&&<PlanPanel viewM={viewM} viewDay={viewDay} setViewDay={setViewDay} setViewM={setViewM} planData={planData} setPlanField={setPlanField} clearPlanDay={clearPlanDay}/>}
+          <div key={t} data-tab={t} style={{position:i===tabIdx?"relative":"absolute",top:0,left:0,width:"100%",transform:`translateX(${slideX(i)}%)`,transition:isDrag?"none":"transform .28s cubic-bezier(.4,0,.2,1)",willChange:"transform",padding:"16px 14px 48px",boxSizing:"border-box",minHeight:"80vh"}}>
+            {t==="today"&&<TodayPanel allData={allData} getMI={getMI} viewDay={viewDay} viewM={viewM} setViewDay={setViewDay} setViewM={setViewM} weekIdx={weekIdx} setWeekIdx={setWeekIdx} weekDays={weekDays} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTask={setTask} appendTask={appendTask} setNote={setNote} setHighlight={setHighlight} setMoodNote={setMoodNote} setWins={setWins} weekAssess={weekAssess} setAssess={setAssess} setPriority={setPriority} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} winsLogged={winsLogged} toggleWinsLogged={toggleWinsLogged} hlChecked={hlChecked} toggleHlChecked={toggleHlChecked} taskChecks={taskChecks} saveTaskChecks={saveTaskChecks} taskSlotsMap={taskSlotsMap} saveTaskSlotsMap={saveTaskSlotsMap} escalations={escalations} saveEscalations={saveEscalations} planData={planData}/> }
+            {t==="month"&&<MonthPanel monthIdx={monthIdx} setMonthIdx={setMonthIdx} allData={allData} cycleCell={cycleCell} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setTabIdx={setTabIdx} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} taskChecks={taskChecks}/>}
+            {t==="plan"&&<PlanPanel viewM={viewM} viewDay={viewDay} setViewDay={setViewDay} setViewM={setViewM} planData={planData} setPlanField={setPlanField} clearPlanDay={clearPlanDay} allData={allData} getMI={getMI} setTask={setTask} appendTask={appendTask} taskChecks={taskChecks} saveTaskChecks={saveTaskChecks} taskSlotsMap={taskSlotsMap} saveTaskSlotsMap={saveTaskSlotsMap} escalations={escalations} saveEscalations={saveEscalations}/>}
             {t==="challenge"&&<ChallengePanel/>}
             {t==="atlas"&&<AtlasPanel allData={allData} winsLogged={winsLogged} monthIdx={monthIdx} setMonthIdx={setMonthIdx} toggleExtraHat={toggleExtraHat} toggleLibHat={toggleLibHat} cycleEnergy={cycleEnergy} cycleMood={cycleMood} setHighlight={setHighlight} setMoodNote={setMoodNote} setViewDay={setViewDay} setViewM={setViewM} setWeekIdx={setWeekIdx} setTabIdx={setTabIdx}/>}
           </div>
