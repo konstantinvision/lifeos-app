@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Life OS v10.21 · DT added to Q3 TRACKING as the first column (DT, PR, MV, SM) in both the Month grid and the Today mini grid, weekly goal 1x. DT was an Extra Hat stored in extraHats, so it is now a real grid code with a one-time migration that carries old marks into the new column and leaves the originals untouched. Removed DT from Extra Hats so one code never has two stores · prev: v10.20 · Rest day now greys the HAT + task cells instead of veiling the whole row, so energy and mood keep their real colors in both grids. Mood palette separated: 6-7 quiet olive, 8-9 deep teal, 10-11 violet. FIXED: Atlas Highlights had its own mood palette and a chart scale capped at 10, so an 11 clipped off the top and colors disagreed with the grids. Now one palette everywhere, axis and legend go to 11 · prev: v10.19 · Brainstorm CHECKED box (mirrors Highlight), mood scale extended to 11 with 10-11 in violet and 8-9 teal so top days stand out, rest days (energy) dim the whole row in BOTH grids, date chip added to Notes / Mood note / Highlight / Wins so the day being filled is always visible, day + week exports now carry COMPLETED brainstorm ideas only, CLEAR DAY now names exactly what it will delete · prev: v10.18 · Gold toned down (hero glow 0.16 to 0.08, Atlas tile wash and left edge fainter), FIXED: Month stats divided by calendar days so Jul 1-5 diluted Q3 percentages, now divides by tracked days only, removed dead buildPlanText · prev: v10.17 · Visual pass 2 (all tabs): Month quarter switcher restyled as segmented pill matching the tab bar, Atlas tiles get a per-section gradient wash + colored left edge, gold radial glow added to Plan / Month / Atlas heroes, NBtn week-nav unified to soft card style. Pure styling, grids untouched · prev: v10.16 · Visual pass 1 (Today + chrome): tab bar is a segmented pill control (dark active pill, gold text), soft gold radial glow in the day hero. Pure styling, zero logic touched · prev: v10.15 · Energy-cell seam widened to 2px (matched other group borders), T% header simplified to just %, T% value font matched to T1/T2/T3 siblings with a small % sign added, FIXED: Month grid x-mark was much thicker than Today (used mk.fs=13px vs fixed 8px) -- now identical, FIXED: Q2 essentials/tracking always-white-until-done in mini grid did not match Month's always-tinted look -- mini grid now branches by quarter like Month does · prev: v10.14 · COPY button in Plan and Today now both export the FULL day (Top 3 + grid + notes + wins + brainstorm + timebox) for that exact date, Month grid day cells centered like the Today mini grid, brainstorm strike removed (faded text only, Safari drew the line too heavy), FIXED: duplicate React key on Month spillover rows (Jun 30 + Jul 1-5) · prev: v10.12 · divider after PULSE back to thin (only separates TOP 3 TASKS + PULSE from the rest), FIXED: Atlas exports showed Q2 pillars (PW/PB/PA) on Q3 days — now quarter-aware (PW/PA/MS) with code labels, removed dead essDone var · prev: v10.11 · Extra Hats regrouped BY LETTER (all D together, all M together; active codes first with a dot marker), divider after PULSE is now one square wide, end-of-grid line is thin grey, Week Priorities are 2-line textareas · prev: v10.10 · Week Priorities renamed P1-P5 with drag-to-reorder like Top 3 Tasks, Pillars stay purple when done (Q2 keeps its original green), PULSE recolored grey like Tracking, black divider lines after PULSE and at grid end (SM), TOP 3 TASKS/PULSE/group label fonts unified, Extra Hats compacted (flex-wrap, no more stretched gaps) with an "optional, not daily" note, PP/PV/PX/RS grouped and dimmed as read-only history -->
+<!-- Life OS v10.22 · Rest day reverted to greying ONLY the day-number cell, all HAT and task cells keep their normal colors again. Grid resized so the new DT column fits: cell 18 to 17px, day column 36 to 22px, and the mini grid now binds its widths to the same C / COL_DAY constants instead of hardcoded 18 / 36, so the two grids can never drift apart. Q3 grid is 351px, fits iPhone SE and up · prev: v10.21 · DT added to Q3 TRACKING as the first column (DT, PR, MV, SM) in both the Month grid and the Today mini grid, weekly goal 1x. DT was an Extra Hat stored in extraHats, so it is now a real grid code with a one-time migration that carries old marks into the new column and leaves the originals untouched. Removed DT from Extra Hats so one code never has two stores · prev: v10.20 · Rest day now greys the HAT + task cells instead of veiling the whole row, so energy and mood keep their real colors in both grids. Mood palette separated: 6-7 quiet olive, 8-9 deep teal, 10-11 violet. FIXED: Atlas Highlights had its own mood palette and a chart scale capped at 10, so an 11 clipped off the top and colors disagreed with the grids. Now one palette everywhere, axis and legend go to 11 · prev: v10.19 · Brainstorm CHECKED box (mirrors Highlight), mood scale extended to 11 with 10-11 in violet and 8-9 teal so top days stand out, rest days (energy) dim the whole row in BOTH grids, date chip added to Notes / Mood note / Highlight / Wins so the day being filled is always visible, day + week exports now carry COMPLETED brainstorm ideas only, CLEAR DAY now names exactly what it will delete · prev: v10.18 · Gold toned down (hero glow 0.16 to 0.08, Atlas tile wash and left edge fainter), FIXED: Month stats divided by calendar days so Jul 1-5 diluted Q3 percentages, now divides by tracked days only, removed dead buildPlanText · prev: v10.17 · Visual pass 2 (all tabs): Month quarter switcher restyled as segmented pill matching the tab bar, Atlas tiles get a per-section gradient wash + colored left edge, gold radial glow added to Plan / Month / Atlas heroes, NBtn week-nav unified to soft card style. Pure styling, grids untouched · prev: v10.16 · Visual pass 1 (Today + chrome): tab bar is a segmented pill control (dark active pill, gold text), soft gold radial glow in the day hero. Pure styling, zero logic touched · prev: v10.15 · Energy-cell seam widened to 2px (matched other group borders), T% header simplified to just %, T% value font matched to T1/T2/T3 siblings with a small % sign added, FIXED: Month grid x-mark was much thicker than Today (used mk.fs=13px vs fixed 8px) -- now identical, FIXED: Q2 essentials/tracking always-white-until-done in mini grid did not match Month's always-tinted look -- mini grid now branches by quarter like Month does · prev: v10.14 · COPY button in Plan and Today now both export the FULL day (Top 3 + grid + notes + wins + brainstorm + timebox) for that exact date, Month grid day cells centered like the Today mini grid, brainstorm strike removed (faded text only, Safari drew the line too heavy), FIXED: duplicate React key on Month spillover rows (Jun 30 + Jul 1-5) · prev: v10.12 · divider after PULSE back to thin (only separates TOP 3 TASKS + PULSE from the rest), FIXED: Atlas exports showed Q2 pillars (PW/PB/PA) on Q3 days — now quarter-aware (PW/PA/MS) with code labels, removed dead essDone var · prev: v10.11 · Extra Hats regrouped BY LETTER (all D together, all M together; active codes first with a dot marker), divider after PULSE is now one square wide, end-of-grid line is thin grey, Week Priorities are 2-line textareas · prev: v10.10 · Week Priorities renamed P1-P5 with drag-to-reorder like Top 3 Tasks, Pillars stay purple when done (Q2 keeps its original green), PULSE recolored grey like Tracking, black divider lines after PULSE and at grid end (SM), TOP 3 TASKS/PULSE/group label fonts unified, Extra Hats compacted (flex-wrap, no more stretched gaps) with an "optional, not daily" note, PP/PV/PX/RS grouped and dimmed as read-only history -->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -1300,9 +1300,9 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
         {/* Header row: group labels */}
         <div style={{display:"flex"}}>
-          <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",height:12}}/>
+          <div style={{width:COL_DAY,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",height:12}}/>
           {isQ3v&&(
-            <div style={{width:4*18,flexShrink:0,height:12,background:Q3_TASKC.bg,borderLeft:`2px solid ${Q3_TASKC.bdr}`,borderTop:`1px solid ${Q3_TASKC.bdr}`,borderBottom:`1px solid ${Q3_TASKC.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:Q3_TASKC.color,letterSpacing:0.5}}>TOP 3 TASKS</div>
+            <div style={{width:4*C,flexShrink:0,height:12,background:Q3_TASKC.bg,borderLeft:`2px solid ${Q3_TASKC.bdr}`,borderTop:`1px solid ${Q3_TASKC.bdr}`,borderBottom:`1px solid ${Q3_TASKC.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:Q3_TASKC.color,letterSpacing:0.5}}>TOP 3 TASKS</div>
           )}
           <div style={{width:36,flexShrink:0,height:12,background:PULSE_C.bg,borderLeft:`2px solid ${PULSE_C.bdr}`,borderTop:`1px solid ${PULSE_C.bdr}`,borderBottom:`1px solid ${PULSE_C.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:PULSE_C.color,letterSpacing:0.5,boxSizing:"border-box"}}>PULSE</div>
           <div style={{width:3,flexShrink:0,height:12,background:"#171310"}}/>
@@ -1311,26 +1311,26 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             {label:"TOP 3", cols:3, color:"#1b5e20", bg:"#e8f5e9", bdr:"#66bb6a"},
             {label:"TRACKING", cols:7, color:"#555", bg:"#f5f5f5", bdr:"#bbb"},
           ]).map((g,gi)=>(
-            <div key={gi} style={{width:g.cols*18,flexShrink:0,height:12,background:g.bg,borderLeft:`2px solid ${g.bdr}`,borderTop:`1px solid ${g.bdr}`,borderBottom:`1px solid ${g.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:g.color,letterSpacing:1,boxSizing:"border-box"}}>{g.label}</div>
+            <div key={gi} style={{width:g.cols*C,flexShrink:0,height:12,background:g.bg,borderLeft:`2px solid ${g.bdr}`,borderTop:`1px solid ${g.bdr}`,borderBottom:`1px solid ${g.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:g.color,letterSpacing:1,boxSizing:"border-box"}}>{g.label}</div>
           ))}
           <div style={{width:1,flexShrink:0,height:12,background:"#bbb"}}/>
           {!isQ3v&&<div style={{width:24,flexShrink:0,height:12,background:"#f0f0f0",borderLeft:"2px solid #ddd",borderTop:"1px solid #ddd",borderBottom:"1px solid #ddd",boxSizing:"border-box"}}/>}
         </div>
         {/* Code row */}
         <div style={{display:"flex"}}>
-          <div style={{width:36,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",borderBottom:"2px solid #ccc",height:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,color:"#bbb"}}>HAT</div>
+          <div style={{width:COL_DAY,flexShrink:0,background:"#fafafa",borderRight:"1px solid #e0e0e0",borderBottom:"2px solid #ccc",height:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,color:"#bbb"}}>HAT</div>
           {isQ3v&&[...Q3_TASK_COLS,{slot:"pct",label:"%"}].map((tc,ti)=>(
-            <div key={tc.slot} style={{width:18,flexShrink:0,height:16,background:Q3_TASKC.bg,borderLeft:`${ti===0?"2":"1"}px solid ${Q3_TASKC.bdr}${ti===0?"":"88"}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:Q3_TASKC.color}}>{tc.label}</div>
+            <div key={tc.slot} style={{width:C,flexShrink:0,height:16,background:Q3_TASKC.bg,borderLeft:`${ti===0?"2":"1"}px solid ${Q3_TASKC.bdr}${ti===0?"":"88"}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:Q3_TASKC.color}}>{tc.label}</div>
           ))}
-          <div style={{width:18,flexShrink:0,height:16,background:PULSE_C.bg,borderLeft:`2px solid ${PULSE_C.bdr}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:PULSE_C.color}}>⚡</div>
-          <div style={{width:18,flexShrink:0,height:16,background:PULSE_C.bg,borderLeft:`1px solid ${PULSE_C.bdr}88`,borderRight:`1px solid ${PULSE_C.bdr}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:PULSE_C.color}}>😊</div>
+          <div style={{width:C,flexShrink:0,height:16,background:PULSE_C.bg,borderLeft:`2px solid ${PULSE_C.bdr}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:PULSE_C.color}}>⚡</div>
+          <div style={{width:C,flexShrink:0,height:16,background:PULSE_C.bg,borderLeft:`1px solid ${PULSE_C.bdr}88`,borderRight:`1px solid ${PULSE_C.bdr}`,borderBottom:"2px solid #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:800,color:PULSE_C.color}}>😊</div>
           <div style={{width:3,flexShrink:0,height:16,background:"#171310"}}/>
           {mFlat.map((h,hi)=>{
             const sec=isQ3v?(mMeta.find(mm=>mm.h.code===h.code)?.sec):MONTH_SECTIONS.find(s=>s.hats.some(x=>x.code===h.code));
             const grp=mGroups.find(g=>hi>=g.start&&hi<=g.end);
             const isFirstInGrp=hi===(grp?grp.start:hi);
             return (
-              <div key={h.code} style={{width:18,height:16,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",background:sec?.bg||"#fff",borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"88"}`,borderBottom:"2px solid #ccc",fontSize:(h.disp||h.code).length>2?5:6,fontWeight:800,color:sec?.color||"#555"}}>{h.disp?h.disp:(h.code==="RJ2"?"R2":h.code)}</div>
+              <div key={h.code} style={{width:C,height:16,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",background:sec?.bg||"#fff",borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(sec?.bdr||"#ccc")+"88"}`,borderBottom:"2px solid #ccc",fontSize:(h.disp||h.code).length>2?5:6,fontWeight:800,color:sec?.color||"#555"}}>{h.disp?h.disp:(h.code==="RJ2"?"R2":h.code)}</div>
             );
           })}
           <div style={{width:1,flexShrink:0,height:16,background:"#bbb"}}/>
@@ -1347,17 +1347,17 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             const isRestRow=(rData?.energy?.[rday.d])==="●";
             return (
               <div key={rday.m+"-"+rday.d} style={{display:"flex",alignItems:"stretch",position:"relative",borderTop:isSel?"2px solid #c9a96e":ri>0?"1px solid #f0f0f0":"none",borderBottom:isSel?"2px solid #c9a96e":"none",background:isSel?"#fbf6ec":isToday?"#fdfaf3":"transparent",marginTop:isSel?2:0,marginBottom:isSel?2:0}}>
-                <div style={{width:36,flexShrink:0,height:20,background:isRestRow?"#eaeae8":isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                <div style={{width:COL_DAY,flexShrink:0,height:20,background:isRestRow?"#eaeae8":isSel?"#f3ede2":"#fafafa",borderRight:"1px solid #e0e0e0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
                   <span style={{fontSize:7,fontWeight:900,color:isSel?"#2a2118":isToday?"#c9a96e":"#666",lineHeight:1}}>{rday.d}</span>
                   <span style={{fontSize:5,fontWeight:700,color:isToday?"#c9a96e":"#aaa",lineHeight:1,letterSpacing:.3}}>{weekdayShort(rday.m,rday.d)}</span>
                 </div>
-                {isQ3Day(rday.m,rday.d)&&<Q3TaskCells m={rday.m} d={rday.d} taskChecks={taskChecks} colW={18} colH={20} rest={isRestRow}/>}
+                {isQ3Day(rday.m,rday.d)&&<Q3TaskCells m={rday.m} d={rday.d} taskChecks={taskChecks} colW={C} colH={20}/>}
                 {/* Energy cell — tap cycles */}
                 {(()=>{
                   const curE=rData?.energy?.[rday.d];
                   const en=ENERGY.find(e=>e.sym===curE);
                   return (
-                    <HoldCell onHold={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color:"#fafafa",borderLeft:`2px solid ${PULSE_C.bdr}`,borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                    <HoldCell onHold={()=>{const idx=curE?ENERGY.findIndex(e=>e.sym===curE):-1;const next=ENERGY[(idx+1)%ENERGY.length];cycleEnergy(rday.m,rday.d,idx===ENERGY.length-1?null:next.sym);}} style={{width:C,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:en?en.color:"#fafafa",borderLeft:`2px solid ${PULSE_C.bdr}`,borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
                       <span style={{fontSize:8,fontWeight:900,color:en?"#fff":"#ddd",lineHeight:1}}>{curE||"·"}</span>
                     </HoldCell>
                   );
@@ -1366,7 +1366,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                 {(()=>{
                   const mv=rData?.mood?.[rday.d];
                   return (
-                    <HoldCell onHold={()=>cycleMood(rday.m,rday.d,mv>=11?0:(mv||0)+1)} style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
+                    <HoldCell onHold={()=>cycleMood(rday.m,rday.d,mv>=11?0:(mv||0)+1)} style={{width:C,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:mv?moodColor(mv)+"22":"#fafafa",borderLeft:"1px solid #ddd",borderTop:"1px solid #e0e0e0",borderBottom:"1px solid #e0e0e0"}}>
                       <span style={{fontSize:7,fontWeight:900,color:mv?moodColor(mv):"#ddd",lineHeight:1}}>{mv||"·"}</span>
                     </HoldCell>
                   );
@@ -1386,13 +1386,12 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
                   const rTrk=rowIsQ3?Q3_TRACKING:TRK_ALL;
                   const goalMet=rTrk.some(t=>t.code===h.code)&&trkWeekMet(h.code,rday.m,rday.d);
                   let bg=rowIsQ3?(st?(isPillarCell?"#ddd6fe":(sec?.bg||"#f5f5f5")):"#fff"):(isPillarCell&&st?"#bbf7d0":(sec?.bg||"#f5f5f5"));
-                  // Rest day: every HAT cell goes quiet grey. Energy and mood keep their color.
-                  if(isRestRow) bg=st?"#dcdcdc":"#f0f0ef";
+
                   if(!rowIsQ3&&isPillarCell&&!st&&(rday.m<TODAY_M||(rday.m===TODAY_M&&rday.d<TODAY_D))) bg="#fecaca";
                   if(goalMet){ bg="#d4d4d4"; }
                   return (
-                    <HoldCell key={h.code} onHold={()=>cycleCell(h.code,rday.m,rday.d)} title="Tap to mark" style={{width:18,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
-                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isRestRow?(st?"#8a8a8a":"#d0d0d0"):(isPillarCell&&st?(rowIsQ3?"#6d28d9":"#15803d"):goalMet?"#666":mk.c)}}>{mk.ch}</span>
+                    <HoldCell key={h.code} onHold={()=>cycleCell(h.code,rday.m,rday.d)} title="Tap to mark" style={{width:C,height:20,flexShrink:0,boxSizing:"border-box",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:bg,borderLeft:isFirstInGrp?`2px solid ${sec?.bdr||"#ccc"}`:`1px solid ${(goalMet?"#aaa":(sec?.bdr||"#ccc")+"55")}`,borderTop:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`,borderBottom:`1px solid ${(goalMet?"#bbb":(sec?.bdr||"#ccc")+"44")}`}}>
+                      <span style={{fontSize:8,fontWeight:mk.fw,lineHeight:1,color:isPillarCell&&st?(rowIsQ3?"#6d28d9":"#15803d"):goalMet?"#666":mk.c}}>{mk.ch}</span>
                     </HoldCell>
                   );
                 })}
@@ -1703,7 +1702,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
 // ── MONTH PANEL ─────────────────────────────────────────────────────────────
 const FLAT_HATS = MONTH_SECTIONS.flatMap(s=>s.hats);
 // C = cell size px (square). No margins between cols — alignment via borders only.
-const C=18, COL_DAY=36, COL_EN=18, COL_MOOD=18, COL_PCT=24, COL_EX=24, COL_LB=24;
+const C=17, COL_DAY=22, COL_EN=17, COL_MOOD=17, COL_PCT=24, COL_EX=24, COL_LB=24;
 const GRID_COLS = `${COL_DAY}px ${COL_EN}px ${COL_MOOD}px ${FLAT_HATS.map(()=>`${C}px`).join(" ")} ${COL_PCT}px`;
 
 function moodColor(v) {
@@ -1796,12 +1795,11 @@ const Q3_TASK_COLS = [
 // Renders the T1/T2/T3/T% strip. Read-only: filled automatically from the Top 3
 // Tasks board, never tappable here. Green once done, light red until then — the
 // number (its weight: 60/20/20) always stays visible either way.
-function Q3TaskCells({m,d,taskChecks,colW,colH,rest}){
+function Q3TaskCells({m,d,taskChecks,colW,colH}){
   const done=(slot)=>!!(taskChecks[m+"-"+d+"-"+slot+"-c"]);
   const pct=top3TasksPct(m,d,taskChecks);
-  // On a rest day the task cells go quiet too. Only Pulse keeps its color.
-  const cellBg=(on)=>rest?(on?"#dcdcdc":"#f0f0ef"):(on?"#bbf7d0":"#fee2e2");
-  const cellFg=(on)=>rest?(on?"#8a8a8a":"#b8b8b8"):(on?"#15803d":"#b91c1c");
+  const cellBg=(on)=>on?"#bbf7d0":"#fee2e2";
+  const cellFg=(on)=>on?"#15803d":"#b91c1c";
   return (
     <React.Fragment>
       {Q3_TASK_COLS.map(tc=>{
@@ -1825,7 +1823,7 @@ function Q3TaskCells({m,d,taskChecks,colW,colH,rest}){
         borderLeft:`1px solid ${Q3_TASKC.bdr}88`,
         borderTop:`1px solid ${Q3_TASKC.bdr}55`,borderBottom:`1px solid ${Q3_TASKC.bdr}55`,
       }}>
-        <span style={{fontSize:8,fontWeight:900,lineHeight:1,color:rest?(pct===100?"#8a8a8a":"#b8b8b8"):(pct===100?"#065f22":"#991b1b")}}>{pct}<span style={{fontSize:5.5,fontWeight:800}}>%</span></span>
+        <span style={{fontSize:8,fontWeight:900,lineHeight:1,color:pct===100?"#065f22":"#991b1b"}}>{pct}<span style={{fontSize:5.5,fontWeight:800}}>%</span></span>
       </div>
     </React.Fragment>
   );
@@ -2169,7 +2167,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                       <span style={{fontSize:5,fontWeight:700,color:isT?"#c9a96e":"#aaa",lineHeight:1,letterSpacing:.3}}>{weekdayShort(dm,day)}</span>
                     </div>
 
-                    {isQ3&&<Q3TaskCells m={dm} d={day} taskChecks={taskChecks} colW={C} colH={C} rest={e==="●"}/>}
+                    {isQ3&&<Q3TaskCells m={dm} d={day} taskChecks={taskChecks} colW={C} colH={C}/>}
 
                     {/* Energy — filled square (matches Today) */}
                     <HoldCell onHold={()=>cycleEnergy(dm,day)} title="Tap to set" style={{
@@ -2212,8 +2210,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                       // Q2 (TOP3) keeps its original tint/red-when-past-and-missed behavior, untouched.
                       if(isPillar){ bg=st?(isQ3?"#ddd6fe":"#bbf7d0"):(isQ3?"#fff":(isPast?"#fecaca":sec.bg)); }
                       if(goalMet){ bg="#d4d4d4"; }
-                      // Rest day: HAT cells go quiet grey. Energy and mood keep their color.
-                      if(e==="●") bg=st?"#dcdcdc":"#f0f0ef";
+
                       // cell border: always visible; stronger left border at group boundary
                       const bdrLeft=isFirstInGrp?`2px solid ${sec.bdr}`:`1px solid ${goalMet?"#aaa":sec.bdr+"66"}`;
                       return (
@@ -2228,7 +2225,7 @@ function MonthPanel({monthIdx,setMonthIdx,allData,cycleCell,cycleEnergy,cycleMoo
                         }}>
                           <span style={{
                             fontSize:8,fontWeight:mk.fw,lineHeight:1,
-                            color:e==="●"?(st?"#8a8a8a":"#d0d0d0"):(isPillar&&st?(isQ3?"#6d28d9":"#15803d"):(!isQ3&&isPillar&&isPast&&!st)?"#dc2626":goalMet?"#666":mk.c),
+                            color:isPillar&&st?(isQ3?"#6d28d9":"#15803d"):(!isQ3&&isPillar&&isPast&&!st)?"#dc2626":goalMet?"#666":mk.c,
                           }}>{mk.ch}</span>
                         </HoldCell>
                       );
@@ -4866,7 +4863,7 @@ function App() {
     <div style={{minHeight:"100vh",background:"#f2ede6",fontFamily:"'SF Mono','Courier New',monospace",maxWidth:430,margin:"0 auto",overflow:"hidden"}}>
       <div style={{background:"#fff",borderBottom:"1px solid #e8e0d5",padding:"12px 16px 0",position:"sticky",top:0,zIndex:30,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.21</span></div>
+          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.22</span></div>
           <div style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · {wkLabel(Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1]))||"W?"}</div>
         </div>
         {/* Rotating mantra — tap for next */}
