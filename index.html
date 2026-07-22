@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Life OS v10.22 · Rest day reverted to greying ONLY the day-number cell, all HAT and task cells keep their normal colors again. Grid resized so the new DT column fits: cell 18 to 17px, day column 36 to 22px, and the mini grid now binds its widths to the same C / COL_DAY constants instead of hardcoded 18 / 36, so the two grids can never drift apart. Q3 grid is 351px, fits iPhone SE and up · prev: v10.21 · DT added to Q3 TRACKING as the first column (DT, PR, MV, SM) in both the Month grid and the Today mini grid, weekly goal 1x. DT was an Extra Hat stored in extraHats, so it is now a real grid code with a one-time migration that carries old marks into the new column and leaves the originals untouched. Removed DT from Extra Hats so one code never has two stores · prev: v10.20 · Rest day now greys the HAT + task cells instead of veiling the whole row, so energy and mood keep their real colors in both grids. Mood palette separated: 6-7 quiet olive, 8-9 deep teal, 10-11 violet. FIXED: Atlas Highlights had its own mood palette and a chart scale capped at 10, so an 11 clipped off the top and colors disagreed with the grids. Now one palette everywhere, axis and legend go to 11 · prev: v10.19 · Brainstorm CHECKED box (mirrors Highlight), mood scale extended to 11 with 10-11 in violet and 8-9 teal so top days stand out, rest days (energy) dim the whole row in BOTH grids, date chip added to Notes / Mood note / Highlight / Wins so the day being filled is always visible, day + week exports now carry COMPLETED brainstorm ideas only, CLEAR DAY now names exactly what it will delete · prev: v10.18 · Gold toned down (hero glow 0.16 to 0.08, Atlas tile wash and left edge fainter), FIXED: Month stats divided by calendar days so Jul 1-5 diluted Q3 percentages, now divides by tracked days only, removed dead buildPlanText · prev: v10.17 · Visual pass 2 (all tabs): Month quarter switcher restyled as segmented pill matching the tab bar, Atlas tiles get a per-section gradient wash + colored left edge, gold radial glow added to Plan / Month / Atlas heroes, NBtn week-nav unified to soft card style. Pure styling, grids untouched · prev: v10.16 · Visual pass 1 (Today + chrome): tab bar is a segmented pill control (dark active pill, gold text), soft gold radial glow in the day hero. Pure styling, zero logic touched · prev: v10.15 · Energy-cell seam widened to 2px (matched other group borders), T% header simplified to just %, T% value font matched to T1/T2/T3 siblings with a small % sign added, FIXED: Month grid x-mark was much thicker than Today (used mk.fs=13px vs fixed 8px) -- now identical, FIXED: Q2 essentials/tracking always-white-until-done in mini grid did not match Month's always-tinted look -- mini grid now branches by quarter like Month does · prev: v10.14 · COPY button in Plan and Today now both export the FULL day (Top 3 + grid + notes + wins + brainstorm + timebox) for that exact date, Month grid day cells centered like the Today mini grid, brainstorm strike removed (faded text only, Safari drew the line too heavy), FIXED: duplicate React key on Month spillover rows (Jun 30 + Jul 1-5) · prev: v10.12 · divider after PULSE back to thin (only separates TOP 3 TASKS + PULSE from the rest), FIXED: Atlas exports showed Q2 pillars (PW/PB/PA) on Q3 days — now quarter-aware (PW/PA/MS) with code labels, removed dead essDone var · prev: v10.11 · Extra Hats regrouped BY LETTER (all D together, all M together; active codes first with a dot marker), divider after PULSE is now one square wide, end-of-grid line is thin grey, Week Priorities are 2-line textareas · prev: v10.10 · Week Priorities renamed P1-P5 with drag-to-reorder like Top 3 Tasks, Pillars stay purple when done (Q2 keeps its original green), PULSE recolored grey like Tracking, black divider lines after PULSE and at grid end (SM), TOP 3 TASKS/PULSE/group label fonts unified, Extra Hats compacted (flex-wrap, no more stretched gaps) with an "optional, not daily" note, PP/PV/PX/RS grouped and dimmed as read-only history -->
+<!-- Life OS v10.27 · Deep Work session added as a 5th cell state (empty, done, boxing, deep, back) rendering as a black square in both grids, in the Extra Hats chips, in the Today legend and in the Glossary. HAT STATES legend restyled to match the ENERGY column with a description per state. Timebox removed from Plan by decision (unused); its data in lifeos_v8_plan is untouched and still exported · prev: v10.26 · Atlas Glossary added (interface words, grid states, counting rules, wins vocabulary). Notes and Mood note now start as a single line and grow only with the text, instead of reserving 70px and 40px of empty space · prev: v10.25 · Week view fixes: tapping any day now leaves the week view, all day-scoped cards (Wins, Highlight, Mood note, Notes, legend) hide while the week is open, FIXED the FINAL tick being silently dropped when the wins list was still empty, and moveToToday no longer resets the pin so a TOP-marked idea stays TOP on the day it lands on · prev: v10.24 · 8th WEEK cell in the Today day strip: narrow on purpose, opens a week view INSTEAD of the day view so nothing gets denser. Writes to lifeos_weeklyWins26, the same store Atlas uses, so it is one list seen from two screens, never a copy. Shows raw daily win notes from the same 7 days to build the list from, plus avg percent and all-3 count. Star language unified: hollow star = wins added, gold star = week is final, shown in both Today and Atlas. Atlas wins textarea now auto-grows so the whole list is visible without scrolling · prev: v10.23 · FIXED misaligned dividers in the Today mini grid: the PULSE header was still a hardcoded 36px while the two cells under it became 17+17=34 after the resize, pushing every line right of PULSE 2px out of place. Bound it to COL_EN+COL_MOOD like the Month grid. Added row-alignment guards to the width test so header and data rows must always sum equal · prev: v10.22 · Rest day reverted to greying ONLY the day-number cell, all HAT and task cells keep their normal colors again. Grid resized so the new DT column fits: cell 18 to 17px, day column 36 to 22px, and the mini grid now binds its widths to the same C / COL_DAY constants instead of hardcoded 18 / 36, so the two grids can never drift apart. Q3 grid is 351px, fits iPhone SE and up · prev: v10.21 · DT added to Q3 TRACKING as the first column (DT, PR, MV, SM) in both the Month grid and the Today mini grid, weekly goal 1x. DT was an Extra Hat stored in extraHats, so it is now a real grid code with a one-time migration that carries old marks into the new column and leaves the originals untouched. Removed DT from Extra Hats so one code never has two stores · prev: v10.20 · Rest day now greys the HAT + task cells instead of veiling the whole row, so energy and mood keep their real colors in both grids. Mood palette separated: 6-7 quiet olive, 8-9 deep teal, 10-11 violet. FIXED: Atlas Highlights had its own mood palette and a chart scale capped at 10, so an 11 clipped off the top and colors disagreed with the grids. Now one palette everywhere, axis and legend go to 11 · prev: v10.19 · Brainstorm CHECKED box (mirrors Highlight), mood scale extended to 11 with 10-11 in violet and 8-9 teal so top days stand out, rest days (energy) dim the whole row in BOTH grids, date chip added to Notes / Mood note / Highlight / Wins so the day being filled is always visible, day + week exports now carry COMPLETED brainstorm ideas only, CLEAR DAY now names exactly what it will delete · prev: v10.18 · Gold toned down (hero glow 0.16 to 0.08, Atlas tile wash and left edge fainter), FIXED: Month stats divided by calendar days so Jul 1-5 diluted Q3 percentages, now divides by tracked days only, removed dead buildPlanText · prev: v10.17 · Visual pass 2 (all tabs): Month quarter switcher restyled as segmented pill matching the tab bar, Atlas tiles get a per-section gradient wash + colored left edge, gold radial glow added to Plan / Month / Atlas heroes, NBtn week-nav unified to soft card style. Pure styling, grids untouched · prev: v10.16 · Visual pass 1 (Today + chrome): tab bar is a segmented pill control (dark active pill, gold text), soft gold radial glow in the day hero. Pure styling, zero logic touched · prev: v10.15 · Energy-cell seam widened to 2px (matched other group borders), T% header simplified to just %, T% value font matched to T1/T2/T3 siblings with a small % sign added, FIXED: Month grid x-mark was much thicker than Today (used mk.fs=13px vs fixed 8px) -- now identical, FIXED: Q2 essentials/tracking always-white-until-done in mini grid did not match Month's always-tinted look -- mini grid now branches by quarter like Month does · prev: v10.14 · COPY button in Plan and Today now both export the FULL day (Top 3 + grid + notes + wins + brainstorm + timebox) for that exact date, Month grid day cells centered like the Today mini grid, brainstorm strike removed (faded text only, Safari drew the line too heavy), FIXED: duplicate React key on Month spillover rows (Jun 30 + Jul 1-5) · prev: v10.12 · divider after PULSE back to thin (only separates TOP 3 TASKS + PULSE from the rest), FIXED: Atlas exports showed Q2 pillars (PW/PB/PA) on Q3 days — now quarter-aware (PW/PA/MS) with code labels, removed dead essDone var · prev: v10.11 · Extra Hats regrouped BY LETTER (all D together, all M together; active codes first with a dot marker), divider after PULSE is now one square wide, end-of-grid line is thin grey, Week Priorities are 2-line textareas · prev: v10.10 · Week Priorities renamed P1-P5 with drag-to-reorder like Top 3 Tasks, Pillars stay purple when done (Q2 keeps its original green), PULSE recolored grey like Tracking, black divider lines after PULSE and at grid end (SM), TOP 3 TASKS/PULSE/group label fonts unified, Extra Hats compacted (flex-wrap, no more stretched gaps) with an "optional, not daily" note, PP/PV/PX/RS grouped and dimmed as read-only history -->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -648,12 +648,13 @@ const VISION_SECTIONS = [
 const M_LABEL = { 4:"APR", 5:"MAY", 6:"JUN", 7:"JUL", 8:"AUG", 9:"SEP", 10:"OCT" };
 const DW = 22, EW = 14, CW = 19;
 
-const STATES = [null, "x", "box", "back"];
+const STATES = [null, "x", "box", "deep", "back"];
 function nextSt(cur) { return STATES[(STATES.indexOf(cur)+1)%STATES.length]; }
 function stMark(st, col) {
   if (!st)           return { ch:"·", c:"#ddd", fw:400, fs:10 };
   if (st === "x")    return { ch:"×", c:col,    fw:900, fs:13 };
   if (st === "box")  return { ch:"⊠", c:col,    fw:900, fs:12 };
+  if (st === "deep") return { ch:"■", c:"#111",  fw:900, fs:11 }; // Deep Work session
   if (st === "back") return { ch:"◀", c:col,    fw:900, fs:11 };
   return               { ch:"·", c:"#ddd", fw:400, fs:10 };
 }
@@ -711,7 +712,7 @@ function HRow({h,state,color,bg,onToggle}) {
   return (
     <button onClick={onToggle} style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:state?bg:"#fff",border:"none",borderBottom:"1px solid #f2f2f2",cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>
       <div style={{width:22,height:22,borderRadius:5,flexShrink:0,border:`2px solid ${state?color:"#ddd"}`,background:state?color+"22":"#f8f8f8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:mk.fs,color:state?color:"#ddd",fontWeight:mk.fw}}>
-        {state==="x"?"×":state==="box"?"⊠":state==="back"?"◀":""}
+        {state==="x"?"×":state==="box"?"⊠":state==="deep"?"■":state==="back"?"◀":""}
       </div>
       <div>
         <div style={{fontSize:12,fontWeight:700,color:state?"#111":"#aaa"}}>{h.code}</div>
@@ -758,7 +759,7 @@ function CompactRow({h,state,color,bg,onToggle,noBorder}) {
         display:"flex",alignItems:"center",justifyContent:"center",
         fontSize:10,color:state?color:"#ddd",fontWeight:mk.fw,
       }}>
-        {state==="x"?"×":state==="box"?"⊠":state==="back"?"◀":""}
+        {state==="x"?"×":state==="box"?"⊠":state==="deep"?"■":state==="back"?"◀":""}
       </div>
       <span style={{fontSize:10,fontWeight:700,color:state?"#111":"#aaa"}}>{h.code}</span>
       <span style={{fontSize:8,color:"#ccc",flex:1}}>{h.label}</span>
@@ -1045,6 +1046,82 @@ function Top3Tasks({allData,getMI,viewM,viewDay,setTask,appendTask,taskChecks,sa
         );
 }
 
+// ── WEEK WINS CARD (Today tab) ──────────────────────────────────────────────
+// Shows the week instead of the day. Writes to lifeos_weeklyWins26, the exact
+// same store Atlas > Weekly Wins uses, so it is one list seen from two places.
+function WeekWinsCard({w,weeklyWins,saveWeeklyWins,allData,getMI,weekDays,onClose}){
+  const key="w"+w.n, fkey="f"+w.n;
+  const [draft,setDraft]=useState(weeklyWins[key]||"");
+  const [fin,setFin]=useState(!!weeklyWins[fkey]);
+  const [saved,setSaved]=useState(false);
+  const [copied,setCopied]=useState(false);
+  const tRef=useRef(null);
+  useEffect(()=>()=>{if(tRef.current)clearTimeout(tRef.current);},[]);
+  const save=(text,isFin)=>{
+    const next={...weeklyWins};
+    const t=(text||"").trim();
+    // The FINAL tick must stick on its own. Previously it was dropped whenever the
+    // text was still empty, so ticking it before pasting the list did nothing.
+    if(t) next[key]=text; else delete next[key];
+    if(isFin) next[fkey]=true; else delete next[fkey];
+    saveWeeklyWins(next);
+    setSaved(true); if(tRef.current)clearTimeout(tRef.current);
+    tRef.current=setTimeout(()=>setSaved(false),1500);
+  };
+  // Raw daily notes from the same 7 days, so there is something to build the list from.
+  const raw=weekDays().map(({m,d})=>{
+    const wins=(allData[getMI(m)]?.wins?.[d]||"").trim();
+    return wins?{m,d,wins}:null;
+  }).filter(Boolean);
+  const days=weekDays();
+  const tc=readTaskChecksLS();
+  const avg=(()=>{let s=0,n=0;days.forEach(({m,d})=>{s+=top3TasksPct(m,d,tc);n++;});return n?Math.round(s/n):0;})();
+  const full=days.filter(({m,d})=>["t1","t2","t3"].every(sl=>tc[m+"-"+d+"-"+sl+"-c"])).length;
+  return (
+    <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
+      <div style={{padding:"9px 14px",background:"linear-gradient(135deg,#332817,#241c12)",display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:9,fontWeight:900,letterSpacing:1.5,color:"#c9a96e"}}>★ {wkLabel(w)} WINS</span>
+        <span style={{fontSize:7,color:"#a89e8c",fontWeight:700}}>{w.sm} {w.start[1]} – {w.em} {w.end[1]}</span>
+        <span style={{flex:1}}/>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#c9a96e",borderRadius:10,padding:"3px 10px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>✕ CLOSE</button>
+      </div>
+      <div style={{padding:"7px 12px",background:"#faf7f3",borderBottom:"1px solid #f0e9da",display:"flex",gap:12,alignItems:"center"}}>
+        <span style={{fontSize:7,color:"#8a7f74",fontWeight:700,letterSpacing:1}}>AVG <span style={{fontSize:11,fontWeight:900,color:avg>=60?"#15803d":"#8a7f74"}}>{avg}%</span></span>
+        <span style={{fontSize:7,color:"#8a7f74",fontWeight:700,letterSpacing:1}}>ALL 3 <span style={{fontSize:11,fontWeight:900,color:"#2a2118"}}>{full}/7</span></span>
+      </div>
+      {raw.length>0&&(
+        <div style={{padding:"8px 12px",borderBottom:"1px solid #f3efe7",background:"#fffdf8"}}>
+          <div style={{fontSize:7,fontWeight:900,letterSpacing:1.5,color:"#b0a898",marginBottom:5}}>RAW NOTES FROM THIS WEEK</div>
+          {raw.map(({m,d,wins})=>(
+            <div key={m+"-"+d} style={{display:"flex",gap:6,marginBottom:3}}>
+              <span style={{flexShrink:0,fontSize:7,fontWeight:900,color:"#c9a96e",width:26,paddingTop:1}}>{weekdayShort(m,d)} {d}</span>
+              <span style={{fontSize:10,color:"#5a5145",lineHeight:1.45,whiteSpace:"pre-wrap"}}>{wins}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{padding:12}}>
+        <textarea value={draft} onChange={e=>setDraft(e.target.value)}
+          ref={el=>{if(el){el.style.height="auto";el.style.height=Math.max(140,el.scrollHeight)+"px";}}}
+          onInput={e=>{e.target.style.height="auto";e.target.style.height=Math.max(140,e.target.scrollHeight)+"px";}}
+          placeholder={"⭐ 2026.MM.DD | HAT: what happened, result, why it matters."}
+          style={{width:"100%",boxSizing:"border-box",minHeight:140,overflow:"hidden",border:"1px solid #e6d3a8",borderRadius:10,padding:"10px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",outline:"none",resize:"vertical",lineHeight:1.6,color:"#3a2e24",background:"#fffdf9"}}/>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}>
+          <button onClick={()=>{const nf=!fin;setFin(nf);save(draft,nf);}} style={{display:"flex",alignItems:"center",gap:5,background:"none",border:"none",cursor:"pointer",padding:0,touchAction:"manipulation"}}>
+            <div style={{width:15,height:15,borderRadius:4,border:`2px solid ${fin?"#d4a017":"#c8c0b0"}`,background:fin?"#d4a017":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {fin&&<span style={{fontSize:10,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
+            </div>
+            <span style={{fontSize:8,color:fin?"#b8860b":"#9a9284",fontWeight:800,letterSpacing:1}}>WEEK LIST IS FINAL</span>
+          </button>
+          <span style={{flex:1}}/>
+          <button onClick={()=>{copyText(draft);setCopied(true);setTimeout(()=>setCopied(false),1500);}} style={{background:copied?"#16a34a":"#f2ede6",color:copied?"#fff":"#8a7f6d",border:"none",borderRadius:12,padding:"6px 12px",fontSize:8,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>{copied?"✓":"⧉ COPY"}</button>
+        </div>
+        <button onClick={()=>save(draft,fin)} onMouseDown={e=>e.preventDefault()} style={{width:"100%",marginTop:8,background:saved?"#16a34a":"#2a2118",color:"#fff",border:"none",borderRadius:10,padding:"11px",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:1,touchAction:"manipulation"}}>{saved?"✓ SAVED":"SAVE "+wkLabel(w)+" WINS"}</button>
+      </div>
+    </div>
+  );
+}
+
 function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,setWeekIdx,weekDays,cycleCell,cycleEnergy,cycleMood,setTask,appendTask,setNote,setHighlight,setMoodNote,setWins,weekAssess,setAssess,setPriority,toggleExtraHat,toggleLibHat,winsLogged,toggleWinsLogged,hlChecked,toggleHlChecked,taskChecks,saveTaskChecks,taskSlotsMap,saveTaskSlotsMap,escalations,saveEscalations,planData}) {
   const data = allData[getMI(viewM)];
   const w = Q2_WEEKS[weekIdx];
@@ -1065,6 +1142,11 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
   // with the Plan tab. Drag state lives inside Top3Tasks.
 
   const [priChecks,setPriChecks]=useState(()=>{try{const v=localStorage.getItem("lifeos_v8_priChecks");return v?JSON.parse(v):{}}catch(e){return {};}});
+  // Week wins: the SAME store Atlas uses. Not a copy, the same key, so the two
+  // screens can never disagree about what a week holds.
+  const [weekView,setWeekView]=useState(false);
+  const [weeklyWins,setWeeklyWins]=useState(readWeeklyWins);
+  const saveWeeklyWins=(next)=>{setWeeklyWins(next);try{localStorage.setItem(WEEKWINS_KEY,JSON.stringify(next));}catch(e){}};
   // Week Priorities drag-to-reorder — same pattern as Top 3 Tasks
   const prioDragIdxRef=useRef(null);
   const prioDragOverIdxRef=useRef(null);
@@ -1273,7 +1355,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             return s;
           })();
           return (
-            <button key={m+"-"+d} onClick={()=>{setViewDay(d);setViewM(m);}} style={{flex:1,background:isV?"#2a2118":"#fff",border:`1.5px solid ${isT&&!isV?"#c9a96e":"transparent"}`,borderRadius:12,padding:"5px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,position:"relative",boxShadow:isV?"0 4px 14px rgba(42,33,24,0.22)":"0 1px 5px rgba(42,33,24,0.06)",transition:"transform .12s ease"}}>
+            <button key={m+"-"+d} onClick={()=>{setViewDay(d);setViewM(m);setWeekView(false);}} style={{flex:1,background:isV?"#2a2118":"#fff",border:`1.5px solid ${isT&&!isV?"#c9a96e":"transparent"}`,borderRadius:12,padding:"5px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,position:"relative",boxShadow:isV?"0 4px 14px rgba(42,33,24,0.22)":"0 1px 5px rgba(42,33,24,0.06)",transition:"transform .12s ease"}}>
               {hasNote&&<div style={{position:"absolute",top:3,right:3,width:5,height:5,borderRadius:"50%",background:isV?"#c9a96e":"#7c3aed"}}/>}
               {isWL&&<div style={{position:"absolute",top:2,left:3,fontSize:8,lineHeight:1}}>⭐</div>}
               <div style={{fontSize:6,fontWeight:800,color:isV?"#c9a96e":isT?"#9a7b3c":"#b0a898",letterSpacing:.5}}>{weekdayShort(m,d)}</div>
@@ -1287,7 +1369,31 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
             </button>
           );
         })}
+        {/* 8th cell: the WEEK itself. Narrow on purpose so the 7 days keep their size.
+            Tapping it swaps the day view for a week summary, so nothing gets denser. */}
+        {(()=>{
+          const wkTxt=(weeklyWins["w"+w.n]||"").trim();
+          const wkFin=!!weeklyWins["f"+w.n];
+          return (
+            <button onClick={()=>setWeekView(v=>!v)} title="Week wins" style={{
+              flex:0.55,background:weekView?"#2a2118":"#fbf8f3",
+              border:`1.5px solid ${weekView?"transparent":"#e8dfd0"}`,borderRadius:12,
+              padding:"5px 2px",cursor:"pointer",textAlign:"center",fontFamily:"inherit",minWidth:0,
+              position:"relative",boxShadow:weekView?"0 4px 14px rgba(42,33,24,0.22)":"0 1px 5px rgba(42,33,24,0.06)",
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,touchAction:"manipulation",
+            }}>
+              <div style={{fontSize:6,fontWeight:800,color:weekView?"#c9a96e":"#b0a898",letterSpacing:.5}}>WEEK</div>
+              <div style={{fontSize:11,fontWeight:900,color:weekView?"#fff":"#8a7f6d",lineHeight:1}}>W{w.wn}</div>
+              <div style={{fontSize:11,lineHeight:1,color:wkFin?"#d4a017":wkTxt?"#b8860b":(weekView?"#5a5145":"#ddd6c8")}}>{wkFin?"★":wkTxt?"☆":"·"}</div>
+            </button>
+          );
+        })()}
       </div>
+      {weekView&&(
+        <WeekWinsCard w={w} weeklyWins={weeklyWins} saveWeeklyWins={saveWeeklyWins}
+          allData={allData} getMI={getMI} weekDays={weekDays} onClose={()=>setWeekView(false)}/>
+      )}
+      {!weekView&&<React.Fragment>
       {/* HAT MINI GRID — same columns, same order, same colors as the Month tab grid */}
       {(()=>{
         const isQ3v=isQ3Day(viewM,viewDay);
@@ -1304,7 +1410,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           {isQ3v&&(
             <div style={{width:4*C,flexShrink:0,height:12,background:Q3_TASKC.bg,borderLeft:`2px solid ${Q3_TASKC.bdr}`,borderTop:`1px solid ${Q3_TASKC.bdr}`,borderBottom:`1px solid ${Q3_TASKC.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:Q3_TASKC.color,letterSpacing:0.5}}>TOP 3 TASKS</div>
           )}
-          <div style={{width:36,flexShrink:0,height:12,background:PULSE_C.bg,borderLeft:`2px solid ${PULSE_C.bdr}`,borderTop:`1px solid ${PULSE_C.bdr}`,borderBottom:`1px solid ${PULSE_C.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:PULSE_C.color,letterSpacing:0.5,boxSizing:"border-box"}}>PULSE</div>
+          <div style={{width:COL_EN+COL_MOOD,flexShrink:0,height:12,background:PULSE_C.bg,borderLeft:`2px solid ${PULSE_C.bdr}`,borderTop:`1px solid ${PULSE_C.bdr}`,borderBottom:`1px solid ${PULSE_C.bdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:6,fontWeight:900,color:PULSE_C.color,letterSpacing:0.5,boxSizing:"border-box"}}>PULSE</div>
           <div style={{width:3,flexShrink:0,height:12,background:"#171310"}}/>
           {(isQ3v?mGroups.map(g=>({label:g.label,cols:g.end-g.start+1,color:g.color,bg:g.bg,bdr:g.bdr})):[
             {label:"ESS", cols:4, color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d"},
@@ -1614,7 +1720,10 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           value={curNote}
           onChange={e=>setNote(viewM,viewDay,e.target.value)}
           placeholder="One line for the day. Clears the mind before tasks start..."
-          style={{width:"100%",minHeight:70,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.5}}
+          rows={1}
+          ref={el=>{if(el){el.style.height="auto";el.style.height=Math.max(30,el.scrollHeight)+"px";}}}
+          onInput={e=>{e.target.style.height="auto";e.target.style.height=Math.max(30,e.target.scrollHeight)+"px";}}
+          style={{width:"100%",minHeight:30,overflow:"hidden",border:"none",outline:"none",resize:"none",padding:"7px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#333",background:"#fff",lineHeight:1.5,display:"block",boxSizing:"border-box"}}
         />
       </div>
 
@@ -1625,7 +1734,10 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           value={data?.moodNotes?.[viewDay]||""}
           onChange={e=>setMoodNote(viewM,viewDay,e.target.value)}
           placeholder="Only if mood moved a lot — what caused it..."
-          style={{width:"100%",minHeight:40,border:"none",outline:"none",resize:"none",padding:"8px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#334155",background:"#f8fafc",lineHeight:1.5}}
+          rows={1}
+          ref={el=>{if(el){el.style.height="auto";el.style.height=Math.max(30,el.scrollHeight)+"px";}}}
+          onInput={e=>{e.target.style.height="auto";e.target.style.height=Math.max(30,e.target.scrollHeight)+"px";}}
+          style={{width:"100%",minHeight:30,overflow:"hidden",border:"none",outline:"none",resize:"none",padding:"7px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",color:"#334155",background:"#f8fafc",lineHeight:1.5,display:"block",boxSizing:"border-box"}}
         />
       </div>
 
@@ -1671,16 +1783,15 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
       <div style={{background:"#fff",borderRadius:12,border:"none",padding:"6px 12px",boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
         <div style={{fontSize:7,color:"#bbb",letterSpacing:2,marginBottom:4}}>HAT STATES · ENERGY LEVELS</div>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-start"}}>
-          <div>
+          <div style={{flex:1}}>
             <div style={{fontSize:6,color:"#ccc",marginBottom:2}}>HAT STATES</div>
-            <div style={{display:"flex",gap:8}}>
-              {[["·","empty","#ccc"],["×","done","#1b5e20"],["⊠","boxing","#1565c0"],["◀","back","#888"]].map(([s,l,c])=>(
-                <div key={s} style={{textAlign:"center"}}>
-                  <div style={{fontSize:12,color:c,fontWeight:900}}>{s}</div>
-                  <div style={{fontSize:6,color:"#bbb"}}>{l}</div>
-                </div>
-              ))}
-            </div>
+            {[["·","empty","not tracked","#ccc"],["×","done","one session","#1b5e20"],["⊠","boxing","counts as two","#1565c0"],["■","deep","deep work session","#111"],["◀","back","logged later","#888"]].map(([sym,label,desc,c])=>(
+              <div key={sym} style={{display:"flex",gap:5,alignItems:"center",marginBottom:1}}>
+                <span style={{fontSize:10,color:c,fontWeight:900,minWidth:14}}>{sym}</span>
+                <span style={{fontSize:7,color:"#888"}}>{label}</span>
+                <span style={{fontSize:6,color:"#bbb"}}>· {desc}</span>
+              </div>
+            ))}
           </div>
           <div style={{width:1,background:"#e8e8e8",alignSelf:"stretch"}}/>
           <div style={{flex:1}}>
@@ -1695,6 +1806,7 @@ function TodayPanel({allData,getMI,viewDay,viewM,setViewDay,setViewM,weekIdx,set
           </div>
         </div>
       </div>
+      </React.Fragment>}
     </div>
   );
 }
@@ -3153,7 +3265,8 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
     const tdk=TODAY_M+"-"+TODAY_D;
     const tday=planData[tdk]||{};
     const tItems=tday.brainstormItems||(tday.brainstorm&&tday.brainstorm.trim()?[{id:1,text:tday.brainstorm,done:false}]:[]);
-    setPlanField(TODAY_M,TODAY_D,"brainstormItems",[...tItems,{id:Date.now()+Math.random(),text:it.text,done:it.done||false,pin:false}]);
+    // Carry the pin across. If it was marked TOP here, it stays TOP on the day it lands on.
+    setPlanField(TODAY_M,TODAY_D,"brainstormItems",[...tItems,{id:Date.now()+Math.random(),text:it.text,done:it.done||false,pin:it.pin||false}]);
     setPlanField(viewM,viewDay,"brainstormItems",items.filter(x=>x.id!==id));
   };
   // Drag-to-reorder (same interaction as Top 3 tasks in Today)
@@ -3224,25 +3337,6 @@ function PlanPanel({viewM,viewDay,setViewDay,setViewM,planData,setPlanField,clea
       </div>
 
       <div style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
-        <div style={{padding:"9px 14px",background:"linear-gradient(135deg,#332817,#241c12)",display:"flex",alignItems:"center",gap:8}}>
-          <span style={{width:6,height:6,borderRadius:"50%",background:"#c9a96e",boxShadow:"0 0 8px rgba(201,169,110,0.6)"}}/>
-          <span style={{fontSize:9,letterSpacing:2,color:"#fff",fontWeight:800}}>TIMEBOX · 6AM → 2AM</span>
-        </div>
-        <div>
-          {TIMEBOX_SLOTS.map((s,i)=>{
-            const val=day[s.key]||"";
-            const fr=val.trim();
-            return (
-              <div key={s.key} style={{display:"flex",alignItems:"flex-start",borderTop:i>0?"1px solid #f3f0ea":"none",background:fr?"#fbf7ef":(s.hour?"#fff":"#fcfbf9")}}>
-                <div style={{width:60,flexShrink:0,display:"flex",alignItems:"flex-start",justifyContent:"flex-end",paddingRight:9,paddingTop:10,borderRight:"1px solid "+(s.hour?"#e3d8c6":"#f0ece4")}}>
-                  <span style={{fontSize:s.hour?10:8,fontWeight:s.hour?800:500,color:s.hour?"#2a2118":"#b3aa9a",lineHeight:1,letterSpacing:0.2,fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}}>{s.label}</span>
-                </div>
-                <AutoTextarea value={val} onChange={e=>setPlanField(viewM,viewDay,s.key,e.target.value)}
-                  style={{flex:1,border:"none",outline:"none",background:"none",padding:"8px 12px",fontSize:11,fontFamily:"inherit",color:"#3a2e24",minWidth:0,lineHeight:1.5}}/>
-              </div>
-            );
-          })}
-        </div>
         <div style={{padding:"8px 12px",background:"#faf9f7",borderTop:"1px solid #f0ece4",display:"flex",justifyContent:"flex-end"}}>
           <button onClick={()=>{const nI=items.length,nS=filled;if(nI===0&&nS===0)return;if(confirm("Delete "+nI+" brainstorm idea(s) and "+nS+" timebox slot(s) for "+M_LABEL[viewM]+" "+viewDay+"?\n\nThis cannot be undone."))clearPlanDay(viewM,viewDay);}} style={{background:"none",border:"1px solid #e8ddd0",color:"#b0a594",borderRadius:10,padding:"4px 12px",fontSize:8,fontWeight:700,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>CLEAR DAY</button>
         </div>
@@ -4036,8 +4130,8 @@ function AtlasWeeklyWins({onBack}) {
               return (
                 <button key={wk.n} onClick={()=>openWeek(wk)} style={isSel?chipSel:chip}>
                   W{wk.wn}
-                  {has&&!fin&&<span style={{position:"absolute",top:3,right:5,width:6,height:6,borderRadius:"50%",background:isSel?"#c9a96e":"#b8860b"}}/>}
-                  {fin&&<span style={{position:"absolute",top:1,right:3,fontSize:8,fontWeight:900,color:isSel?"#c9a96e":"#16a34a"}}>✓</span>}
+                  {has&&!fin&&<span style={{position:"absolute",top:1,right:3,fontSize:9,fontWeight:900,color:isSel?"#c9a96e":"#b8860b"}}>☆</span>}
+                  {fin&&<span style={{position:"absolute",top:1,right:3,fontSize:9,fontWeight:900,color:isSel?"#c9a96e":"#d4a017"}}>★</span>}
                 </button>
               );
             })}
@@ -4051,7 +4145,9 @@ function AtlasWeeklyWins({onBack}) {
             <button onClick={copyWeek} style={{background:copied?"#16a34a":"#2a2118",color:copied?"#fff":"#c9a96e",border:"none",borderRadius:12,padding:"4px 12px",fontSize:7,fontWeight:800,letterSpacing:1,cursor:"pointer",fontFamily:"inherit"}}>{copied?"✓ COPIED":"⧉ COPY"}</button>
           </div>
           <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder={"⭐ 2026.MM.DD | HAT: what happened, result, why it matters.\nPaste the final list from your weekly review here."}
-            style={{width:"100%",boxSizing:"border-box",minHeight:220,border:"1px solid #e6d3a8",borderRadius:10,padding:"10px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",outline:"none",resize:"vertical",lineHeight:1.6,color:"#3a2e24",background:"#fffdf9"}}/>
+            ref={el=>{if(el){el.style.height="auto";el.style.height=Math.max(220,el.scrollHeight)+"px";}}}
+            onInput={e=>{e.target.style.height="auto";e.target.style.height=Math.max(220,e.target.scrollHeight)+"px";}}
+            style={{width:"100%",boxSizing:"border-box",minHeight:220,overflow:"hidden",border:"1px solid #e6d3a8",borderRadius:10,padding:"10px 12px",fontSize:11,fontFamily:"'SF Mono','Courier New',monospace",outline:"none",resize:"vertical",lineHeight:1.6,color:"#3a2e24",background:"#fffdf9"}}/>
           <button onClick={()=>setDraftFinal(f=>!f)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",padding:"8px 4px 2px",fontFamily:"inherit"}}>
             <div style={{width:15,height:15,borderRadius:4,border:`2px solid ${draftFinal?"#16a34a":"#c8c0b0"}`,background:draftFinal?"#16a34a":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
               {draftFinal&&<span style={{fontSize:10,color:"#fff",fontWeight:900,lineHeight:1}}>✓</span>}
@@ -4347,12 +4443,91 @@ function AtlasRoutines({onBack}) {
   );
 }
 
+// ── GLOSSARY (Atlas) ────────────────────────────────────────────────────────
+// Plain reference so the vocabulary is learnable: interface parts, grid states,
+// and the counting rules that decide what a mark means.
+function AtlasGlossary({onBack}) {
+  const GROUPS_G=[
+    {title:"INTERFACE", color:"#6d28d9", bg:"#f5f3ff", bdr:"#ddd3f5", items:[
+      ["Tab","The four main screens: Today, Plan, Month, Atlas."],
+      ["Card","A block with its own border and shadow. Top 3 Tasks, Brainstorm and Wins are cards."],
+      ["Section","A labelled group inside a card. ESSENTIALS and TRACKING are sections of the grid."],
+      ["Cell","One square you tap. A grid square, a day in the strip, the WEEK button."],
+      ["Chip","A small pill-shaped label. The date badge on a card header, a week in Atlas."],
+      ["Row","One horizontal line in the grid. One row is one day."],
+      ["Column","One vertical line in the grid. One column is one HAT code."],
+      ["Strip","The row of seven days plus the WEEK cell at the top of Today."],
+      ["Grid","The full table of days by codes. Month shows the whole month, Today shows this week."],
+      ["Mini grid","The seven-day grid inside Today. Same columns and colors as Month."],
+      ["Header","The top line of a card or grid, holding the title and the group labels."],
+      ["Placeholder","The grey example text inside an empty field. It is not saved."],
+      ["Toggle","A control with two states, like the FINAL checkbox."],
+      ["Badge / marker","A small symbol on top of something else. The star on the WEEK cell."],
+    ]},
+    {title:"GRID STATES", color:"#bf5000", bg:"#fff3e0", bdr:"#ffb74d", items:[
+      ["· empty","Not done, not tracked. The default."],
+      ["× done","Done once. One tap."],
+      ["⊠ boxing","Boxing technique: counts as TWO sessions in one day. Two taps."],
+      ["■ deep","A Deep Work session: one long block of undivided focus, phone away. Not about how many, about how deep."],
+      ["◀ back","A back entry: logged after the fact for an earlier day. PB1, PB2, RJ1 and MM never take back entries."],
+      ["Grey fill","The weekly goal for that tracking code is already met this week."],
+    ]},
+    {title:"COUNTING", color:"#0d9488", bg:"#f0fdfa", bdr:"#99f6e4", items:[
+      ["T1 · T2 · T3","The Top 3 tasks. T1 is the oldest avoided thing, T2 moves a quarter goal, T3 is life."],
+      ["Weighted score","T1 is worth 60 percent, T2 and T3 are worth 20 each. Only T1 done is still a productive day."],
+      ["Streak","Days in a row where all three tasks were done. Separate from the percentage."],
+      ["Escalated","Flagged twice in assessments. Holds T1 until it is done or killed in writing."],
+      ["Carried","Moved to another day. Three days carried makes it T1 automatically."],
+      ["Backlog","Slots 4 to 10. Ideas, not commitments. No guilt attached."],
+      ["Pillars","PW, PA, MS. Measured, not required daily."],
+      ["Essentials","The six daily codes. Counted as days out of seven."],
+      ["Tracking","DT, PR, MV, SM. Counted against a weekly target, never out of seven."],
+      ["Pulse","Energy and mood together, the two columns after the tasks."],
+    ]},
+    {title:"WINS", color:"#b8860b", bg:"#fffbeb", bdr:"#f0dfb0", items:[
+      ["Full win","⭐ with a date, HAT codes, what happened, the result and why it matters."],
+      ["Part win","▫️ a fragment of a story still in progress. No stars until the arc closes."],
+      ["Stars","⭐ a real step · ⭐⭐ a milestone · ⭐⭐⭐ life-changing · 💎 permanently changes who you are."],
+      ["Highlight","One line about what the day felt like. Wins track what was built."],
+      ["☆ vs ★","On the WEEK cell: hollow means wins are written, gold means the week is closed."],
+    ]},
+  ];
+  return (
+    <div>
+      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,background:"#f2ede6",border:"none",borderRadius:20,padding:"8px 16px 8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+        <span style={{fontSize:18,color:"#c9a96e",fontWeight:900,lineHeight:1}}>‹</span>
+        <span style={{fontSize:10,fontWeight:800,color:"#2a2118",letterSpacing:2}}>ATLAS</span>
+      </button>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:18,fontWeight:900,color:"#6d28d9",letterSpacing:-0.5}}>📖 Glossary</div>
+        <div style={{fontSize:8,color:"#b0a898",letterSpacing:2,marginTop:2}}>WHAT EVERYTHING IS CALLED</div>
+      </div>
+      {GROUPS_G.map(g=>(
+        <div key={g.title} style={{background:"#fff",borderRadius:16,border:"1px solid #f0ebe2",marginBottom:12,overflow:"hidden",boxShadow:"0 3px 16px rgba(42,33,24,0.06)"}}>
+          <div style={{padding:"9px 14px",background:g.bg,borderBottom:"1px solid "+g.bdr,display:"flex",alignItems:"center",gap:8}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:g.color}}/>
+            <span style={{fontSize:9,fontWeight:900,letterSpacing:2,color:g.color}}>{g.title}</span>
+          </div>
+          {g.items.map(([term,def])=>(
+            <div key={term} style={{padding:"8px 14px",borderTop:"1px solid #f5f2ec"}}>
+              <div style={{fontSize:10,fontWeight:900,color:"#2a2118",letterSpacing:0.3,marginBottom:2}}>{term}</div>
+              <div style={{fontSize:10,color:"#6b6154",lineHeight:1.45}}>{def}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+      <div style={{fontSize:8,color:"#b0a594",textAlign:"center",padding:"4px 0 14px",lineHeight:1.5}}>One list, one language. Use these words and any chat will know exactly what you mean.</div>
+    </div>
+  );
+}
+
 function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat, toggleLibHat, cycleEnergy, cycleMood, setHighlight, setMoodNote, setViewDay, setViewM, setWeekIdx, setTabIdx}) {
   const [section, setSection] = useState(null);
   const tiles = [
     {id:"highlights", icon:"✨", label:"Highlights\n& Mood",  color:"#c9a96e", bg:"#fdf8f0", desc:"All days · mood + highlight"},
     {id:"weekwins",   icon:"🏆", label:"Weekly\nWins",        color:"#b8860b", bg:"#fffbeb", desc:"Final lists · 26Q2 / 26Q3"},
     {id:"routines",   icon:"🔁", label:"Routines",            color:"#0369a1", bg:"#f0f9ff", desc:"Once a week · month · quarter"},
+    {id:"glossary",   icon:"📖", label:"Glossary",            color:"#6d28d9", bg:"#f5f3ff", desc:"What everything is called"},
     {id:"vision",     icon:"🎯", label:"Vision",              color:"#b8860b", bg:"#fdf8f0", desc:"Read it every morning"},
     {id:"budget",     icon:"💰", label:"Budget\n2026",        color:"#4a9d6f", bg:"#f0fdf4", desc:"Income by month"},
     {id:"jobs",       icon:"💼", label:"Job\nApplications",   color:"#0369a1", bg:"#f0f9ff", desc:"Track your applications"},
@@ -4368,6 +4543,7 @@ function AtlasPanel({allData, winsLogged, monthIdx, setMonthIdx, toggleExtraHat,
   if(section==="weekwins")   return <AtlasWeeklyWins onBack={()=>setSection(null)}/>;
   if(section==="weekexport") return <AtlasWeekExport allData={allData} winsLogged={winsLogged} onBack={()=>setSection(null)}/>;
   if(section==="routines")   return <AtlasRoutines onBack={()=>setSection(null)}/>;
+  if(section==="glossary")   return <AtlasGlossary onBack={()=>setSection(null)}/>;
   if(section==="vision")     return <AtlasVision onBack={()=>setSection(null)}/>;
   return (
     <div>
@@ -4863,7 +5039,7 @@ function App() {
     <div style={{minHeight:"100vh",background:"#f2ede6",fontFamily:"'SF Mono','Courier New',monospace",maxWidth:430,margin:"0 auto",overflow:"hidden"}}>
       <div style={{background:"#fff",borderBottom:"1px solid #e8e0d5",padding:"12px 16px 0",position:"sticky",top:0,zIndex:30,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.22</span></div>
+          <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a",letterSpacing:-1}}>26Q3 <span style={{fontSize:9,color:"#b0a898",fontWeight:400,letterSpacing:3}}>LIFE OS</span><span style={{fontSize:7,color:"#ccc",fontWeight:400,marginLeft:4}}>v10.27</span></div>
           <div style={{fontSize:10,color:"#8a7f74",fontWeight:700}}>{["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][TODAY_M-1]} {TODAY_D} · {wkLabel(Q2_WEEKS.find(w=>TODAY_M*100+TODAY_D>=w.start[0]*100+w.start[1]&&TODAY_M*100+TODAY_D<=w.end[0]*100+w.end[1]))||"W?"}</div>
         </div>
         {/* Rotating mantra — tap for next */}
